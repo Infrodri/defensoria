@@ -1,0 +1,415 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  JEFATURA
+  ABOGADO
+  PSICOLOGO
+  SOCIAL
+  SECRETARIA
+  REFERENTE_TUTOR
+}
+
+enum DocumentType {
+  CI
+  PASAPORTE
+  PARTIDA_NACIMIENTO
+  SIN_DOCUMENTO
+}
+
+enum Gender {
+  MASCULINO
+  FEMENINO
+  OTRO
+}
+
+enum CaseType {
+  DENUNCIA_VULNERACION
+  CONSUMO_SUSTANCIAS
+  VENTA_ALCOHOL
+  DERECHO_EDUCACION
+  EXTRAVIO
+  NNA_INFRACTOR
+  FISCALIZACION
+}
+
+enum Phase {
+  DERIVACION
+  EVALUACION
+  SEGUIMIENTO
+  JUDICIALIZACION
+  CIERRE
+}
+
+enum InterventionPath {
+  GESTION_ADMINISTRATIVA
+  CONCILIACION
+  VIA_JUDICIAL
+}
+
+enum RiskLevel {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum RoleInCase {
+  NNA
+  DENUNCIANTE
+  DENUNCIADO
+  TUTOR
+  TESTIGO
+}
+
+enum ActionType {
+  NOTA
+  ENTREVISTA
+  VISITA_DOMICILIARIA
+  AUDIENCIA
+  DERIVACION
+  CONTACTO_INSTITUCIONAL
+  OTRO
+}
+
+enum ReportType {
+  INFORME_SOCIAL
+  INFORME_PSICOLOGICO
+  INFORME_PSICOSOCIAL
+  INFORME_JURIDICO
+}
+
+enum ReportStatus {
+  BORRADOR
+  EMITIDO
+}
+
+enum AppointmentType {
+  ENTREVISTA
+  AUDIENCIA
+  VISITA_DOMICILIARIA
+  SEGUIMIENTO
+  OTRO
+}
+
+enum AppointmentStatus {
+  PROGRAMADA
+  COMPLETADA
+  CANCELADA
+  REPROGRAMADA
+}
+
+enum NotificationType {
+  PLAZO_LEGAL
+  RIESGO_ALTO
+  ASIGNACION
+  DERIVACION
+  GENERAL
+}
+
+enum Priority {
+  NORMAL
+  URGENTE
+  CRITICA
+}
+
+model User {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String    @unique
+  passwordHash      String
+  firstName         String
+  lastName          String
+  role              Role
+  officeId          String?   @db.Uuid
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
+
+  office                     Office?                   @relation(fields: [officeId], references: [id])
+  createdPersons             Person[]                  @relation("CreatedPersons")
+  createdCases               Case[]                    @relation("CreatedCases")
+  closedCases                Case[]                    @relation("ClosedCases")
+  createdCaseParties         CaseParty[]               @relation("CreatedCaseParties")
+  assignedCaseTeam           CaseTeamHistory[]         @relation("AssignedTeam")
+  performedAssignments       CaseTeamHistory[]         @relation("PerformedAssignments")
+  performedTransfers         CaseOfficeHistory[]       @relation("TransferredOffice")
+  performedPathChanges       InterventionPathHistory[] @relation("PathChangedBy")
+  authoredActions            ActionLog[]               @relation("ActionAuthor")
+  authoredReports            Report[]                  @relation("ReportAuthor")
+  uploadedEvidences          Evidence[]                @relation("EvidenceUploader")
+  createdAppointments        Appointment[]             @relation("CreatedAppointments")
+  notifications              Notification[]            @relation("UserNotifications")
+  escalatedNotifications     Notification[]            @relation("EscalatedNotifications")
+  auditLogs                  AuditLog[]
+
+  @@map("users")
+}
+
+model Office {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  users            User[]
+  currentCases     Case[]              @relation("CurrentOfficeCases")
+  officeHistories  CaseOfficeHistory[]
+
+  @@map("offices")
+}
+
+model Person {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentType   DocumentType @default(SIN_DOCUMENTO)
+  documentNumber String?
+  firstName      String
+  lastName       String
+  birthDate      DateTime?    @db.Date
+  gender         Gender       @default(OTRO)
+  phone          String?
+  address        String?
+  notes          String?
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  createdBy      String       @db.Uuid
+
+  creator     User        @relation("CreatedPersons", fields: [createdBy], references: [id])
+  caseParties CaseParty[]
+
+  @@map("persons")
+}
+
+model Case {
+  id                      String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseCode                String           @unique
+  caseType                CaseType
+  currentPhase            Phase            @default(DERIVACION)
+  currentInterventionPath InterventionPath @default(GESTION_ADMINISTRATIVA)
+  riskLevel               RiskLevel?
+  intakeNarrative         String
+  isClosed                Boolean          @default(false)
+  closedAt                DateTime?        @db.Timestamptz(6)
+  closedBy                String?          @db.Uuid
+  closureReason           String?
+  currentOfficeId         String           @db.Uuid
+  createdAt               DateTime         @default(now()) @db.Timestamptz(6)
+  createdBy               String           @db.Uuid
+  updatedAt               DateTime         @updatedAt @db.Timestamptz(6)
+
+  creator               User                      @relation("CreatedCases", fields: [createdBy], references: [id])
+  closer                User?                     @relation("ClosedCases", fields: [closedBy], references: [id])
+  currentOffice         Office                    @relation("CurrentOfficeCases", fields: [currentOfficeId], references: [id])
+  parties               CaseParty[]
+  teamHistory           CaseTeamHistory[]
+  officeHistory         CaseOfficeHistory[]
+  pathHistory           InterventionPathHistory[]
+  actionLogs            ActionLog[]
+  reports               Report[]
+  evidences             Evidence[]
+  appointments          Appointment[]
+  notifications         Notification[]
+
+  @@index([currentPhase])
+  @@index([riskLevel])
+  @@index([isClosed])
+  @@index([currentOfficeId])
+  @@map("cases")
+}
+
+model CaseParty {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String     @db.Uuid
+  personId    String     @db.Uuid
+  roleInCase  RoleInCase
+  isPrimary   Boolean    @default(false)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  createdBy   String     @db.Uuid
+
+  case    Case   @relation(fields: [caseId], references: [id])
+  person  Person @relation(fields: [personId], references: [id])
+  creator User   @relation("CreatedCaseParties", fields: [createdBy], references: [id])
+
+  @@unique([caseId, personId, roleInCase])
+  @@map("case_parties")
+}
+
+model CaseTeamHistory {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String    @db.Uuid
+  userId      String    @db.Uuid
+  role        Role
+  startDate   DateTime  @default(now()) @db.Timestamptz(6)
+  endDate     DateTime? @db.Timestamptz(6)
+  reason      String
+  assignedBy  String    @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+
+  case     Case @relation(fields: [caseId], references: [id])
+  user     User @relation("AssignedTeam", fields: [userId], references: [id])
+  assigner User @relation("PerformedAssignments", fields: [assignedBy], references: [id])
+
+  @@index([caseId, endDate])
+  @@map("case_team_histories")
+}
+
+model CaseOfficeHistory {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId        String    @db.Uuid
+  officeId      String    @db.Uuid
+  startDate     DateTime  @default(now()) @db.Timestamptz(6)
+  endDate       DateTime? @db.Timestamptz(6)
+  reason        String
+  transferredBy String    @db.Uuid
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+
+  case        Case   @relation(fields: [caseId], references: [id])
+  office      Office @relation(fields: [officeId], references: [id])
+  transferrer User   @relation("TransferredOffice", fields: [transferredBy], references: [id])
+
+  @@map("case_office_histories")
+}
+
+model InterventionPathHistory {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId    String           @db.Uuid
+  path      InterventionPath
+  startDate DateTime         @default(now()) @db.Timestamptz(6)
+  endDate   DateTime?        @db.Timestamptz(6)
+  reason    String
+  changedBy String           @db.Uuid
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+
+  case    Case @relation(fields: [caseId], references: [id])
+  changer User @relation("PathChangedBy", fields: [changedBy], references: [id])
+
+  @@map("intervention_path_histories")
+}
+
+model ActionLog {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId     String     @db.Uuid
+  authorId   String     @db.Uuid
+  actionType ActionType
+  title      String
+  content    String
+  isSigned   Boolean    @default(false)
+  signedAt   DateTime?  @db.Timestamptz(6)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(6)
+
+  case   Case @relation(fields: [caseId], references: [id])
+  author User @relation("ActionAuthor", fields: [authorId], references: [id])
+
+  @@map("action_logs")
+}
+
+model Report {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId         String       @db.Uuid
+  authorId       String       @db.Uuid
+  reportType     ReportType
+  version        Int          @default(1)
+  parentReportId String?      @db.Uuid
+  title          String
+  content        String
+  riskAssessment RiskLevel?
+  status         ReportStatus @default(BORRADOR)
+  emittedAt      DateTime?    @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+
+  case         Case     @relation(fields: [caseId], references: [id])
+  author       User     @relation("ReportAuthor", fields: [authorId], references: [id])
+  parentReport Report?  @relation("ComplementaryReports", fields: [parentReportId], references: [id])
+  children     Report[] @relation("ComplementaryReports")
+
+  @@map("reports")
+}
+
+model Evidence {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String   @db.Uuid
+  uploadedBy  String   @db.Uuid
+  fileName    String
+  mimeType    String
+  fileSize    Int
+  storagePath String
+  fileHash    String
+  isSensitive Boolean  @default(false)
+  description String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  case     Case @relation(fields: [caseId], references: [id])
+  uploader User @relation("EvidenceUploader", fields: [uploadedBy], references: [id])
+
+  @@map("evidences")
+}
+
+model Appointment {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId          String            @db.Uuid
+  title           String
+  description     String?
+  appointmentType AppointmentType
+  scheduledAt     DateTime          @db.Timestamptz(6)
+  endAt           DateTime?         @db.Timestamptz(6)
+  location        String?
+  status          AppointmentStatus @default(PROGRAMADA)
+  createdBy       String            @db.Uuid
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
+
+  case    Case @relation(fields: [caseId], references: [id])
+  creator User @relation("CreatedAppointments", fields: [createdBy], references: [id])
+
+  @@map("appointments")
+}
+
+model Notification {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String           @db.Uuid
+  caseId       String?          @db.Uuid
+  type         NotificationType
+  title        String
+  message      String
+  isRead       Boolean          @default(false)
+  readAt       DateTime?        @db.Timestamptz(6)
+  priority     Priority         @default(NORMAL)
+  expiresAt    DateTime?        @db.Timestamptz(6)
+  escalatedTo  String?          @db.Uuid
+  escalatedAt  DateTime?        @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+
+  user      User  @relation("UserNotifications", fields: [userId], references: [id])
+  case      Case? @relation(fields: [caseId], references: [id])
+  escalator User? @relation("EscalatedNotifications", fields: [escalatedTo], references: [id])
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     String   @db.Uuid
+  userRole   String
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

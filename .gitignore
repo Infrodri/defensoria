@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+.next/
+out/
+build/
+.turbo/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.development
+.env.staging
+.env.production
+.env.test
+.env.vercel
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Testing
+coverage/
+
+# Misc
+.cache/
+tmp/
+temp/
+
+# Uploads / Evidence storage
+apps/api/uploads/
+
+# References (with their own .git)
+references/
+
+# Kiro local settings
+.kiro/
+
+# Playwright MCP output
+.playwright-mcp/
+
+# OpenCode sessions
+.opencode/
+
+# ATL cache
+.atl/
+
+# MinIO data (local dev)
+minio-data/

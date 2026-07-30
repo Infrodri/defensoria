@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: defensoria_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-defensoria_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_prod}
+      POSTGRES_DB: ${POSTGRES_DB:-defensoria_prod_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+      PGCLIENTENCODING: UTF8
+      LC_ALL: C.UTF-8
+    ports:
+      - "5432:5432"
+    volumes:
+      - defensoria_pgdata_prod:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    container_name: defensoria_minio_prod
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_prod_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_minio_pass_in_prod}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - defensoria_miniodata_prod:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: defensoria_api_prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      DATABASE_URL: postgresql://${POSTGRES_USER:-defensoria_prod}:${POSTGRES_PASSWORD:-change_me_in_prod}@postgres:5432/${POSTGRES_DB:-defensoria_prod_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-prod_jwt_secret_change_me}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_prod_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change_minio_pass_in_prod}
+    ports:
+      - "4100:4100"
+    depends_on:
+      - postgres
+      - minio
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: defensoria_web_prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4100}
+    ports:
+      - "3100:3100"
+    depends_on:
+      - api
+
+volumes:
+  defensoria_pgdata_prod:
+  defensoria_miniodata_prod:
