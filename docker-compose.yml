@@ -11,7 +11,7 @@ services:
       PGCLIENTENCODING: UTF8
       LC_ALL: C.UTF-8
     ports:
-      - "5434:5432"
+      - "5435:5432"
     volumes:
       - defensoria_pgdata_dev:/var/lib/postgresql/data
 

@@ -24,7 +24,7 @@ This sub-phase establishes the foundation of the monorepo, database schema, and 
 - [x] Initialize Turborepo monorepo with standard structure (`apps/web`, `apps/api`, `packages/shared`, `packages/db`).
 - [x] Setup NestJS 11 boilerplate in `apps/api` with Swagger and Dockerfile.
 - [x] Define PostgreSQL 16 schema utilizing Prisma in `packages/db`: `users`, `offices`, `persons`, `cases`, `case_party`, `case_team_history`, `case_office_history`, `intervention_path_history`, `action_logs`, `reports`, `evidences`, `appointments`, `notifications`, `audit_log`.
-- [x] Configure Docker Compose for local development (`docker-compose.yml`: PostgreSQL 16 on port 5434 + MinIO on ports 9000/9001) and production (`docker-compose.prod.yml`).
+- [x] Configure Docker Compose for local development (`docker-compose.yml`: PostgreSQL 16 on port 5435 + MinIO on ports 9000/9001) and production (`docker-compose.prod.yml`).
 - [x] Create `@defensoria/shared` package exporting domain enums and Zod validation schemas.
 - [x] Scaffold Next.js 16 (App Router) in `apps/web` with standalone Dockerfile.
 - [x] Implement the DNA Design System base:

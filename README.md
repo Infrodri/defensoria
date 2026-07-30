@@ -48,7 +48,7 @@ defensoria/
 **Puertos en desarrollo:**
 - Frontend: `3100`
 - Backend: `4100`
-- PostgreSQL: `5434` (host)
+- PostgreSQL: `5435` (host)
 - MinIO: `9000` / `9001`
 
 ## 5. Inicio rápido

@@ -16,7 +16,7 @@
 ### 3. Puertos de Desarrollo
 - Frontend: 3100
 - Backend: 4100  
-- PostgreSQL: 5434 (host) → 5432 (container)
+- PostgreSQL: 5435 (host) → 5432 (container)
 - MinIO API: 9000
 - MinIO Console: 9001
 

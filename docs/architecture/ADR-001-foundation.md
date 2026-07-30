@@ -63,7 +63,7 @@ graph TD
 - **Status**: Accepted
 - **Date**: 2026-07-30
 - **Context**: A relational database is needed to store highly structured data with strict integrity requirements.
-- **Decision**: Use PostgreSQL 16, running in Docker for development (port 5434).
+- **Decision**: Use PostgreSQL 16, running in Docker for development (port 5435).
 - **Rationale**: Chosen for improved Row-Level Security (RLS) performance, better JSON operations, and `MERGE` statement support. Port 5434 prevents collision with existing projects.
 - **Consequences**: Requires Postgres-specific knowledge, but offers robust security and advanced relational features.
 
@@ -124,13 +124,14 @@ sequenceDiagram
     API-->>Client: Response
 ```
 
-## ADR-012: Vitest for testing
+## ADR-012: Vitest and Playwright for testing
 - **Status**: Accepted
 - **Date**: 2026-07-30
-- **Context**: A testing framework is required for unit and integration tests.
-- **Decision**: Use Vitest for unit/integration testing and Playwright for E2E testing.
-- **Rationale**: Vitest is faster than Jest, has native ESM support, and shares a nearly identical API. TypeScript type-checking will be handled via `tsc --noEmit`.
-- **Consequences**: Modern, fast testing experience, though some legacy Jest-specific plugins may not be compatible.
+- **Context**: A testing framework is required for unit, integration, and End-to-End (E2E) browser verification.
+- **Decision**: Use Vitest for unit/integration testing and `@playwright/test` for E2E testing in `apps/web` with automated HTML reporting and trace recording.
+- **Rationale**: Vitest provides fast unit testing in NestJS and React. Playwright validates role-based UI flows (`apps/web/e2e`). Cloudflare Tunnel (`cloudflared`) is authorized exclusively in dev mode for temporary HTTPS preview of mock/synthetic data.
+- **Consequences**: Ensures comprehensive test coverage at both API unit level and full browser interaction level.
+
 
 ## ADR-013: Zod for shared validation
 - **Status**: Accepted
