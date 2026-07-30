@@ -4,7 +4,9 @@ import React, { useEffect, useState, use } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { PhaseRail } from '@/components/cases/phase-rail';
-import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import { ReportEditor } from '@/components/reports/report-editor';
+import { EvidenceGallery } from '@/components/evidences/evidence-gallery';
+import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin, ShieldAlert, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CasoDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,10 +15,12 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const [caseData, setCaseData] = useState<any | null>(null);
   const [actionLogs, setActionLogs] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [evidences, setEvidences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'agenda' | 'narrativa'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'informes' | 'evidencias' | 'agenda' | 'narrativa'>('resumen');
 
-  // Assignment Form State
+  // Assignment State
   const [assignUserId, setAssignUserId] = useState('');
   const [assignRole, setAssignRole] = useState<'ABOGADO' | 'PSICOLOGO' | 'SOCIAL'>('ABOGADO');
   const [assignReason, setAssignReason] = useState('');
@@ -37,14 +41,18 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
 
   const loadCaseDetails = async () => {
     try {
-      const [cData, logs, apps] = await Promise.all([
+      const [cData, logs, apps, reps, evs] = await Promise.all([
         fetchApi(`/cases/${caseId}`),
         fetchApi(`/action-logs/case/${caseId}`).catch(() => []),
         fetchApi(`/appointments/case/${caseId}`).catch(() => []),
+        fetchApi(`/reports/case/${caseId}`).catch(() => []),
+        fetchApi(`/evidences/case/${caseId}`).catch(() => []),
       ]);
       setCaseData(cData);
       setActionLogs(logs);
       setAppointments(apps);
+      setReports(reps);
+      setEvidences(evs);
     } catch (err) {
       setCaseData(null);
     } finally {
@@ -184,6 +192,11 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
               <span style={{ backgroundColor: 'oklch(0.95 0.03 65)', color: 'var(--tierra-calida)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 700 }}>
                 {caseData.currentInterventionPath}
               </span>
+              {caseData.riskLevel && (
+                <span style={{ backgroundColor: caseData.riskLevel === 'ALTO' ? 'var(--riesgo-alto)' : 'var(--salvia)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 700 }}>
+                  Riesgo {caseData.riskLevel}
+                </span>
+              )}
             </div>
             <p style={{ fontSize: '1.125rem', color: 'var(--grafito)', marginTop: '0.25rem' }}>
               NNA Titular: <strong>{primaryNna ? `${primaryNna.firstName} ${primaryNna.lastName}` : 'No registrado'}</strong>
@@ -203,7 +216,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('resumen')}
           style={{
@@ -235,6 +248,36 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
         </button>
 
         <button
+          onClick={() => setActiveTab('informes')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderBottom: activeTab === 'informes' ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            fontWeight: activeTab === 'informes' ? 700 : 500,
+            color: activeTab === 'informes' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+            cursor: 'pointer',
+          }}
+        >
+          Informes Profesionales ({reports.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('evidencias')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderBottom: activeTab === 'evidencias' ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            fontWeight: activeTab === 'evidencias' ? 700 : 500,
+            color: activeTab === 'evidencias' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+            cursor: 'pointer',
+          }}
+        >
+          Evidencias & Cadena de Custodia ({evidences.length})
+        </button>
+
+        <button
           onClick={() => setActiveTab('bitacora')}
           style={{
             padding: '0.75rem 1.25rem',
@@ -261,22 +304,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             cursor: 'pointer',
           }}
         >
-          Agenda del Caso ({appointments.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('narrativa')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            border: 'none',
-            borderBottom: activeTab === 'narrativa' ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            fontWeight: activeTab === 'narrativa' ? 700 : 500,
-            color: activeTab === 'narrativa' ? 'var(--bosque-profundo)' : 'var(--grafito)',
-            cursor: 'pointer',
-          }}
-        >
-          Narrativa de Denuncia
+          Agenda ({appointments.length})
         </button>
       </div>
 
@@ -338,6 +366,24 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB CONTENT: Informes Profesionales */}
+      {activeTab === 'informes' && (
+        <ReportEditor
+          caseId={caseId}
+          reports={reports}
+          onReportUpdated={loadCaseDetails}
+        />
+      )}
+
+      {/* TAB CONTENT: Evidencias & MinIO */}
+      {activeTab === 'evidencias' && (
+        <EvidenceGallery
+          caseId={caseId}
+          evidences={evidences}
+          onEvidenceUploaded={loadCaseDetails}
+        />
       )}
 
       {/* TAB CONTENT: Equipo Interdisciplinario */}
@@ -641,7 +687,6 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
 
-          {/* New Appointment Form */}
           <form onSubmit={handleCreateAppointment} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
               Programar Cita u Audiencia
@@ -713,18 +758,6 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {/* TAB CONTENT: Narrativa */}
-      {activeTab === 'narrativa' && (
-        <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
-            Hechos e Ingesta de Denuncia Inicial
-          </h3>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.95rem', padding: '1rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-            {caseData.intakeNarrative}
-          </div>
         </div>
       )}
     </div>
