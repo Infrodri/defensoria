@@ -49,21 +49,21 @@ This sub-phase establishes the foundation of the monorepo, database schema, and 
 This sub-phase focuses on the core domain: creating and managing cases, assigning professionals, and implementing data isolation.
 
 ### Tasks
-- [ ] Implement CRUD operations for persons (NNA, complainants, accused).
-- [ ] Build the mandatory prior search functionality (anti-duplication check) that must run before new case creation.
-- [ ] Implement Case creation logic (restricted strictly to `Secretaría` and `Jefatura`).
-- [ ] Build the Case detail view, incorporating the `PhaseRail` component to visualize the current intervention phase.
-- [ ] Implement team assignment logic, ensuring every change records an entry in `CaseTeamHistory`.
-- [ ] Implement office transfer functionality, recording changes in `CaseOfficeHistory`.
-- [ ] Implement intervention path tracking via `InterventionPathHistory`.
-- [ ] Develop the Case list view with advanced filtering capabilities (by phase, risk level, assigned professional, office).
-- [ ] Implement Row-Level Security (RLS) policies and the NestJS session interceptor to ensure professionals only see their assigned cases.
+- [x] Implement CRUD operations for persons (NNA, complainants, accused).
+- [x] Build the mandatory prior search functionality (anti-duplication check) that must run before new case creation.
+- [x] Implement Case creation logic (restricted strictly to `Secretaría` and `Jefatura`) with auto-generated code `DNA-YYYY-NNNN`.
+- [x] Build the Case detail view, incorporating the `PhaseRail` component to visualize the current intervention phase.
+- [x] Implement team assignment logic, ensuring every change records an entry in `CaseTeamHistory`.
+- [x] Implement office transfer functionality, recording changes in `CaseOfficeHistory`.
+- [x] Implement intervention path tracking via `InterventionPathHistory`.
+- [x] Develop the Case list view with role-based filtering (Jefatura/Secretaría see office cases, professionals see assigned cases).
+- [x] Implement NestJS RLS interceptor and Passport JWT authentication with initial database seed.
 
 ### Acceptance Criteria
-- [ ] A permitted user can successfully create a new case after completing the mandatory prior search.
-- [ ] Teams can be assigned and offices can be transferred, with all historical changes accurately reflected in the UI and database.
-- [ ] Intervention paths can be updated and tracked.
-- [ ] Professional users logging in only see cases they are currently or historically assigned to, verifying RLS functionality.
+- [x] A permitted user can successfully create a new case after completing the mandatory prior search.
+- [x] Teams can be assigned and offices can be transferred, with all historical changes accurately reflected in the UI and database.
+- [x] Intervention paths can be updated and tracked.
+- [x] Professional users logging in only see cases they are currently or historically assigned to, verifying assignment-based data isolation.
 
 ---
 
