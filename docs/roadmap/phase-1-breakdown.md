@@ -74,17 +74,17 @@ This sub-phase focuses on the core domain: creating and managing cases, assignin
 This sub-phase adds operational tools necessary for day-to-day work on cases.
 
 ### Tasks
-- [ ] Develop the appointment/agenda module, ensuring appointments are tied directly to cases, not just individual professionals.
-- [ ] Implement the action log (bitácora) module:
+- [x] Develop the appointment/agenda module, ensuring appointments are tied directly to cases, not just individual professionals.
+- [x] Implement the action log (bitácora) module:
   - Must be strictly append-only.
   - Implement a "sign to lock" feature for entries.
-- [ ] Create a basic Audit view dashboard accessible only by `Jefatura`.
-- [ ] Implement in-app notifications to alert professionals and Jefatura of impending legal deadlines.
-- [ ] Implement auto-save functionality for form drafts using `localStorage` to provide connectivity resilience for users working on long inputs.
+- [x] Create a basic Audit view dashboard accessible only by `Jefatura`.
+- [x] Implement in-app notifications to alert professionals and Jefatura of impending legal deadlines.
+- [x] Implement auto-save functionality for form drafts using `localStorage` to provide connectivity resilience for users working on long inputs.
 
 ### Acceptance Criteria
-- [ ] Users can successfully schedule an appointment linked to a specific case.
-- [ ] Users can add entries to the action log and mathematically/logically sign them, preventing future edits.
-- [ ] `Jefatura` can view a structured audit trail of system activities.
-- [ ] Deadline notifications appear reliably in the UI for the relevant assigned professionals.
-- [ ] Form data is recovered automatically after a simulated page reload or browser crash during data entry.
+- [x] Users can successfully schedule an appointment linked to a specific case.
+- [x] Users can add entries to the action log and mathematically/logically sign them, preventing future edits.
+- [x] `Jefatura` can view a structured audit trail of system activities.
+- [x] Deadline notifications appear reliably in the UI for the relevant assigned professionals.
+- [x] Form data is recovered automatically after a simulated page reload or browser crash during data entry.

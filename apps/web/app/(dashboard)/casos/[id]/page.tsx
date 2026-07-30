@@ -4,27 +4,56 @@ import React, { useEffect, useState, use } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { PhaseRail } from '@/components/cases/phase-rail';
-import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft } from 'lucide-react';
+import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CasoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
   const { user } = useAuth();
   const [caseData, setCaseData] = useState<any | null>(null);
+  const [actionLogs, setActionLogs] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'narrativa'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'agenda' | 'narrativa'>('resumen');
 
-  // Assignment State
+  // Assignment Form State
   const [assignUserId, setAssignUserId] = useState('');
   const [assignRole, setAssignRole] = useState<'ABOGADO' | 'PSICOLOGO' | 'SOCIAL'>('ABOGADO');
   const [assignReason, setAssignReason] = useState('');
   const [assigning, setAssigning] = useState(false);
 
+  // New Action Log State
+  const [logTitle, setLogTitle] = useState('');
+  const [logContent, setLogContent] = useState('');
+  const [logType, setLogType] = useState('ENTREVISTA');
+  const [submittingLog, setSubmittingLog] = useState(false);
+
+  // New Appointment State
+  const [appTitle, setAppTitle] = useState('');
+  const [appType, setAppType] = useState('ENTREVISTA');
+  const [appScheduledAt, setAppScheduledAt] = useState('');
+  const [appLocation, setAppLocation] = useState('');
+  const [submittingApp, setSubmittingApp] = useState(false);
+
+  const loadCaseDetails = async () => {
+    try {
+      const [cData, logs, apps] = await Promise.all([
+        fetchApi(`/cases/${caseId}`),
+        fetchApi(`/action-logs/case/${caseId}`).catch(() => []),
+        fetchApi(`/appointments/case/${caseId}`).catch(() => []),
+      ]);
+      setCaseData(cData);
+      setActionLogs(logs);
+      setAppointments(apps);
+    } catch (err) {
+      setCaseData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchApi(`/cases/${caseId}`)
-      .then((data) => setCaseData(data))
-      .catch(() => setCaseData(null))
-      .finally(() => setLoading(false));
+    loadCaseDetails();
   }, [caseId]);
 
   const handleAssignTeam = async (e: React.FormEvent) => {
@@ -42,15 +71,83 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
         }),
       });
 
-      // Reload case data
-      const updated = await fetchApi(`/cases/${caseId}`);
-      setCaseData(updated);
+      await loadCaseDetails();
       setAssignReason('');
       alert('Profesional asignado correctamente al equipo del caso.');
     } catch (err: any) {
       alert(err.message || 'Error al asignar profesional');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleCreateActionLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!logTitle.trim() || !logContent.trim()) return;
+
+    setSubmittingLog(true);
+    try {
+      await fetchApi('/action-logs', {
+        method: 'POST',
+        body: JSON.stringify({
+          caseId,
+          actionType: logType,
+          title: logTitle,
+          content: logContent,
+        }),
+      });
+
+      const updatedLogs = await fetchApi(`/action-logs/case/${caseId}`);
+      setActionLogs(updatedLogs);
+      setLogTitle('');
+      setLogContent('');
+    } catch (err: any) {
+      alert(err.message || 'Error al registrar actuación');
+    } finally {
+      setSubmittingLog(false);
+    }
+  };
+
+  const handleSignActionLog = async (logId: string) => {
+    if (!confirm('¿Desea firmar inmutablemente esta actuación? Una vez firmada no podrá ser modificada ni eliminada.')) {
+      return;
+    }
+
+    try {
+      await fetchApi(`/action-logs/${logId}/sign`, { method: 'POST' });
+      const updatedLogs = await fetchApi(`/action-logs/case/${caseId}`);
+      setActionLogs(updatedLogs);
+    } catch (err: any) {
+      alert(err.message || 'Error al firmar actuación');
+    }
+  };
+
+  const handleCreateAppointment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appTitle.trim() || !appScheduledAt) return;
+
+    setSubmittingApp(true);
+    try {
+      await fetchApi('/appointments', {
+        method: 'POST',
+        body: JSON.stringify({
+          caseId,
+          title: appTitle,
+          appointmentType: appType,
+          scheduledAt: appScheduledAt,
+          location: appLocation || undefined,
+        }),
+      });
+
+      const updatedApps = await fetchApi(`/appointments/case/${caseId}`);
+      setAppointments(updatedApps);
+      setAppTitle('');
+      setAppScheduledAt('');
+      setAppLocation('');
+    } catch (err: any) {
+      alert(err.message || 'Error al programar cita');
+    } finally {
+      setSubmittingApp(false);
     }
   };
 
@@ -135,6 +232,36 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
           }}
         >
           Equipo Interdisciplinario ({caseData.teamHistory?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('bitacora')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderBottom: activeTab === 'bitacora' ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            fontWeight: activeTab === 'bitacora' ? 700 : 500,
+            color: activeTab === 'bitacora' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+            cursor: 'pointer',
+          }}
+        >
+          Bitácora / Actuaciones ({actionLogs.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('agenda')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderBottom: activeTab === 'agenda' ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            fontWeight: activeTab === 'agenda' ? 700 : 500,
+            color: activeTab === 'agenda' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+            cursor: 'pointer',
+          }}
+        >
+          Agenda del Caso ({appointments.length})
         </button>
 
         <button
@@ -258,7 +385,6 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
 
-          {/* Assignment form for Jefatura/Secretaría */}
           {(user?.role === 'JEFATURA' || user?.role === 'SECRETARIA') && (
             <form onSubmit={handleAssignTeam} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
@@ -280,24 +406,24 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>ID o Correo de Usuario</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>ID de Usuario</label>
                   <input
                     type="text"
                     value={assignUserId}
                     onChange={(e) => setAssignUserId(e.target.value)}
-                    placeholder="Ingrese ID del profesional..."
+                    placeholder="ID del profesional..."
                     required
                     style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Motivo de Asignación</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Motivo</label>
                   <textarea
                     rows={3}
                     value={assignReason}
                     onChange={(e) => setAssignReason(e.target.value)}
-                    placeholder="Justifique la asignación o reasignación..."
+                    placeholder="Justifique la asignación..."
                     required
                     style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                   />
@@ -321,6 +447,272 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </form>
           )}
+        </div>
+      )}
+
+      {/* TAB CONTENT: Bitácora / Actuaciones */}
+      {activeTab === 'bitacora' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+          <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
+              Cronología de Actuaciones del Caso
+            </h3>
+
+            {actionLogs.length === 0 ? (
+              <p style={{ opacity: 0.6 }}>No hay actuaciones registradas en la bitácora aún.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {actionLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    style={{
+                      padding: '1.25rem',
+                      backgroundColor: 'var(--papel)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border)',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '12px', backgroundColor: 'var(--bosque-profundo)', color: 'white', fontWeight: 700 }}>
+                            {log.actionType}
+                          </span>
+                          {log.isSigned && (
+                            <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '12px', backgroundColor: 'var(--salvia)', color: 'white', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Lock size={12} /> FIRMADA INMUTABLE
+                            </span>
+                          )}
+                        </div>
+                        <h4 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginTop: '0.375rem' }}>
+                          {log.title}
+                        </h4>
+                      </div>
+
+                      <div style={{ fontSize: '0.75rem', opacity: 0.7, textAlign: 'right' }}>
+                        <div>{new Date(log.createdAt).toLocaleString('es-BO')}</div>
+                        <div>Autor: {log.author?.firstName} {log.author?.lastName} ({log.author?.role})</div>
+                      </div>
+                    </div>
+
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, fontSize: '0.875rem', color: 'var(--grafito)' }}>
+                      {log.content}
+                    </div>
+
+                    {!log.isSigned && log.authorId === user?.id && (
+                      <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleSignActionLog(log.id)}
+                          style={{
+                            backgroundColor: 'var(--salvia)',
+                            color: 'white',
+                            padding: '0.375rem 0.75rem',
+                            borderRadius: 'var(--radius)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                          }}
+                        >
+                          <CheckCircle2 size={14} /> Firmar Actuación (Congelar)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* New Action Log Form */}
+          <form onSubmit={handleCreateActionLog} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
+              Registrar Nueva Actuación
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Actuación</label>
+                <select
+                  value={logType}
+                  onChange={(e) => setLogType(e.target.value)}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  <option value="ENTREVISTA">Entrevista / Declaración</option>
+                  <option value="VISITA_DOMICILIARIA">Visita Domiciliaria</option>
+                  <option value="AUDIENCIA">Audiencia / Diligencia</option>
+                  <option value="NOTA">Nota de Campo</option>
+                  <option value="DERIVACION">Derivación Institucional</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Título / Asunto</label>
+                <input
+                  type="text"
+                  value={logTitle}
+                  onChange={(e) => setLogTitle(e.target.value)}
+                  placeholder="Resumen del hecho..."
+                  required
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Contenido de la Actuación</label>
+                <textarea
+                  rows={5}
+                  value={logContent}
+                  onChange={(e) => setLogContent(e.target.value)}
+                  placeholder="Detalle objetivo de la actuación realizada..."
+                  required
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingLog}
+                style={{
+                  backgroundColor: 'var(--bosque-profundo)',
+                  color: 'white',
+                  padding: '0.625rem',
+                  borderRadius: 'var(--radius)',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {submittingLog ? 'Guardando...' : '+ Agregar a la Bitácora'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB CONTENT: Agenda del Caso */}
+      {activeTab === 'agenda' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+          <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
+              Citas y Audiencias del Expediente
+            </h3>
+
+            {appointments.length === 0 ? (
+              <p style={{ opacity: 0.6 }}>No hay citas o audiencias programadas para este expediente.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {appointments.map((app) => (
+                  <div
+                    key={app.id}
+                    style={{
+                      padding: '1rem',
+                      backgroundColor: 'var(--papel)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tierra-calida)', textTransform: 'uppercase' }}>
+                          {app.appointmentType}
+                        </span>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)' }}>
+                          {app.title}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', opacity: 0.8, textAlign: 'right', fontWeight: 600 }}>
+                        {new Date(app.scheduledAt).toLocaleString('es-BO')}
+                      </div>
+                    </div>
+
+                    {app.location && (
+                      <div style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <MapPin size={14} /> {app.location}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* New Appointment Form */}
+          <form onSubmit={handleCreateAppointment} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
+              Programar Cita u Audiencia
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Cita</label>
+                <select
+                  value={appType}
+                  onChange={(e) => setAppType(e.target.value)}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  <option value="ENTREVISTA">Entrevista Psicología/Social</option>
+                  <option value="AUDIENCIA">Audiencia Judicial</option>
+                  <option value="VISITA_DOMICILIARIA">Visita Domiciliaria</option>
+                  <option value="SEGUIMIENTO">Sesión de Seguimiento</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Título / Asunto</label>
+                <input
+                  type="text"
+                  value={appTitle}
+                  onChange={(e) => setAppTitle(e.target.value)}
+                  placeholder="Ej: Entrevista Psicológica Inicial..."
+                  required
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Fecha y Hora</label>
+                <input
+                  type="datetime-local"
+                  value={appScheduledAt}
+                  onChange={(e) => setAppScheduledAt(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Lugar / Dirección</label>
+                <input
+                  type="text"
+                  value={appLocation}
+                  onChange={(e) => setAppLocation(e.target.value)}
+                  placeholder="Ej: Oficina Central - Sala 2"
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingApp}
+                style={{
+                  backgroundColor: 'var(--bosque-profundo)',
+                  color: 'white',
+                  padding: '0.625rem',
+                  borderRadius: 'var(--radius)',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {submittingApp ? 'Programando...' : '+ Programar en Agenda'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
