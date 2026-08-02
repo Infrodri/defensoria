@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscrepancyRiskLevel } from '@prisma/client';
@@ -34,16 +35,24 @@ export class LegalToolsService {
     }
 
     // 2. Verificar que la transcripción existe
-    const transcription = await this.prisma.transcription.findUnique({
+    let transcription = await this.prisma.transcription.findUnique({
       where: { id: dto.transcriptionId },
     });
 
     if (!transcription) {
-      throw new NotFoundException('Transcripción no encontrada');
+      throw new NotFoundException(
+        'Transcripción no encontrada. Por favor, sube un audio de la entrevista primero.',
+      );
     }
 
-    // 3. Obtener contenido de la transcripción
-    const transcriptionContent = transcription.text || 'Sin contenido de transcripción';
+    // 3. Si aún no está transcrita, usar el texto que proporcionó
+    if (!transcription.text || transcription.status !== 'COMPLETADA') {
+      throw new BadRequestException(
+        'La transcripción aún se está procesando o no se completó. Intenta más tarde.',
+      );
+    }
+
+    const transcriptionContent = transcription.text;
 
     // 4. Buscar documentos legales relevantes en la base de conocimiento
     const ragChunks = await this.ragService.searchSimilarChunks(
@@ -79,12 +88,15 @@ ${transcriptionContent}`;
       ragContext,
     );
 
-    // 6. Parsear respuesta de Ollama (formato flexible)
+    // 6. Parsear respuesta de Ollama
     const discrepancies = this.parseDiscrepancies(analysisText);
     const consistencyScore = this.extractConsistencyScore(analysisText);
-    const riskLevel = consistencyScore < 60 ? DiscrepancyRiskLevel.ALTO : 
-                      consistencyScore < 80 ? DiscrepancyRiskLevel.MEDIO : 
-                      DiscrepancyRiskLevel.BAJO;
+    const riskLevel =
+      consistencyScore < 60
+        ? DiscrepancyRiskLevel.ALTO
+        : consistencyScore < 80
+          ? DiscrepancyRiskLevel.MEDIO
+          : DiscrepancyRiskLevel.BAJO;
 
     // 7. Guardar análisis en BD
     const saved = await this.prisma.discrepancyAnalysis.create({
