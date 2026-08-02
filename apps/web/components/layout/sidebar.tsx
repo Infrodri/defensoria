@@ -44,7 +44,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: 'Personal & Permisos',  href: '/permisos',                  icon: Users },
     { label: 'Oficinas y Distritos', href: '/oficinas',                  icon: Building2 },
     { label: 'Auditoría Total',      href: '/auditoria',                 icon: ShieldCheck },
-    { label: 'Herramientas',         href: '/herramientas',              icon: ShieldCheck },
+    { label: 'Herramientas',         href: '/tools-demo',                icon: ShieldCheck },
     { label: 'Verificar Herramientas', href: '/admin/tools-verification', icon: BrainCircuit },
     { label: 'Configuración IA',     href: '/panel/admin/ia',            icon: BrainCircuit },
     { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
@@ -142,6 +142,7 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
   {
     groupLabel: 'Sistema',
     items: [
+      { label: 'Herramientas',           href: '/tools-demo',                icon: ShieldCheck },
       { label: 'Verificar Herramientas', href: '/admin/tools-verification', icon: BrainCircuit },
       { label: 'Configuración IA',     href: '/panel/admin/ia',            icon: BrainCircuit },
       { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
