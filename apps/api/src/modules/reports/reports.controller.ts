@@ -41,8 +41,11 @@ export class ReportsController {
   }
 
   @Get('case/:caseId')
-  @ApiOperation({ summary: 'Obtener historial de informes profesionales del expediente' })
-  async findByCase(@Param('caseId') caseId: string) {
-    return this.reportsService.findByCase(caseId);
+  @ApiOperation({ summary: 'Obtener historial de informes (Filtrado por rol - SECRETARIA ve solo metadata)' })
+  async findByCase(
+    @Param('caseId') caseId: string,
+    @CurrentUser('role') userRole: Role,
+  ) {
+    return this.reportsService.findByCaseForRole(caseId, userRole);
   }
 }

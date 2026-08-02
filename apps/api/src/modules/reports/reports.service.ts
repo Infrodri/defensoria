@@ -116,6 +116,36 @@ export class ReportsService {
     });
   }
 
+  async findByCaseForRole(caseId: string, userRole: Role) {
+    const reports = await this.prisma.report.findMany({
+      where: { caseId },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true, role: true } },
+        parentReport: { select: { id: true, title: true, version: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Si es SECRETARIA, filtrar solo metadata (no contenido)
+    if (userRole === Role.SECRETARIA) {
+      return reports.map((report) => ({
+        id: report.id,
+        caseId: report.caseId,
+        reportType: report.reportType,
+        status: report.status,
+        version: report.version,
+        title: report.title,
+        createdAt: report.createdAt,
+        author: report.author,
+        parentReport: report.parentReport,
+        // NO: content, riskAssessment
+      }));
+    }
+
+    // Para otros roles, retornar completo
+    return reports;
+  }
+
   async findByCase(caseId: string) {
     return this.prisma.report.findMany({
       where: { caseId },
