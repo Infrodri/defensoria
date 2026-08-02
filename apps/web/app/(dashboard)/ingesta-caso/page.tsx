@@ -6,7 +6,7 @@ import { fetchApi } from '@/lib/api';
 import { Search, UserPlus, FileText, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { AudioRecorder } from '@/components/audio-recorder';
 
-export default function IngestaCasoPage() {
+export default function InicioCasoPage() {
   const router = useRouter();
 
   // Catalogs State
