@@ -14,8 +14,9 @@ El principio central de la plataforma es: *"El caso pertenece al niño, niña o 
 | **Frontend** | Next.js 16 (App Router) + React 19 + TypeScript |
 | **UI** | shadcn/ui + Tailwind CSS v4 (CSS-first, OKLCH) |
 | **Backend** | NestJS 11 + TypeScript |
-| **Base de Datos** | PostgreSQL 16 + Prisma ORM |
+| **Base de Datos** | PostgreSQL 16 + Prisma ORM + pgvector |
 | **Almacenamiento (Object Storage)** | MinIO (S3-compatible, on-premise) |
+| **Inteligencia Artificial (Local)** | Ollama (Qwen2.5) + RAG con HTML Scraping (Cheerio) |
 | **Testing** | Vitest + Playwright |
 | **Validación** | Zod (esquemas compartidos) |
 | **Autenticación** | JWT + bcrypt (credenciales locales) |
@@ -92,9 +93,9 @@ Desde la raíz del proyecto, puedes utilizar los comandos definidos en el `packa
 
 | Fase | Descripción | Estado |
 |---|---|---|
-| **Fase 0** | Validación legal (catálogos configurables) | Pendiente |
-| **Fase 1** | MVP Core (auth, casos, historial de equipo, agenda, auditoría) | Pendiente |
-| **Fase 2** | Módulos para profesionales (informes, token de seguridad, reportes validados) | Pendiente |
-| **Fase 3** | Inteligencia (Matriz IA, copilot, línea de tiempo) | Pendiente |
-| **Fase 4** | Portal externo (Referente/Tutor) | Pendiente |
-| **Fase 5** | Módulo de inspecciones (evaluación) | Pendiente |
+| **Fase 0** | Validación legal (catálogos configurables) | ✅ Completado |
+| **Fase 1** | MVP Core (auth, casos, historial de equipo, agenda, auditoría) | ✅ Completado |
+| **Fase 2** | Módulos para profesionales (informes, token de seguridad, reportes validados) | ✅ Completado |
+| **Fase 3** | Inteligencia (Matriz IA, copilot, línea de tiempo) | ✅ Completado |
+| **Fase 4** | Portal externo (Referente/Tutor) | ✅ Completado |
+| **Fase 5** | Módulo de inspecciones (evaluación) | ✅ Completado |

@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { Role } from '@prisma/client';
+import { Role } from '@defensoria/shared';
 import { QuestionnairesService } from './questionnaires.service';
 import { CreateQuestionnnaireTemplateDto } from './dto/create-questionnaire-template.dto';
 import { CreateResponseDto } from './dto/create-response.dto';

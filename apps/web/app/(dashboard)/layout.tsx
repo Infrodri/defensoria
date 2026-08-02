@@ -31,11 +31,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--background)' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--background)' }}>
       <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', minWidth: 0, overflow: 'hidden' }}>
         <Topbar />
-        <main style={{ padding: '2rem', flex: 1, overflowY: 'auto' }}>{children}</main>
+        <main style={{ padding: '1.75rem 2rem', flex: 1, overflowY: 'auto', boxSizing: 'border-box' }}>{children}</main>
       </div>
     </div>
   );

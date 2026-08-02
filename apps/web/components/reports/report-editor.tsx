@@ -1,17 +1,18 @@
-'use client';
-
 import React, { useState } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight } from 'lucide-react';
+import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ReportEditorProps {
   caseId: string;
+  caseCode?: string;
+  nnaName?: string;
   reports: any[];
   onReportUpdated: () => void;
 }
 
-export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorProps) {
+export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdated }: ReportEditorProps) {
   const { user } = useAuth();
   const [reportType, setReportType] = useState('INFORME_PSICOLOGICO');
   const [title, setTitle] = useState('');
@@ -21,6 +22,10 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
 
   // Complementary report modal
   const [complementaryParentId, setComplementaryParentId] = useState<string | null>(null);
+
+  // Pre-Emission & Print Preview Modal state
+  const [previewReport, setPreviewReport] = useState<any | null>(null);
+  const [isEmitting, setIsEmitting] = useState(false);
 
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +38,7 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
           method: 'POST',
           body: JSON.stringify({ title, content }),
         });
+        toast.success('Informe complementario redactado en borrador');
       } else {
         await fetchApi('/reports', {
           method: 'POST',
@@ -44,6 +50,7 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
             riskAssessment: reportType === 'INFORME_PSICOLOGICO' ? riskAssessment : undefined,
           }),
         });
+        toast.success('Borrador de informe guardado correctamente');
       }
 
       setTitle('');
@@ -51,22 +58,35 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
       setComplementaryParentId(null);
       onReportUpdated();
     } catch (err: any) {
-      alert(err.message || 'Error al guardar informe');
+      toast.error('Error al guardar informe', { description: err.message });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEmitReport = async (reportId: string) => {
-    if (!confirm('¿Desea EMITIR e inmutabilizar este informe? Una vez emitido no podrá modificar su contenido y si es psicológico actualizará el nivel de riesgo del caso.')) {
-      return;
-    }
+  const openPreviewModal = (report: any) => {
+    setPreviewReport(report);
+  };
 
+  const handleConfirmEmitAndPrint = async () => {
+    if (!previewReport) return;
+
+    setIsEmitting(true);
     try {
-      await fetchApi(`/reports/${reportId}/emit`, { method: 'POST' });
+      if (previewReport.status === 'BORRADOR') {
+        await fetchApi(`/reports/${previewReport.id}/emit`, { method: 'POST' });
+        toast.success('Informe emitido e inmutabilizado oficialmente');
+      }
+
+      // Trigger browser print window
+      window.print();
+
+      setPreviewReport(null);
       onReportUpdated();
     } catch (err: any) {
-      alert(err.message || 'Error al emitir informe');
+      toast.error('Error al emitir e imprimir informe', { description: err.message });
+    } finally {
+      setIsEmitting(false);
     }
   };
 
@@ -135,10 +155,10 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
                   {rep.content}
                 </div>
 
-                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {rep.status === 'BORRADOR' && rep.authorId === user?.id && (
                     <button
-                      onClick={() => handleEmitReport(rep.id)}
+                      onClick={() => openPreviewModal(rep)}
                       style={{
                         backgroundColor: 'var(--salvia)',
                         color: 'white',
@@ -158,24 +178,45 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
                   )}
 
                   {rep.status === 'EMITIDO' && (
-                    <button
-                      onClick={() => {
-                        setComplementaryParentId(rep.id);
-                        setTitle(`Informe Complementario a v${rep.version}`);
-                      }}
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--bosque-profundo)',
-                        color: 'var(--bosque-profundo)',
-                        padding: '0.375rem 0.75rem',
-                        borderRadius: 'var(--radius)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      + Crear Informe Complementario v{rep.version + 1}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => openPreviewModal(rep)}
+                        style={{
+                          backgroundColor: 'var(--papel)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--bosque-profundo)',
+                          padding: '0.375rem 0.75rem',
+                          borderRadius: 'var(--radius)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                        }}
+                      >
+                        <Printer size={14} /> Imprimir Documento Emitido
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setComplementaryParentId(rep.id);
+                          setTitle(`Informe Complementario a v${rep.version}`);
+                        }}
+                        style={{
+                          backgroundColor: 'transparent',
+                          border: '1px solid var(--bosque-profundo)',
+                          color: 'var(--bosque-profundo)',
+                          padding: '0.375rem 0.75rem',
+                          borderRadius: 'var(--radius)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        + Crear Informe Complementario v{rep.version + 1}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -183,6 +224,119 @@ export function ReportEditor({ caseId, reports, onReportUpdated }: ReportEditorP
           </div>
         )}
       </div>
+
+      {/* Pre-Emission Preview & Print Modal */}
+      {previewReport && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
+          <div style={{ width: '100%', maxWidth: '750px', backgroundColor: 'white', color: '#111827', borderRadius: 'calc(var(--radius) * 1.5)', border: '1px solid var(--border)', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            
+            {/* Header Bar */}
+            <div style={{ backgroundColor: 'var(--bosque-profundo)', color: 'white', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Eye size={18} /> Vista Previa del Informe Institucional antes de Emitir
+                </h3>
+                <p style={{ fontSize: '0.75rem', opacity: 0.8, margin: 0, marginTop: '0.15rem' }}>
+                  {previewReport.status === 'BORRADOR' ? 'Revise la vista previa antes de congelar e imprimir el documento.' : 'Documento emitido inmutabilizado listo para impresión u oficialización.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Printable Preview Area */}
+            <div style={{ padding: '2rem', overflowY: 'auto', flex: 1, backgroundColor: '#ffffff', color: '#111827', fontFamily: 'Arial, sans-serif' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #111827', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  Gobierno Autónomo Municipal de Sucre
+                </h2>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: '0.25rem 0' }}>
+                  Defensoría de la Niñez y Adolescencia (DNA)
+                </h3>
+                <div style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', marginTop: '0.5rem', color: '#111827' }}>
+                  {previewReport.reportType.replace(/_/g, ' ')} (Versión {previewReport.version})
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.8125rem', backgroundColor: '#f9fafb', padding: '1rem', borderRadius: '6px', border: '1px solid #e5e7eb', marginBottom: '1.5rem' }}>
+                <div><strong>Expediente:</strong> {caseCode || 'DNA-2026-XXXX'}</div>
+                <div><strong>NNA Titular:</strong> {nnaName || 'NNA Protegido'}</div>
+                <div><strong>Título / Asunto:</strong> {previewReport.title}</div>
+                <div><strong>Estado:</strong> {previewReport.status}</div>
+                <div><strong>Autor / Profesional:</strong> {previewReport.author?.firstName} {previewReport.author?.lastName} ({previewReport.author?.role})</div>
+                <div><strong>Fecha de Elaboración:</strong> {new Date(previewReport.createdAt).toLocaleDateString('es-BO')}</div>
+                {previewReport.riskAssessment && (
+                  <div><strong>Nivel de Riesgo Evaluado:</strong> {previewReport.riskAssessment}</div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '2rem' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.375rem', marginBottom: '0.75rem' }}>
+                  DICTAMEN Y CONTENIDO TÉCNICO PROFESIONAL
+                </h4>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', lineHeight: 1.6, color: '#1f2937' }}>
+                  {previewReport.content}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '3rem', paddingTop: '2rem', borderTop: '1px dashed #9ca3af', textAlign: 'center' }}>
+                <div>
+                  <div style={{ borderBottom: '1px solid #111827', width: '80%', margin: '0 auto 0.5rem auto' }}></div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>Firma y Sello del Profesional Autor</div>
+                  <div style={{ fontSize: '0.6875rem', opacity: 0.8 }}>{previewReport.author?.firstName} {previewReport.author?.lastName} ({previewReport.author?.role})</div>
+                </div>
+                <div>
+                  <div style={{ borderBottom: '1px solid #111827', width: '80%', margin: '0 auto 0.5rem auto' }}></div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>Jefatura de Defensoría DNA</div>
+                  <div style={{ fontSize: '0.6875rem', opacity: 0.8 }}>GAM Sucre - Recepción e Inmutabilizado</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div style={{ backgroundColor: 'var(--papel)', padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                onClick={() => setPreviewReport(null)}
+                style={{
+                  padding: '0.625rem 1.25rem',
+                  backgroundColor: 'var(--card)',
+                  color: 'var(--grafito)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                }}
+              >
+                <Edit3 size={16} /> ✏️ Modificar / Volver a Editar
+              </button>
+
+              <button
+                onClick={handleConfirmEmitAndPrint}
+                disabled={isEmitting}
+                style={{
+                  padding: '0.625rem 1.25rem',
+                  backgroundColor: 'var(--salvia)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius)',
+                  fontWeight: 800,
+                  fontSize: '0.875rem',
+                  cursor: isEmitting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 12px oklch(0.4 0.08 165 / 0.3)',
+                }}
+              >
+                <Printer size={16} /> {isEmitting ? 'Emitiendo...' : previewReport.status === 'BORRADOR' ? '🖨️ Confirmar, Imprimir e Inmutabilizar' : '🖨️ Imprimir Documento'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Report Form */}
       <form onSubmit={handleCreateReport} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>

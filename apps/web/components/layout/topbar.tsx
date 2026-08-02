@@ -11,12 +11,14 @@ export function Topbar() {
     <header
       style={{
         height: '64px',
+        flexShrink: 0,
         backgroundColor: 'var(--card)',
         borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 2rem',
+        boxSizing: 'border-box',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '480px' }}>

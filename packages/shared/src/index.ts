@@ -5,6 +5,7 @@ import { z } from 'zod';
 // ==========================================
 
 export enum Role {
+  ADMINISTRADOR = 'ADMINISTRADOR',
   JEFATURA = 'JEFATURA',
   ABOGADO = 'ABOGADO',
   PSICOLOGO = 'PSICOLOGO',
@@ -155,3 +156,125 @@ export const createCaseSchema = z.object({
 });
 
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
+
+// ==========================================
+// FORMATEADORES DE ETIQUETAS HUMANAS
+// ==========================================
+
+export const formatPhase = (phase?: Phase | string): string => {
+  switch (phase) {
+    case Phase.DERIVACION:
+      return 'Derivación / Recepción';
+    case Phase.EVALUACION:
+      return 'Evaluación Interdisciplinaria';
+    case Phase.SEGUIMIENTO:
+      return 'Plan de Acompañamiento';
+    case Phase.JUDICIALIZACION:
+      return 'Vía Judicial';
+    case Phase.CIERRE:
+      return 'Cierre de Caso';
+    default:
+      return phase || 'N/A';
+  }
+};
+
+export const formatInterventionPath = (path?: InterventionPath | string): string => {
+  switch (path) {
+    case InterventionPath.GESTION_ADMINISTRATIVA:
+      return 'Gestión Administrativa';
+    case InterventionPath.CONCILIACION:
+      return 'Conciliación';
+    case InterventionPath.VIA_JUDICIAL:
+      return 'Vía Judicial';
+    default:
+      return path || 'N/A';
+  }
+};
+
+export const formatCaseType = (type?: CaseType | string): string => {
+  switch (type) {
+    case CaseType.DENUNCIA_VULNERACION:
+      return 'Denuncia por Vulneración';
+    case CaseType.CONSUMO_SUSTANCIAS:
+      return 'Consumo de Sustancias';
+    case CaseType.VENTA_ALCOHOL:
+      return 'Venta de Alcohol a Menores';
+    case CaseType.DERECHO_EDUCACION:
+      return 'Vulneración al Derecho a la Educación';
+    case CaseType.EXTRAVIO:
+      return 'Extravío / Desaparición';
+    case CaseType.NNA_INFRACTOR:
+      return 'NNA en Conflicto con la Ley';
+    case CaseType.FISCALIZACION:
+      return 'Fiscalización / Inspección';
+    default:
+      return type || 'N/A';
+  }
+};
+
+export const formatAppointmentType = (type?: AppointmentType | string): string => {
+  switch (type) {
+    case AppointmentType.ENTREVISTA:
+      return 'Entrevista';
+    case AppointmentType.AUDIENCIA:
+      return 'Audiencia Judicial';
+    case AppointmentType.VISITA_DOMICILIARIA:
+      return 'Visita Domiciliaria';
+    case AppointmentType.SEGUIMIENTO:
+      return 'Sesión de Seguimiento';
+    case AppointmentType.OTRO:
+      return 'Otra Cita';
+    default:
+      return type || 'N/A';
+  }
+};
+
+export const formatAppointmentStatus = (status?: AppointmentStatus | string): string => {
+  switch (status) {
+    case AppointmentStatus.PROGRAMADA:
+      return 'Programada';
+    case AppointmentStatus.COMPLETADA:
+      return 'Completada';
+    case AppointmentStatus.CANCELADA:
+      return 'Cancelada';
+    case AppointmentStatus.REPROGRAMADA:
+      return 'Reprogramada';
+    default:
+      return status || 'N/A';
+  }
+};
+
+export const formatActionType = (type?: ActionType | string): string => {
+  switch (type) {
+    case ActionType.NOTA:
+      return 'Nota de Campo';
+    case ActionType.ENTREVISTA:
+      return 'Entrevista / Declaración';
+    case ActionType.VISITA_DOMICILIARIA:
+      return 'Visita Domiciliaria';
+    case ActionType.AUDIENCIA:
+      return 'Audiencia / Diligencia';
+    case ActionType.DERIVACION:
+      return 'Derivación Institucional';
+    case ActionType.CONTACTO_INSTITUCIONAL:
+      return 'Contacto Institucional';
+    case ActionType.OTRO:
+      return 'Otra Actuación';
+    default:
+      return type || 'N/A';
+  }
+};
+
+export const formatRiskLevel = (risk?: RiskLevel | string): string => {
+  switch (risk) {
+    case RiskLevel.BAJO:
+      return 'Bajo';
+    case RiskLevel.MEDIO:
+      return 'Medio';
+    case RiskLevel.ALTO:
+      return 'Alto';
+    default:
+      return risk || 'Pendiente';
+  }
+};
+

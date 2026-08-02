@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CaseAccessService } from '../../common/case-access/case-access.service';
 import { CreateQuestionnnaireTemplateDto } from './dto/create-questionnaire-template.dto';
 import { CreateResponseDto } from './dto/create-response.dto';
-import { CaseAccessService } from '../common/case-access/case-access.service';
+import { QuestionnaireCategory, QuestionType } from '@prisma/client';
 
 @Injectable()
 export class QuestionnairesService {
@@ -18,7 +19,7 @@ export class QuestionnairesService {
     return this.prisma.questionnaireTemplate.findMany({
       where: {
         isActive: true,
-        ...(category && { category }),
+        ...(category && { category: category as QuestionnaireCategory }),
       },
       include: {
         questions: {
@@ -57,13 +58,13 @@ export class QuestionnairesService {
       data: {
         name: dto.name,
         description: dto.description,
-        category: dto.category,
+        category: dto.category as QuestionnaireCategory,
         createdBy: userId,
         questions: {
           createMany: {
             data: dto.questions.map((q) => ({
               question: q.question,
-              questionType: q.questionType,
+              questionType: q.questionType as QuestionType,
               order: q.order,
               required: q.required ?? true,
               options: q.options ?? [],
@@ -97,7 +98,7 @@ export class QuestionnairesService {
 
     // Validar acceso al caso
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, userId);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, { id: userId, role: 'ABOGADO' } as any);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
@@ -345,7 +346,7 @@ export class QuestionnairesService {
 
     // Validar acceso al caso
     try {
-      await this.caseAccessService.assertUserHasAccess(response.caseId, userId);
+      await this.caseAccessService.assertUserHasAccess(response.caseId, { id: userId, role: 'ABOGADO' } as any);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
