@@ -1,0 +1,136 @@
+================================================================================
+                      CREDENCIALES DE ADMINISTRADOR
+================================================================================
+
+USUARIO DE APLICACIÓN (DNA Sucre)
+─────────────────────────────────────────────────────────────────────────────
+
+Email:         admin@defensoria.gob.bo
+Contraseña:    Password123!
+Rol:           ADMINISTRADOR
+Oficina:       Defensoría Central Sucre
+Acceso:        Total a todo el sistema
+
+PIN de Caso (ejemplo):
+- DNA-2026-0001 → 123456
+- DNA-2026-0002 → 654321
+
+================================================================================
+
+BASE DE DATOS POSTGRESQL
+─────────────────────────────────────────────────────────────────────────────
+
+Usuario BD:    defensoria_admin
+Contraseña:    defensoria_dev_password
+Host:          localhost
+Puerto:        5435
+Database:      defensoria_db
+Schema:        public
+
+URL Completa:
+postgresql://defensoria_admin:defensoria_dev_password@localhost:5435/defensoria_db?schema=public
+
+================================================================================
+
+OTROS USUARIOS DE PRUEBA
+─────────────────────────────────────────────────────────────────────────────
+
+JEFATURA:
+  Email: jefatura@defensoria.gob.bo
+  Contraseña: Password123!
+
+ABOGADO:
+  Email: abogado@defensoria.gob.bo
+  Contraseña: Password123!
+
+PSICÓLOGO:
+  Email: psicologo@defensoria.gob.bo
+  Contraseña: Password123!
+
+SOCIAL:
+  Email: social@defensoria.gob.bo
+  Contraseña: Password123!
+
+SECRETARIA:
+  Email: secretaria@defensoria.gob.bo
+  Contraseña: Password123!
+
+================================================================================
+
+USUARIOS POR DISTRITO (Ejemplo - Distrito 1)
+─────────────────────────────────────────────────────────────────────────────
+
+secretaria.d1@defensoria.gob.bo → Password123!
+abogado.d1@defensoria.gob.bo    → Password123!
+psicologo.d1@defensoria.gob.bo  → Password123!
+
+(Misma estructura para DIST_2 hasta DIST_8)
+
+================================================================================
+
+CASOS DE PRUEBA (PINs de Acceso)
+─────────────────────────────────────────────────────────────────────────────
+
+Caso                 PIN       Oficina          NNA
+────────────────────────────────────────────────────────────────────────────
+DNA-2026-0001       123456    Central          Mateo Gutiérrez Ramos
+DNA-2026-0002       654321    Central          Camila Rocha Fernández
+DNA-2026-0003       445566    Distrito 1       Valentina Mamani Aguilar
+DNA-2026-0004       112233    Distrito 2       Sebastián Velasco Torrez
+DNA-2026-0005       998877    Distrito 3       Lucas Benítez Ortiz
+DNA-2026-0006       101010    Distrito 4       Mariela Aguilar Soliz
+DNA-2026-0007       202020    Distrito 5       Andrés Saavedra Paz
+DNA-2026-0008       303030    Distrito 6       Tomasa Huanca Colque
+DNA-2026-0009       404040    Distrito 7       Raúl Nina Ramos
+DNA-2026-0010       505050    Distrito 8       Francisca Catacora Ayaviri
+
+================================================================================
+
+CÓMO USAR
+
+1. ACCESO A LA APLICACIÓN:
+   - URL: http://localhost:3000 (depende de tu configuración)
+   - Email: admin@defensoria.gob.bo
+   - Contraseña: Password123!
+
+2. ACCESO A LA BD POSTGRESQL:
+   ```bash
+   psql postgresql://defensoria_admin:defensoria_dev_password@localhost:5435/defensoria_db
+   ```
+
+3. GENERAR SEED (si no está hecho):
+   ```bash
+   cd packages/db
+   npx prisma db seed
+   ```
+
+4. VER USUARIOS EN BD:
+   ```bash
+   SELECT id, email, firstName, lastName, role FROM users;
+   ```
+
+================================================================================
+
+NOTAS IMPORTANTES
+
+- Todas las contraseñas de usuario son: Password123!
+- Las contraseñas están hasheadas con bcrypt en la BD
+- Los PINs de acceso a casos también están hasheados
+- Para desarrollo/testing solamente (no usar en producción)
+- Cambiar contraseña después de usar en producción
+
+Archivo Seed: packages/db/prisma/seed.ts
+
+================================================================================
+
+ROLES DISPONIBLES
+
+1. ADMINISTRADOR   - Acceso total al sistema
+2. JEFATURA        - Gestión de distritos y personal
+3. ABOGADO         - Análisis legal de casos
+4. PSICÓLOGO       - Evaluación psicológica
+5. SOCIAL          - Evaluación social
+6. SECRETARIA      - Ingesta y gestión administrativa
+7. REFERENTE_TUTOR - Seguimiento especializado
+
+================================================================================
