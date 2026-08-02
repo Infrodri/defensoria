@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { Search, UserPlus, FileText, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 export default function IngestaCasoPage() {
   const router = useRouter();
+
+  // Catalogs State
+  const [caseTypeCatalog, setCaseTypeCatalog] = useState<any>(null);
+  const [catalogsLoading, setCatalogsLoading] = useState(true);
 
   // Wizard Step State
   const [step, setStep] = useState<1 | 2>(1);
@@ -28,7 +32,7 @@ export default function IngestaCasoPage() {
   const [nnaGender, setNnaGender] = useState('MASCULINO');
 
   // Case Details
-  const [caseType, setCaseType] = useState('DENUNCIA_VULNERACION');
+  const [caseType, setCaseType] = useState('');
   const [intakeNarrative, setIntakeNarrative] = useState('');
   
   // Third Party Complainant
@@ -41,6 +45,28 @@ export default function IngestaCasoPage() {
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load catalogs on mount
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        setCatalogsLoading(true);
+        const catalog = await fetchApi('/catalogs/CASE_TYPES');
+        setCaseTypeCatalog(catalog);
+        
+        // Set first case type as default
+        if (catalog?.items && catalog.items.length > 0) {
+          setCaseType(catalog.items[0].value);
+        }
+      } catch (err) {
+        console.error('Error loading catalogs:', err);
+      } finally {
+        setCatalogsLoading(false);
+      }
+    };
+
+    loadCatalogs();
+  }, []);
 
   // Handle Step 1 Anti-Duplication Search
   const handleSearch = async (e: React.FormEvent) => {
@@ -415,18 +441,24 @@ export default function IngestaCasoPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Trámite / Caso</label>
-              <select
-                value={caseType}
-                onChange={(e) => setCaseType(e.target.value)}
-                style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-              >
-                <option value="DENUNCIA_VULNERACION">Denuncia por Vulneración de Derechos</option>
-                <option value="CONSUMO_SUSTANCIAS">Consumo de Alcohol/Drogas por NNA</option>
-                <option value="VENTA_ALCOHOL">Venta de Alcohol a Menores</option>
-                <option value="DERECHO_EDUCACION">Incumplimiento del Derecho a la Educación</option>
-                <option value="EXTRAVIO">Extravío de NNA</option>
-                <option value="NNA_INFRACTOR">NNA como Autor/a de Infracción</option>
-              </select>
+              {catalogsLoading ? (
+                <div style={{ padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--grafito)', opacity: 0.6 }}>
+                  Cargando tipos de caso...
+                </div>
+              ) : (
+                <select
+                  value={caseType}
+                  onChange={(e) => setCaseType(e.target.value)}
+                  style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  <option value="">Seleccionar tipo...</option>
+                  {caseTypeCatalog?.items?.map((item: any) => (
+                    <option key={item.id} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
