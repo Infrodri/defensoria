@@ -52,7 +52,7 @@ describe('TransversalToolsService', () => {
       };
 
       vi.spyOn(prisma.case, 'findUnique').mockResolvedValue(mockCase as any);
-      vi.spyOn(prisma.transversalUnifiedTimeline, 'create').mockResolvedValue({
+      vi.spyOn((prisma as any).transversalUnifiedTimeline, 'create').mockResolvedValue({
         id: 'timeline-123',
         caseId: 'case-123',
         events: [],
@@ -62,7 +62,7 @@ describe('TransversalToolsService', () => {
       const result = await service.createUnifiedTimeline('case-123', 'user-123');
 
       expect(result).toBeDefined();
-      expect(prisma.transversalUnifiedTimeline.create).toHaveBeenCalled();
+      expect((prisma as any).transversalUnifiedTimeline.create).toHaveBeenCalled();
       expect(audit.logEvent).toHaveBeenCalled();
     });
   });
@@ -87,7 +87,7 @@ describe('TransversalToolsService', () => {
 
       vi.spyOn(prisma.case, 'findUnique').mockResolvedValue(mockCase as any);
       vi.spyOn(prisma.report, 'findUnique').mockResolvedValue(mockReport as any);
-      vi.spyOn(prisma.transversalAnonymizedReport, 'create').mockImplementation((args: any) =>
+      vi.spyOn((prisma as any).transversalAnonymizedReport, 'create').mockImplementation((args: any) =>
         Promise.resolve({ id: 'anon-123', ...args.data } as any),
       );
 

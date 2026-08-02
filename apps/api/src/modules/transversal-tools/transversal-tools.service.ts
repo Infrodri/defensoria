@@ -62,7 +62,7 @@ export class TransversalToolsService {
     events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Save
-    const timeline = await this.prisma.transversalUnifiedTimeline.create({
+    const timeline = await (this.prisma as any).transversalUnifiedTimeline.create({
       data: {
         caseId,
         events,
@@ -148,7 +148,7 @@ export class TransversalToolsService {
       }
     });
 
-    const anonymizedReport = await this.prisma.transversalAnonymizedReport.create({
+    const anonymizedReport = await (this.prisma as any).transversalAnonymizedReport.create({
       data: {
         caseId,
         originalReportId: reporteId,
