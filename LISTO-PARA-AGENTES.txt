@@ -1,0 +1,146 @@
+================================================================================
+                      🚀 LISTO PARA AGENTES - FASE 2B
+================================================================================
+
+ESTADO ACTUAL:
+✅ Legal Tools completado 100%
+✅ 3 agentes listos para comenzar AHORA
+✅ 9 endpoints por implementar (sin tiempos)
+✅ 8 tablas nuevas por crear
+✅ 0 bloqueadores técnicos
+
+================================================================================
+
+AGENTES A INTERVENIR (PUEDEN EMPEZAR YA):
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ AGENTE #1: BACKEND-PSYCHOLOGICAL TOOLS                              │
+│ ────────────────────────────────────────────────────────────────── │
+│ Endpoints: 4 (indicators/extract, risk-scales/prefill, clinical-tr │
+│ Tablas: 3 (PsychologicalIndicatorExtraction, RiskScalePrefill, Clin│
+│ Repo: docs/AGENTES-OPERACIONALES-FASE2-LISTO.md (DELEGACIÓN #1)   │
+│ Prompt: docs/PROMPTS-PARA-DELEGACIONES-AGENTES.md                 │
+│ Status: 🟢 LISTO PARA COMENZAR AHORA                              │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ AGENTE #2: BACKEND-SOCIAL TOOLS                                     │
+│ ────────────────────────────────────────────────────────────────── │
+│ Endpoints: 3 (familymap/generate, vulnerability/calculate, environ │
+│ Tablas: 3 (SocialFamilyMapGeneration, SocialVulnerability, Social  │
+│ Repo: docs/AGENTES-OPERACIONALES-FASE2-LISTO.md (DELEGACIÓN #2)   │
+│ Prompt: docs/PROMPTS-PARA-DELEGACIONES-AGENTES.md                 │
+│ Status: 🟢 LISTO PARA COMENZAR AHORA (paralelo a #1)              │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ AGENTE #3: BACKEND-TRANSVERSAL TOOLS                                │
+│ ────────────────────────────────────────────────────────────────── │
+│ Endpoints: 2 (timeline/unified, anonymizer/anonymize)              │
+│ Tablas: 2 (TransversalUnifiedTimeline, TransversalAnonymizedReport)│
+│ Repo: docs/AGENTES-OPERACIONALES-FASE2-LISTO.md (DELEGACIÓN #3)   │
+│ Prompt: docs/PROMPTS-PARA-DELEGACIONES-AGENTES.md                 │
+│ Status: 🟢 LISTO PARA COMENZAR AHORA (paralelo a #1, #2)          │
+└─────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+
+INSTRUCCIONES PARA PM:
+
+1. Copiar PROMPT #1 de docs/PROMPTS-PARA-DELEGACIONES-AGENTES.md
+2. Enviar a Agente BACKEND-PSYCHOLOGICAL
+3. Repetir para agentes #2 y #3
+
+Los 3 pueden ejecutarse EN PARALELO (sin dependencias entre módulos).
+
+================================================================================
+
+QUÉ INCLUIR EN CADA DELEGACIÓN:
+
+✓ Ruta archivo: docs/AGENTES-OPERACIONALES-FASE2-LISTO.md
+✓ Prompt copia-pega: docs/PROMPTS-PARA-DELEGACIONES-AGENTES.md
+✓ Template referencia: apps/api/src/modules/legal-tools/
+✓ Documentación: docs/ARQUITECTURA-FINAL-COMPLETA.md
+
+================================================================================
+
+VALIDACIÓN POSTERIOR (Para PM después de cada entrega):
+
+```bash
+# Build
+npm run build                  # → 0 errors
+
+# TypeScript
+npx tsc --noEmit              # → 0 errors
+
+# Tests (cada módulo)
+npm run test -- psychological-tools.service.spec --run
+npm run test -- social-tools.service.spec --run
+npm run test -- transversal-tools.service.spec --run
+
+# Módulos registrados en app.module.ts
+# ✓ PsychologicalToolsModule
+# ✓ SocialToolsModule
+# ✓ TransversalToolsModule
+
+# Git
+git log --oneline -10
+```
+
+Si todo verde → mergear a `develop`
+
+================================================================================
+
+DOCUMENTACIÓN GENERADA:
+
+📄 docs/AGENTES-OPERACIONALES-FASE2-LISTO.md
+   - Delegaciones #1, #2, #3 con todos los detalles
+   - Pasos técnicos paso-a-paso
+   - Estructura obligatoria
+
+📄 docs/PROMPTS-PARA-DELEGACIONES-AGENTES.md
+   - 3 prompts listos para copiar-pegar
+   - Instrucciones exactas para cada agente
+
+📄 docs/CHECKLIST-LEGAL-TOOLS-COMPLETADO.md
+   - Verificación completa de legal-tools
+
+📄 docs/RESUMEN-FINAL-LEGAL-TOOLS-PARA-CONTINUAR.md
+   - Detalles de cómo continuar
+
+================================================================================
+
+RESULTADO ESPERADO:
+
+Legal Tools:      ✅ 3 endpoints (COMPLETO)
+Psychological:    🟡 4 endpoints (Agente #1 en progreso)
+Social:           🟡 3 endpoints (Agente #2 en progreso)
+Transversal:      🟡 2 endpoints (Agente #3 en progreso)
+──────────────────────────────────
+TOTAL:            🟢 12 endpoints (cuando terminen los 3 agentes)
+
+Tablas Prisma:    20 totales (9 Fase 1 + 3 Legal + 8 Fase 2b)
+
+================================================================================
+
+ACCIÓN INMEDIATA:
+
+1. [NOW] Usar prompts de PROMPTS-PARA-DELEGACIONES-AGENTES.md
+2. [NOW] Delegar a los 3 agentes (pueden ejecutar en paralelo)
+3. [WAIT] Agentes completan sus módulos
+4. [VERIFY] PM ejecuta validaciones
+5. [MERGE] Hacia develop
+
+NO HAY TIEMPOS - TODO AHORA
+
+================================================================================
+
+Estado: ✅ LISTO PARA DELEGACIÓN
+
+Commits:
+- dd707a4: db: agregar 3 tablas legal tools (template base)
+- 5363bad: docs: prompts listos para delegaciones (listo para agentes)
+
+Próximo: AGENTES #1, #2, #3 COMIENZAN
+
+================================================================================
