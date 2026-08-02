@@ -18,6 +18,8 @@ import {
   mapEnvironmental,
   createUnifiedTimeline,
   anonymizeReport,
+  uploadAndTranscribeAudio,
+  TranscriptionResult,
   formatApiError,
 } from '@/lib/api-client';
 import { useToolsData } from '@/hooks/useToolsData';
@@ -25,7 +27,7 @@ import { LegalToolsPanel } from '@/components/legal-tools';
 import { PsychologicalToolsPanel } from '@/components/psychological-tools';
 import { SocialToolsPanel } from '@/components/social-tools';
 import { TransversalToolsPanel } from '@/components/transversal-tools';
-import { AlertCircle, Loader, RotateCw } from 'lucide-react';
+import { AlertCircle, Loader, RotateCw, Upload } from 'lucide-react';
 
 // ============================================================================
 // ESTILOS
@@ -167,6 +169,42 @@ const styles = {
     color: '#666',
     marginTop: '1rem',
   },
+  uploadButton: {
+    padding: '0.5rem 1rem',
+    borderRadius: '6px',
+    border: '2px solid var(--salvia)',
+    backgroundColor: 'transparent',
+    color: 'var(--salvia)',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    transition: 'all 0.2s',
+  },
+  uploadButtonActive: {
+    backgroundColor: 'var(--salvia)',
+    color: 'white',
+  },
+  transcriptionStatus: {
+    padding: '1rem',
+    borderRadius: '6px',
+    backgroundColor: '#f0f8ff',
+    border: '1px solid #b3d9ff',
+    marginBottom: '1rem',
+    fontSize: '0.875rem',
+  },
+  transcriptionStatusSuccess: {
+    backgroundColor: '#f0fdf4',
+    border: '1px solid #b3e5fc',
+    color: '#065f46',
+  },
+  transcriptionStatusError: {
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fca5a5',
+    color: '#7f1d1d',
+  },
 };
 
 // ============================================================================
@@ -201,6 +239,13 @@ export default function ToolsDemoPage() {
   });
   const [toolsLoading, setToolsLoading] = useState(false);
   const [toolsError, setToolsError] = useState<string | null>(null);
+  
+  // Audio upload state
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [transcriptionId, setTranscriptionId] = useState<string>('');
+  const [transcriptionText, setTranscriptionText] = useState<string>('');
+  const [transcriptionStatus, setTranscriptionStatus] = useState<'idle' | 'pending' | 'completed' | 'error'>('idle');
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   // Cargar listado de casos
   useEffect(() => {
@@ -225,6 +270,43 @@ export default function ToolsDemoPage() {
     loadCases();
   }, [token, user]);
 
+  // Manejar upload de audio
+  const handleAudioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedCaseId || !token) return;
+
+    try {
+      setUploadingAudio(true);
+      setTranscriptionStatus('pending');
+      setTranscriptionError(null);
+
+      // Crear evidencia ID (usar timestamp)
+      const evidenceId = `audio-${Date.now()}`;
+
+      const result = await uploadAndTranscribeAudio(
+        selectedCaseId,
+        evidenceId,
+        file
+      );
+
+      setTranscriptionId(result.id);
+      setTranscriptionText(result.text);
+      setTranscriptionStatus('completed');
+      
+      // Auto-recargar tools con el nuevo transcriptionId
+      setTimeout(() => {
+        loadToolsData();
+      }, 500);
+    } catch (err) {
+      setTranscriptionStatus('error');
+      setTranscriptionError(formatApiError(err));
+    } finally {
+      setUploadingAudio(false);
+      // Limpiar el input
+      event.target.value = '';
+    }
+  };
+
   // Cargar datos de herramientas desde API real
   const loadToolsData = async () => {
     if (!selectedCaseId || !token) return;
@@ -239,24 +321,26 @@ export default function ToolsDemoPage() {
         transversal: null,
       };
 
-      // 1. Obtener detalle del caso para conseguir transcription ID
-      let transcriptionId = '';
-      try {
-        const caseDetail = await getCaseDetail(selectedCaseId);
-        // Si el backend retorna transcriptions, usamos el primer ID
-        if ('transcriptions' in caseDetail && Array.isArray(caseDetail.transcriptions) && caseDetail.transcriptions.length > 0) {
-          transcriptionId = (caseDetail.transcriptions[0] as any).id;
+      // Usar el transcriptionId del estado actual si existe
+      let txId = transcriptionId;
+
+      // Si no existe, intentar obtenerlo del caso
+      if (!txId) {
+        try {
+          const caseDetail = await getCaseDetail(selectedCaseId);
+          if ('transcriptions' in caseDetail && Array.isArray(caseDetail.transcriptions) && caseDetail.transcriptions.length > 0) {
+            txId = (caseDetail.transcriptions[0] as any).id;
+          }
+        } catch (err) {
+          console.warn('Error obteniendo detalle del caso:', formatApiError(err));
         }
-      } catch (err) {
-        console.warn('Error obteniendo detalle del caso:', formatApiError(err));
-        // Continuamos con transcriptionId vacío - el backend puede manejar esto
       }
 
       // HERRAMIENTAS LEGALES
       try {
         const result = await analyzeLegalDiscrepancies({
           caseId: selectedCaseId,
-          transcriptionId: transcriptionId,
+          transcriptionId: txId,
         });
         newToolsData.legal = result;
       } catch (err) {
@@ -268,7 +352,7 @@ export default function ToolsDemoPage() {
       try {
         const result = await extractTraumaIndicators({
           caseId: selectedCaseId,
-          transcriptionId: transcriptionId,
+          transcriptionId: txId,
         });
         newToolsData.psychological = result;
       } catch (err) {
@@ -280,7 +364,7 @@ export default function ToolsDemoPage() {
       try {
         const result = await generateFamilyMap({
           caseId: selectedCaseId,
-          transcriptionId: transcriptionId,
+          transcriptionId: txId,
         });
         newToolsData.social = result;
       } catch (err) {
@@ -374,6 +458,40 @@ export default function ToolsDemoPage() {
           </select>
         </div>
 
+        {/* Audio Upload Button */}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', marginTop: '1.5rem' }}>
+          <input
+            type="file"
+            id="audio-input"
+            accept=".mp3,.wav,.m4a,.ogg"
+            onChange={handleAudioUpload}
+            disabled={uploadingAudio || !selectedCaseId}
+            style={{ display: 'none' }}
+          />
+          <button
+            style={{
+              ...styles.uploadButton,
+              ...(uploadingAudio ? styles.uploadButtonActive : {}),
+              opacity: selectedCaseId ? 1 : 0.5,
+              cursor: selectedCaseId ? 'pointer' : 'not-allowed',
+            }}
+            onClick={() => document.getElementById('audio-input')?.click()}
+            disabled={uploadingAudio || !selectedCaseId}
+          >
+            {uploadingAudio ? (
+              <>
+                <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                Transcribiendo...
+              </>
+            ) : (
+              <>
+                <Upload size={16} />
+                📁 Subir Entrevista
+              </>
+            )}
+          </button>
+        </div>
+
         <button
           style={{
             ...styles.refreshButton,
@@ -401,6 +519,39 @@ export default function ToolsDemoPage() {
           )}
         </button>
       </div>
+
+      {/* Transcription Status */}
+      {transcriptionStatus !== 'idle' && (
+        <div
+          style={{
+            ...styles.transcriptionStatus,
+            ...(transcriptionStatus === 'completed' ? styles.transcriptionStatusSuccess : {}),
+            ...(transcriptionStatus === 'error' ? styles.transcriptionStatusError : {}),
+          }}
+        >
+          {transcriptionStatus === 'pending' && (
+            <>
+              <Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: '0.5rem' }} />
+              Transcribiendo audio...
+            </>
+          )}
+          {transcriptionStatus === 'completed' && (
+            <>
+              ✅ Transcripción completada exitosamente
+              {transcriptionText && (
+                <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
+                  <strong>Vista previa:</strong> {transcriptionText.substring(0, 100)}...
+                </p>
+              )}
+            </>
+          )}
+          {transcriptionStatus === 'error' && (
+            <>
+              ❌ Error en la transcripción: {transcriptionError}
+            </>
+          )}
+        </div>
+      )}
 
       {casesError && (
         <div style={styles.errorContainer}>

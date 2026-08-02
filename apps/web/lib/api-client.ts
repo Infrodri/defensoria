@@ -452,6 +452,46 @@ export async function getCasesList(): Promise<CaseDetail[]> {
   });
 }
 
+/**
+ * Transcripción y búsqueda en base de conocimiento
+ */
+export interface TranscriptionResult {
+  id: string;
+  text: string;
+  language: string;
+  status: string;
+  confidence: number;
+}
+
+export async function uploadAndTranscribeAudio(
+  caseId: string,
+  evidenceId: string,
+  audioFile: File,
+): Promise<TranscriptionResult> {
+  const formData = new FormData();
+  formData.append('caseId', caseId);
+  formData.append('evidenceId', evidenceId);
+  formData.append('file', audioFile);
+
+  return fetchApi<TranscriptionResult>('/knowledge/transcribe', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function searchInTranscriptions(
+  caseId: string,
+  query: string,
+): Promise<Array<{ text: string; matchedText: string }>> {
+  return fetchApi<Array<{ text: string; matchedText: string }>>(
+    '/knowledge/search-transcriptions',
+    {
+      method: 'POST',
+      body: JSON.stringify({ caseId, query }),
+    },
+  );
+}
+
 export async function getCaseDetail(caseId: string): Promise<CaseDetail> {
   return fetchApi<CaseDetail>(`/cases/${caseId}`, {
     method: 'GET',

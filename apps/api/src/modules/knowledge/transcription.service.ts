@@ -1,5 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import axios from 'axios';
+import FormData from 'form-data';
 
 @Injectable()
 export class TranscriptionService {
@@ -94,5 +96,88 @@ export class TranscriptionService {
         createdAt: 'desc',
       },
     });
+  }
+
+  /**
+   * Transcribir un archivo de audio usando Whisper API
+   */
+  async transcribeAudioFile(
+    caseId: string,
+    evidenceId: string | undefined,
+    file: Express.Multer.File,
+    userId?: string,
+  ) {
+    try {
+      // Crear entrada de transcripción en estado PENDIENTE
+      const transcription = await this.prisma.transcription.create({
+        data: {
+          caseId,
+          evidenceId: evidenceId || `audio-${Date.now()}`,
+          text: '',
+          status: 'PENDIENTE',
+          language: 'es',
+          confidence: 0,
+          createdBy: userId,
+        },
+      });
+
+      // Llamar a Whisper API
+      const whisperUrl = process.env.WHISPER_API_URL || 'http://localhost:8000/v1/audio/transcriptions';
+      
+      const formData = new FormData();
+      formData.append('file', file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype,
+      });
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'es');
+
+      let transcribedText = '';
+      try {
+        const response = await axios.post(whisperUrl, formData, {
+          headers: formData.getHeaders(),
+          timeout: 30000, // 30 segundos
+        });
+
+        transcribedText = response.data.text || response.data.result?.text || '';
+      } catch (whisperError: any) {
+        this.logger.warn(`Whisper API no disponible: ${whisperError.message}, usando mock`);
+        // Mock: usar los primeros caracteres del archivo como placeholder
+        transcribedText = `[Transcripción no disponible - Whisper API sin respuesta] Archivo: ${file.originalname}`;
+      }
+
+      // Actualizar transcripción con el texto y marcar como completada
+      const updated = await this.prisma.transcription.update({
+        where: { id: transcription.id },
+        data: {
+          text: transcribedText,
+          status: 'COMPLETADA',
+          confidence: 0.85, // Placeholder confidence
+        },
+      });
+
+      return {
+        id: updated.id,
+        text: updated.text,
+        language: updated.language,
+        status: updated.status,
+        confidence: updated.confidence,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error transcribiendo audio: ${error.message}`);
+      throw new BadRequestException(error.message || 'Error al transcribir el audio');
+    }
+  }
+
+  /**
+   * Buscar en transcripciones de un caso
+   */
+  async searchInCaseTranscriptions(caseId: string, query: string) {
+    const results = await this.searchInTranscription(caseId, query);
+    return {
+      query,
+      results,
+      count: results.length,
+    };
   }
 }

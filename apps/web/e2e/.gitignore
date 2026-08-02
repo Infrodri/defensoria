@@ -1,0 +1,21 @@
+# Generated test results and reports
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Screenshots and videos from failed tests
+*.png
+*.jpg
+*.mp4
+
+# Node modules (if ever installed in this directory)
+/node_modules/
+
+# IDEs
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db

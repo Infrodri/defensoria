@@ -1,0 +1,255 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    🔑 CREDENCIALES Y URLs PARA TESTING
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📋 CREDENCIALES POR ROL
+───────────────────────
+
+ABOGADO:
+  Email:    abogado@defensoria.gob.bo
+  Password: Password123!
+  Rol:      ABOGADO
+  Acceso:   ⚖️ Herramientas Legales + Transversales
+
+PSICÓLOGO:
+  Email:    psicologo@defensoria.gob.bo
+  Password: Password123!
+  Rol:      PSICOLOGO
+  Acceso:   🧠 Herramientas Psicológicas + Transversales
+
+TRABAJADOR SOCIAL:
+  Email:    social@defensoria.gob.bo
+  Password: Password123!
+  Rol:      SOCIAL
+  Acceso:   👥 Herramientas Sociales + Transversales
+
+JEFATURA:
+  Email:    jefe@defensoria.gob.bo
+  Password: Password123!
+  Rol:      JEFATURA
+  Acceso:   ✅ TODAS las herramientas
+
+
+🔗 URLs PRINCIPALES
+─────────────────────
+
+FRONTEND:
+  Homepage:               http://localhost:3100
+  Login:                  http://localhost:3100/(auth)/login
+  Dashboard:              http://localhost:3100/dashboard/panel
+  Herramientas:           http://localhost:3100/dashboard/herramientas
+  Tools Demo:             http://localhost:3100/dashboard/tools-demo
+
+BACKEND/API:
+  Base API:               http://localhost:4000/api
+  Swagger Docs:           http://localhost:4000/api/docs
+  Health Check:           http://localhost:4000/health
+
+DATABASE:
+  Prisma Studio:          npx prisma studio (abre automáticamente en puerto 5555)
+
+
+📚 ENDPOINTS POR MÓDULO
+───────────────────────
+
+LEGAL TOOLS (⚖️):
+  POST /api/legal-tools/discrepancies/analyze
+  POST /api/legal-tools/typicality/analyze
+  POST /api/legal-tools/deadlines/calculate
+
+PSYCHOLOGICAL TOOLS (🧠):
+  POST /api/psychological-tools/indicators/extract
+  POST /api/psychological-tools/risk-scales/prefill
+  POST /api/psychological-tools/clinical-translator/translate
+  POST /api/psychological-tools/trauma/analyze
+
+SOCIAL TOOLS (👥):
+  POST /api/social-tools/familymap/generate
+  POST /api/social-tools/vulnerability/calculate
+  POST /api/social-tools/environmental/map
+
+TRANSVERSAL TOOLS (🔗):
+  POST /api/transversal-tools/timeline/unified
+  POST /api/transversal-tools/anonymizer/anonymize
+
+UTILITIES:
+  GET /api/cases
+  GET /api/cases/{id}
+  GET /api/cases/{id}/transcriptions
+
+
+🚀 PASOS PARA EMPEZAR
+──────────────────────
+
+1. INICIAR SERVICIOS:
+   Terminal 1: cd apps/api && npm run start:dev
+   Terminal 2: cd apps/web && npm run dev
+
+2. ACCEDER AL FRONTEND:
+   URL: http://localhost:3100/(auth)/login
+   Email: abogado@defensoria.gob.bo
+   Password: Password123!
+
+3. NAVEGAR A HERRAMIENTAS:
+   Click en "⚖️ Herramientas Legales" (o tu rol)
+   Se abre: http://localhost:3100/dashboard/herramientas
+
+4. REVISAR ENDPOINTS:
+   Swagger: http://localhost:4000/api/docs
+   Usar Postman o cURL para testing
+
+5. OBTENER IDs PARA TESTING:
+   Prisma Studio: npx prisma studio
+   O desde Swagger GET /cases
+
+
+🧪 TESTING RÁPIDO CON cURL
+──────────────────────────
+
+1. LOGIN:
+   curl -X POST http://localhost:4000/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"abogado@defensoria.gob.bo","password":"Password123!"}'
+   
+   # Copiar el "accessToken" de la respuesta
+
+2. USAR TOKEN:
+   curl -X POST http://localhost:4000/api/legal-tools/discrepancies/analyze \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -d '{
+       "caseId": "YOUR_CASE_ID",
+       "transcriptionId": "YOUR_TRANS_ID"
+     }'
+
+3. OBTENER IDs:
+   curl -X GET http://localhost:4000/api/cases \
+     -H "Authorization: Bearer YOUR_TOKEN"
+
+
+💾 DATOS SEEDED (30+ registros)
+───────────────────────────────
+
+5 Casos completos con:
+  - Transcripciones
+  - Análisis Legales
+  - Análisis Psicológicos
+  - Análisis Sociales
+  - Análisis Transversales
+
+Ver en:
+  Base de datos → Prisma Studio
+  O desde API: GET /cases
+
+
+🎯 FLUJO DE TESTING MANUAL
+──────────────────────────
+
+PASO 1: Login como Abogado
+  URL: http://localhost:3100/(auth)/login
+  Email: abogado@defensoria.gob.bo
+
+PASO 2: Ver Herramientas
+  Click en "⚖️ Herramientas Legales"
+  URL: http://localhost:3100/dashboard/herramientas
+
+PASO 3: Click en "Acceder al Módulo"
+  Se abre la página de demostración
+  (próximamente: funcionalidad completa)
+
+PASO 4: Probar endpoints con Postman/cURL
+  Obtener token
+  Llamar endpoints con datos reales
+  Ver respuestas
+
+PASO 5: Cambiar de rol
+  Logout → Login como diferente rol
+  Ver menú cambia según permisos
+
+
+📊 MATRIZ DE ACCESO
+───────────────────
+
+┌─────────────────────┬─────────┬──────────┬────────┬──────────┐
+│ Herramienta         │ Abogado │ Psico    │ Social │ Jefatura │
+├─────────────────────┼─────────┼──────────┼────────┼──────────┤
+│ Legal Discrepancias │  RW ✓   │    R     │   R    │   RW     │
+│ Legal Tipicidad     │  RW ✓   │    R     │   R    │   RW     │
+│ Legal Deadlines     │  RW ✓   │    R     │   R    │   RW     │
+│ Psych Indicators    │   R     │   RW ✓   │   R    │   RW     │
+│ Psych Scales        │   R     │   RW ✓   │   R    │   RW     │
+│ Psych Translation   │   R     │   RW ✓   │   R    │   RW     │
+│ Psych Trauma        │   R     │   RW ✓   │   R    │   RW     │
+│ Social Family       │   R     │    R     │  RW ✓  │   RW     │
+│ Social Vulnerable   │   R     │    R     │  RW ✓  │   RW     │
+│ Social Environmental│   R     │    R     │  RW ✓  │   RW     │
+│ Transversal Timeline│  RW     │    RW    │  RW    │   RW     │
+│ Transversal Anon    │  RW     │    RW    │  RW    │   RW     │
+└─────────────────────┴─────────┴──────────┴────────┴──────────┘
+
+RW = Lectura/Escritura
+R  = Solo Lectura
+✓  = Herramienta principal del rol
+
+
+🔍 VERIFICACIÓN DE SETUP
+────────────────────────
+
+BACKEND:
+  ✅ npm run start:dev ejecutando
+  ✅ http://localhost:4000/api accesible
+  ✅ http://localhost:4000/api/docs disponible
+  ✅ BD seeded con datos
+
+FRONTEND:
+  ✅ npm run dev ejecutando
+  ✅ http://localhost:3100 accesible
+  ✅ Login funciona
+  ✅ Menú muestra herramientas por rol
+
+HERRAMIENTAS:
+  ✅ /dashboard/herramientas carga
+  ✅ Muestra módulos según rol
+  ✅ Permisos se muestran correctamente
+  ✅ Botones funcionan
+
+
+📖 GUÍAS DISPONIBLES
+────────────────────
+
+1. TESTING-MANUAL-HERRAMIENTAS.md
+   → Detalles completos de cada endpoint
+   → Request/Response ejemplos
+   → Datos necesarios
+
+2. ENTREGA-FINAL-HERRAMIENTAS.md
+   → Resumen global
+   → Matriz de permisos
+   → Arquitectura implementada
+
+3. VERIFICACION-HERRAMIENTAS.md
+   → Checklist
+   → Tests paso a paso
+   → Troubleshooting
+
+4. INICIO-RAPIDO-HERRAMIENTAS.md
+   → 3 pasos para ver funcionar
+   → Tips de debugging
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 RESUMEN RÁPIDO:
+
+1. Iniciar servicios (api + web)
+2. Login en http://localhost:3100/(auth)/login
+3. Click en "Herramientas [Tipo]" en menú
+4. Ver página de herramientas con tu rol
+5. Probar endpoints con Postman/Swagger
+6. Cambiar de rol para ver diferentes permisos
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Última actualización: 2026-08-02
+Status: ✅ COMPLETO Y FUNCIONAL

@@ -2,9 +2,11 @@ import { Controller, Post, Body, UseGuards, UseInterceptors, UploadedFile, BadRe
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { KnowledgeService } from './knowledge.service';
+import { TranscriptionService } from './transcription.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@defensoria/shared';
 import { ValidateMarkdownDto } from './dto/validate-markdown.dto';
 
@@ -13,7 +15,10 @@ import { ValidateMarkdownDto } from './dto/validate-markdown.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('knowledge')
 export class KnowledgeController {
-  constructor(private readonly knowledgeService: KnowledgeService) {}
+  constructor(
+    private readonly knowledgeService: KnowledgeService,
+    private readonly transcriptionService: TranscriptionService,
+  ) {}
 
   @Post('ingest')
   @Roles(Role.ADMINISTRADOR)
@@ -131,6 +136,65 @@ export class KnowledgeController {
       return await this.knowledgeService.validateMarkdown(dto.content);
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Error al validar Markdown');
+    }
+  }
+
+  @Post('transcribe')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Subir audio para transcribir y generar análisis' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        caseId: { type: 'string' },
+        evidenceId: { type: 'string', description: 'ID de la evidencia asociada (opcional)' },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async transcribeAudio(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('caseId') caseId: string,
+    @Body('evidenceId') evidenceId?: string,
+    @CurrentUser() user?: any,
+  ) {
+    if (!file) throw new BadRequestException('Se requiere un archivo de audio');
+    if (!caseId) throw new BadRequestException('Se requiere caseId');
+
+    // Validar que el archivo es audio
+    const audioMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/webm'];
+    if (!audioMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(`Tipo de audio no soportado: ${file.mimetype}`);
+    }
+
+    try {
+      return await this.transcriptionService.transcribeAudioFile(
+        caseId,
+        evidenceId,
+        file,
+        user?.id,
+      );
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al transcribir el audio');
+    }
+  }
+
+  @Post('search-transcriptions')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Buscar en transcripciones de un caso' })
+  async searchTranscriptions(
+    @Body('caseId') caseId: string,
+    @Body('query') query: string,
+  ) {
+    if (!caseId) throw new BadRequestException('Se requiere caseId');
+    if (!query) throw new BadRequestException('Se requiere query');
+
+    try {
+      return await this.transcriptionService.searchInCaseTranscriptions(caseId, query);
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al buscar en transcripciones');
     }
   }
 }
