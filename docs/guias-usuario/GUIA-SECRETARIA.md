@@ -7,7 +7,7 @@ Eres el **primer contacto** en el sistema. Tu trabajo es registrar correctamente
 
 ## ⚡ ACCESO RÁPIDO
 - **URL Principal**: `http://localhost:3100/ingreso`
-- **Tu menú**: Solo verás "Ingesta de Caso" y funciones básicas
+- **Tu menú**: Solo verás "Inicio de caso" y funciones básicas
 - **Tiempo promedio por caso**: 15-30 minutos
 
 ---
@@ -369,6 +369,221 @@ Asegúrate de tener:
 - ✅ **Rapidez en urgencias** - Priorizar casos de riesgo
 - ✅ **Empatía** - Tratar con calidez a denunciantes
 - ✅ **Profesionalismo** - Mantener la calma siempre
+
+---
+
+## 📖 **BITÁCORA DE ACTUACIONES - REGISTRO DE ACCIONES**
+
+### **¿QUÉ ES LA BITÁCORA?**
+
+La **bitácora** es un registro cronológico (de fecha y hora) de todas las acciones profesionales que ocurren en un caso. Es diferente del **ActionLog** automático del sistema.
+
+```
+📝 DEFINICIÓN:
+  Bitácora = Registro MANUAL de lo que hacen profesionales
+  ActionLog = Registro AUTOMÁTICO de cambios del sistema
+```
+
+### **QUIÉN REGISTRA LA BITÁCORA**
+
+| Rol | Registra | Puede Ver |
+|-----|----------|-----------|
+| SECRETARIA | NO (solo lee) | SÍ - todas |
+| ABOGADO | SÍ | SÍ - todas |
+| PSICÓLOGO | SÍ | SÍ - todas |
+| TRABAJADOR SOCIAL | SÍ | SÍ - todas |
+| JEFATURA | SÍ | SÍ - todas |
+
+### **TIPOS DE ACTUACIONES QUE SE REGISTRAN**
+
+```
+1️⃣ ENTREVISTA/DECLARACIÓN
+   Ejemplo: "Entrevista inicial con madre"
+   Incluir: participantes, temas, observaciones
+
+2️⃣ VISITA DOMICILIARIA
+   Ejemplo: "Visita al domicilio - Barrio San Roque"
+   Incluir: dirección, condiciones, personas encontradas
+
+3️⃣ AUDIENCIA
+   Ejemplo: "Audiencia judicial - Tribunal 3"
+   Incluir: fecha, tribunal, participantes, resolución
+
+4️⃣ DERIVACIÓN
+   Ejemplo: "Derivación a Defensoría Especializada"
+   Incluir: institución, motivo, contacto
+
+5️⃣ SEGUIMIENTO
+   Ejemplo: "Seguimiento telefónico - Madre llamó"
+   Incluir: resultado, próximo seguimiento
+
+6️⃣ NOTIFICACIÓN
+   Ejemplo: "Notificación enviada a denunciante"
+   Incluir: medio (postal/correo), fecha de entrega
+
+7️⃣ OTRO
+   Cualquier actuación profesional importante
+```
+
+### **CÓMO REGISTRAR UNA ACTUACIÓN**
+
+#### **PASO 1: Acceder a la bitácora**
+```
+1. Abre el expediente (ver detalles del caso)
+2. Tab "Bitácora" o "Actuaciones"
+3. Click "+ Agregar Actuación"
+```
+
+#### **PASO 2: Completar formulario**
+```
+📋 CAMPOS A LLENAR:
+   
+   Tipo de Actuación: [Dropdown]
+   ▼ Entrevista/Declaración
+   ▼ Visita Domiciliaria
+   ▼ Audiencia
+   ▼ Derivación
+   ▼ Seguimiento
+   ▼ Notificación
+   ▼ Otro
+   
+   Título/Asunto: [Línea corta]
+   "Entrevista inicial con la madre"
+   
+   Fecha de Actuación: [DD/MM/YYYY]
+   (puede ser hoy o anterior)
+   
+   Descripción Detallada: [Párrafo largo]
+   "Se realizó entrevista con Sra. María Rojas el día...
+   Se discutieron los siguientes temas..."
+   
+   Observaciones Importantes: [Notas adicionales]
+   "Madre mostró preocupación por seguridad del NNA..."
+   
+   Profesionales Participantes:
+   ▢ Yo
+   ▢ [Otros nombres]
+   
+   Documento Adjunto: [Opcional - subir PDF/JPG]
+```
+
+#### **PASO 3: Guardar**
+```
+Click: "Guardar Actuación"
+✅ Sistema registra automáticamente:
+   - Hora exacta del registro
+   - Profesional que lo registró
+   - Número de actuación
+```
+
+### **DIFERENCIA: Bitácora vs ActionLog**
+
+```
+📊 TABLA COMPARATIVA:
+
+┌─────────────────┬──────────────┬─────────────────┐
+│ CARACTERÍSTICA  │   BITÁCORA   │    ACTION LOG   │
+├─────────────────┼──────────────┼─────────────────┤
+│ Registra...     │ Acciones del │ Cambios del     │
+│                 │ profesional  │ sistema         │
+│ Ejemplo         │ Entrevista   │ Cambio de fase  │
+│ Quién registra  │ Manual       │ Automático      │
+│ Quién la ve     │ Todos       │ Todos          │
+│ Se puede editar │ NO (válida) │ NO (auditoría) │
+│ Privacidad      │ Siempre     │ Siempre         │
+└─────────────────┴──────────────┴─────────────────┘
+```
+
+### **EJEMPLO PRÁCTICO COMPLETO**
+
+#### **Caso Real:**
+```
+🏠 VISITA DOMICILIARIA - 15 de julio 2026
+
+Tipo: Visita Domiciliaria
+Fecha: 15/07/2026
+Profesional: Trabajador Social - Juan García
+Participantes: Nna "Carlos" (14 años), madre
+
+DESCRIPCIÓN DETALLADA:
+"Se realizó visita domiciliaria al domicilio ubicado
+en Calle Bolivia #245, barrio San Roque. Se encontró
+al NNA (Carlos) en casa, junto a su madre Sra. Rocío
+López. El estado general del domicilio es ordenado y
+limpio. Se evidencia cama individual con colchón en
+buen estado. Refrigerador funcional con alimentos.
+
+Se conversó con el NNA quien manifestó estar
+estudiando en el colegio sin problemas. Madre
+reporta que ha habido mejora en el comportamiento
+del adolescente. La relación entre ambos se ve
+positiva.
+
+RIESGOS OBSERVADOS: Ninguno en el momento
+RECOMENDACIONES: Continuar seguimiento mensual
+
+PRÓXIMA CITA: 15 de agosto 2026 a las 10:00"
+```
+
+### **REGLAS IMPORTANTES**
+
+```
+⚠️ AL REGISTRAR BITÁCORA:
+
+1. ✅ SER ESPECÍFICO - no escribir "se hizo el trabajo"
+2. ✅ RESPETAR CONFIDENCIALIDAD - no contar detalles íntimos
+3. ✅ ANOTAR HECHOS OBSERVABLES - no interpretaciones
+4. ✅ FECHAR CORRECTAMENTE - puede ser fecha pasada
+5. ✅ COMPLETAR AL DÍA - idealmente el mismo día
+6. ✅ ESCRIBIR CON CLARIDAD - otros deben entender
+7. ✅ NO EDITABLES - una vez guardada, es definitiva
+8. ✅ PROFESIONALISMO - lenguaje formal y neutro
+```
+
+### **ERRORES COMUNES**
+
+```
+❌ INCORRECTO:
+"Visitamos a la familia. Todo bien. Sin problemas."
+(muy vago, no hay detalles)
+
+✅ CORRECTO:
+"Visita domiciliaria al domicilio de Calle X #123.
+Encontrado NNA en casa, en condiciones de higiene
+aceptables. Madre reporta cumplimiento de escuela.
+Sin riesgos observados. Próximo seguimiento: ..."
+
+---
+
+❌ INCORRECTO:
+"La madre se ve sospechosa. Probablemente maltrate
+al hijo aunque no lo diga."
+(opinión, no hecho observable)
+
+✅ CORRECTO:
+"Se observó al NNA con cicatrices en brazo izquierdo.
+Madre lo calienta diariamente. Se refiere inquietud
+a profesional de psicología para evaluación."
+(observación factual)
+
+---
+
+❌ INCORRECTO:
+"Se mandó carta a institución XYZ el 15 de julio"
+(pero registras el 20 de julio)
+
+✅ CORRECTO:
+"Se mandó carta a institución XYZ el 15 de julio.
+Registrado: 20 de julio (retrasado por ausencia)"
+(aclaración de fecha de hecho vs. fecha de registro)
+```
+
+---
+
+**LA BITÁCORA ES EL CORAZÓN DEL EXPEDIENTE** ❤️
+
+Juntos todos los registros cuentan la historia completa del caso.
+¡Mantenla actualizada y precisa!
 
 ---
 

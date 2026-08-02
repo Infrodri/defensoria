@@ -361,3 +361,86 @@ JEFATURA asigna caso → Revisión de expediente → Planificación de evaluaci�
 - **ADMINISTRADOR**: Para permisos y accesos
 
 **¿Dudas sobre las herramientas?** Usa los tooltips (🛈) en cada herramienta para obtener orientación específica sobre evaluación social.
+
+
+---
+
+## 📖 **BITÁCORA DE ACTUACIONES - PERSPECTIVA SOCIAL**
+
+La **bitácora** es tu registro oficial de todas las intervenciones sociales en el caso.
+
+### **ACTUACIONES SOCIALES A REGISTRAR**
+
+```
+📋 TIPOS COMUNES:
+
+1. ENTREVISTAS
+   - Con NNA, familia, cuidadores
+   - Temas tratados
+   - Observaciones del entrevistado
+   - Dinámicas relacionales
+
+2. VISITAS DOMICILIARIAS
+   - Condiciones del hogar
+   - Relaciones intrafamiliares
+   - Riesgos observados
+   - Recursos disponibles
+
+3. SEGUIMIENTO
+   - Cumplimiento de recomendaciones
+   - Evolución familiar
+   - Cambios conductuales
+   - Necesidades emergentes
+
+4. INTERVENCIONES COMUNITARIAS
+   - Contactos con instituciones
+   - Derivaciones realizadas
+   - Articulación con recursos
+   - Acompañamiento
+
+5. GESTIÓN DE RIESGOS
+   - Riesgos identificados
+   - Acciones de contención
+   - Activación de protocolos
+   - Medidas implementadas
+```
+
+### **CÓMO REGISTRAR**
+
+1. Abre el caso → Tab "Bitácora"
+2. Click "+ Agregar Actuación"
+3. Selecciona tipo: "ENTREVISTA", "VISITA_DOMICILIARIA", "SEGUIMIENTO"
+4. Completa campos:
+   - Fecha y lugar
+   - Participantes
+   - Observaciones detalladas
+   - Recomendaciones
+
+### **OBSERVACIONES IMPORTANTES**
+
+```
+✅ DESCRIBE COMPORTAMIENTOS OBSERVABLES
+   NO: "El NNA está traumatizado"
+   SÍ: "El NNA evita contacto visual, llora al mencionar
+       su padre, manifiesta ansiedad al cambio de tema"
+
+✅ CONTEXTUALIZAS LAS DINÁMICAS
+   NO: "La familia está rota"
+   SÍ: "La familia enfrenta conflictos sobre autoridad.
+       Padre ausente, madre asume rol central, hijos
+       cuestionan límites establecidos"
+
+✅ IDENTIFICAS FORTALEZAS
+   "A pesar de dificultades económicas, familia mantiene
+   valores de solidaridad. Hermana mayor apoya tareas
+   escolares. Abuela proporciona cuidado diario"
+```
+
+### **REGLAS**
+
+✅ Confiabilidad - Datos verificables  
+✅ Contextualización - Considerando circunstancias  
+✅ Fortalezas - No solo riesgos  
+✅ Propositivo - Orientado a soluciones  
+✅ Confidencial - Máxima protección de datos  
+

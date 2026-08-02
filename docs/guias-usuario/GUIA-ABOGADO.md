@@ -277,3 +277,57 @@ El sistema genera automáticamente:
 - **ADMINISTRADOR**: Para permisos y accesos al sistema
 
 **¿Dudas sobre las herramientas?** Usa los tooltips (🛈) en cada herramienta para obtener ayuda contextual.
+
+
+---
+
+## 📖 **BITÁCORA DE ACTUACIONES - REGISTRO LEGAL**
+
+La **bitácora** es tu registro oficial de todas las actuaciones jurídicas en el caso.
+
+### **ACTUACIONES LEGALES A REGISTRAR**
+
+```
+📋 TIPOS COMUNES:
+
+1. AUDIENCIAS JUDICIALES
+   - Fecha y tribunal
+   - Participantes presentes
+   - Resoluciones/fallos
+   - Próximas fechas
+
+2. DILIGENCIAS LEGALES
+   - Notificaciones cursadas
+   - Presentación de escritos
+   - Requerimientos a instituciones
+
+3. SEGUIMIENTO LEGAL
+   - Estado de procesos
+   - Vencimiento de plazos
+   - Recursos interpuestos
+
+4. EVALUACIÓN CONCILIACIÓN
+   - Aptitud para conciliación
+   - Prohibiciones legales
+   - Recomendaciones
+```
+
+### **CÓMO REGISTRAR**
+
+1. Abre el caso → Tab "Bitácora"
+2. Click "+ Agregar Actuación"
+3. Selecciona: "AUDIENCIA" o tipo legal
+4. Completa campos:
+   - Fecha exacta
+   - Tribunal/Institución
+   - Resolución o acuerdo
+   - Próximos pasos
+
+### **REGLAS**
+
+✅ Precisión legal - Cita leyes y artículos  
+✅ Fechas exactas - Incluye hora si es relevante  
+✅ Lenguaje formal - Redacción profesional  
+✅ Sin interpretaciones - Solo hechos  
+✅ Confidencial - Cumple con secreto profesional  
+
