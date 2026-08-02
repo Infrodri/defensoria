@@ -44,6 +44,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: 'Personal & Permisos',  href: '/permisos',                  icon: Users },
     { label: 'Oficinas y Distritos', href: '/oficinas',                  icon: Building2 },
     { label: 'Auditoría Total',      href: '/auditoria',                 icon: ShieldCheck },
+    { label: 'Herramientas',         href: '/herramientas',              icon: ShieldCheck },
     { label: 'Configuración IA',     href: '/panel/admin/ia',            icon: BrainCircuit },
     { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
     { label: 'Disciplinas',          href: '/panel/admin/disciplinas',   icon: BookOpen },
@@ -62,6 +63,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: 'Inspecciones',         href: '/inspecciones',   icon: ShieldCheck },
     { label: 'Reportes GAM',         href: '/reportes',       icon: FileText },
     { label: 'Balanceo de Equipo',   href: '/equipo',         icon: Users },
+    { label: 'Herramientas',         href: '/herramientas',   icon: ShieldCheck },
     { label: 'Auditoría',            href: '/auditoria',      icon: ShieldCheck },
   ],
 
@@ -77,29 +79,32 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
 
   // ─── ABOGADO ─────────────────────────────────────────────────────
   ABOGADO: [
-    { label: 'Panel General',        href: '/panel',        icon: LayoutDashboard },
-    { label: 'Agenda y Citas',       href: '/citas',        icon: Calendar },
-    { label: 'Mis Casos Asignados',  href: '/casos',        icon: FileText },
-    { label: 'Inspecciones',         href: '/inspecciones', icon: ShieldCheck },
-    { label: 'Copiloto IA',          href: '/copilot',      icon: BrainCircuit },
+    { label: 'Panel General',        href: '/panel',              icon: LayoutDashboard },
+    { label: 'Agenda y Citas',       href: '/citas',              icon: Calendar },
+    { label: 'Mis Casos Asignados',  href: '/casos',              icon: FileText },
+    { label: 'Herramientas Legales', href: '/herramientas',       icon: ShieldCheck },
+    { label: 'Inspecciones',         href: '/inspecciones',       icon: ShieldCheck },
+    { label: 'Copiloto IA',          href: '/copilot',            icon: BrainCircuit },
   ],
 
   // ─── PSICOLOGO ───────────────────────────────────────────────────
   PSICOLOGO: [
-    { label: 'Panel General',         href: '/panel',   icon: LayoutDashboard },
-    { label: 'Agenda y Citas',        href: '/citas',   icon: Calendar },
-    { label: 'Mis Casos Asignados',   href: '/casos',   icon: FileText },
-    { label: 'Indicadores de Riesgo', href: '/riesgo',  icon: ShieldCheck },
-    { label: 'Copiloto IA',           href: '/copilot', icon: BrainCircuit },
+    { label: 'Panel General',         href: '/panel',             icon: LayoutDashboard },
+    { label: 'Agenda y Citas',        href: '/citas',             icon: Calendar },
+    { label: 'Mis Casos Asignados',   href: '/casos',             icon: FileText },
+    { label: 'Herramientas Psicológicas', href: '/herramientas',  icon: BrainCircuit },
+    { label: 'Indicadores de Riesgo', href: '/riesgo',            icon: ShieldCheck },
+    { label: 'Copiloto IA',           href: '/copilot',           icon: BrainCircuit },
   ],
 
   // ─── SOCIAL ──────────────────────────────────────────────────────
   SOCIAL: [
-    { label: 'Panel General',         href: '/panel',      icon: LayoutDashboard },
-    { label: 'Agenda y Citas',        href: '/citas',      icon: Calendar },
-    { label: 'Mis Casos Asignados',   href: '/casos',      icon: FileText },
-    { label: 'Directorio Derivación', href: '/derivacion', icon: Users },
-    { label: 'Copiloto IA',           href: '/copilot',    icon: BrainCircuit },
+    { label: 'Panel General',         href: '/panel',             icon: LayoutDashboard },
+    { label: 'Agenda y Citas',        href: '/citas',             icon: Calendar },
+    { label: 'Mis Casos Asignados',   href: '/casos',             icon: FileText },
+    { label: 'Herramientas Sociales', href: '/herramientas',      icon: Users },
+    { label: 'Directorio Derivación', href: '/derivacion',        icon: Users },
+    { label: 'Copiloto IA',           href: '/copilot',           icon: BrainCircuit },
   ],
 
   // ─── REFERENTE_TUTOR ─────────────────────────────────────────────

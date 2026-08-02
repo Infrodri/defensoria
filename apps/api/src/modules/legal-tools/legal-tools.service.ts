@@ -81,7 +81,7 @@ export class LegalToolsService {
     // Similar a analyzeDiscrepancies pero para tipicidad penal
     // Placeholder
     return {
-      potentialCrimes: [
+      typicalCrimes: [
         {
           criminalCode: 'Art. 252 CP',
           crimeType: 'Violencia Psicológica',

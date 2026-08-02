@@ -54,7 +54,7 @@ interface LegalToolsPanelProps {
   };
   penalTypicality?: {
     analysisId: string;
-    potentialCrimes: Crime[];
+    typicalCrimes: Crime[];
     primaryCrime: Crime;
     secondaryCrimes: Crime[];
     evidenceGaps: string[];
@@ -218,7 +218,7 @@ export const LegalToolsPanel: React.FC<LegalToolsPanelProps> = ({
           <PenalTypicality
             caseId={caseId}
             analysisId={penalTypicality.analysisId}
-            potentialCrimes={penalTypicality.potentialCrimes}
+            typicalCrimes={penalTypicality.typicalCrimes}
             primaryCrime={penalTypicality.primaryCrime}
             secondaryCrimes={penalTypicality.secondaryCrimes}
             evidenceGaps={penalTypicality.evidenceGaps}

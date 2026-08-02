@@ -20,7 +20,7 @@ interface Crime {
 interface PenalTypicalityProps {
   caseId: string;
   analysisId: string;
-  potentialCrimes: Crime[];
+  typicalCrimes: Crime[];
   primaryCrime: Crime;
   secondaryCrimes: Crime[];
   evidenceGaps: string[];
@@ -32,7 +32,7 @@ interface PenalTypicalityProps {
 export const PenalTypicality: React.FC<PenalTypicalityProps> = ({
   caseId,
   analysisId,
-  potentialCrimes,
+  typicalCrimes,
   primaryCrime,
   secondaryCrimes,
   evidenceGaps,
