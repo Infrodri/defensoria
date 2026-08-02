@@ -142,6 +142,7 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
   {
     groupLabel: 'Sistema',
     items: [
+      { label: 'Verificar Herramientas', href: '/admin/tools-verification', icon: BrainCircuit },
       { label: 'Configuración IA',     href: '/panel/admin/ia',            icon: BrainCircuit },
       { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
       { label: 'Disciplinas',          href: '/panel/admin/disciplinas',   icon: BookOpen },

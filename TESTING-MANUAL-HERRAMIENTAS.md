@@ -1,748 +1,366 @@
-# 🧪 TESTING MANUAL - HERRAMIENTAS POR MÓDULO
+# 🧪 TESTING MANUAL - Herramientas Phase 2 + Admin Panel
 
-Guía para probar manualmente cada herramienta rellenando datos reales.
-
----
-
-## 🚀 SETUP INICIAL
-
-### Terminal 1: Backend
-```bash
-cd c:\dev\defensoria\apps\api
-npm run start:dev
-
-# Esperado: Server running on http://localhost:4000
-```
-
-### Terminal 2: Frontend
-```bash
-cd c:\dev\defensoria\apps\web
-npm run dev
-
-# Esperado: ready on http://localhost:3100
-```
+## ✅ STATUS: LISTO PARA TESTING
 
 ---
 
-## 🔑 LOGIN
+## 📋 CHECKLIST PREVIO
 
-### URL
-```
-http://localhost:3100/(auth)/login
-```
-
-### Credenciales por Rol
-
-**ABOGADO (prueba Legal Tools):**
-```
-Email:    abogado@defensoria.gob.bo
-Password: Password123!
-```
-
-**PSICÓLOGO (prueba Psychological Tools):**
-```
-Email:    psicologo@defensoria.gob.bo
-Password: Password123!
-```
-
-**SOCIAL (prueba Social Tools):**
-```
-Email:    social@defensoria.gob.bo
-Password: Password123!
-```
+Antes de testear, verifica:
+- [ ] API corriendo: `npm run start:dev` (puerto 4100)
+- [ ] Web corriendo: `npm run dev` (puerto 3000)
+- [ ] Ollama corriendo: `http://localhost:11434`
+- [ ] Whisper API corriendo: `http://localhost:8000`
+- [ ] PostgreSQL disponible
 
 ---
 
-## ⚖️ MÓDULO 1: LEGAL TOOLS (Abogado)
+## 🧑 TEST 1: Usuario Normal Usando Herramientas
 
-### Acceso
+### Paso 1: Loguear como Abogado/Psicólogo/Social
 ```
-1. Login como ABOGADO
-2. Menú lateral → ⚖️ Herramientas Legales
-3. Se abre: http://localhost:3100/dashboard/herramientas
-```
-
-### Herramienta 1: Análisis de Discrepancias
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/legal-tools/discrepancies/analyze
+URL: http://localhost:3000/login
+Usuario: abogado@defensoria.bo (o cualquier usuario no-admin)
+Verificar: Que logues exitosamente
 ```
 
-**Requisitos:**
-- caseId: ID de un caso existente
-- transcriptionId: ID de una transcripción
-
-**Cómo obtener IDs:**
-```bash
-# Opción 1: Swagger
-http://localhost:4000/api/docs
-GET /cases → Copiar un caseId
-GET /cases/{id}/transcriptions → Copiar transcriptionId
-
-# Opción 2: Base de datos (Prisma Studio)
-npx prisma studio
-# Tab: Case → Seleccionar caso → Ver id
-# Tab: Transcription → Ver transcriptionId
+### Paso 2: Navegar a Herramientas
+```
+Opción A: URL directo: http://localhost:3000/tools-demo
+Opción B: Sidebar → "Herramientas Legales" (para abogados)
+Resultado esperado: Panel carga con selector de casos
 ```
 
-**Request JSON:**
-```json
-{
-  "caseId": "clzz2z5vq000008jz8z8z8z8z",
-  "transcriptionId": "clzz2z5vq000008jz8z8z8z8z",
-  "comparableDocuments": []
-}
+### Paso 3: Seleccionar un Caso
+```
+Acción: Click en dropdown "Caso a Analizar"
+Verificar: Se listan casos disponibles
+Resultado: Selecciona cualquier caso (ej: CASO-001)
 ```
 
-**Test con cURL:**
-```bash
-curl -X POST http://localhost:4000/api/legal-tools/discrepancies/analyze \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "caseId": "CASE_ID_HERE",
-    "transcriptionId": "TRANS_ID_HERE"
-  }'
+### Paso 4: Subir Audio
+```
+Acción: Busca el botón "📁 Subir Entrevista" (debe estar VERDE)
+Verificar: 
+  ✅ El botón existe
+  ✅ El botón no está deshabilitado
+Resultado esperado: Se abre selector de archivo
 ```
 
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "discrepancies": [
-    {
-      "id": "d-1",
-      "testimony1Index": 0,
-      "testimony2Index": 1,
-      "discrepancy": "Inconsistencia en la hora",
-      "severity": "ALTA",
-      "implication": "Podría indicar..."
-    }
-  ],
-  "overallConsistencyScore": 72,
-  "recommendation": "Se recomienda...",
-  "analyzedAt": "2024-08-02T...",
-  "analyzedBy": "Abogado"
-}
+### Paso 5: Seleccionar Archivo Audio
+```
+Acción: 
+  - Click en selector
+  - Selecciona cualquier archivo .mp3 o .wav
+  (Si no tienes, crea uno dummy de 1 segundo)
+Verificar:
+  ✅ El archivo se selecciona
+Resultado: Comienza la subida y transcripción
 ```
 
-### Herramienta 2: Tipicidad Penal
-
-**Endpoint:**
+### Paso 6: Verificar Transcripción
 ```
-POST http://localhost:4000/api/legal-tools/typicality/analyze
-```
-
-**Request JSON:**
-```json
-{
-  "transcriptionId": "TRANS_ID_HERE",
-  "caseTypeCode": "VIOLENCIA_INTRAFAMILIAR"
-}
+Espera a que se complete
+Verificar status:
+  ⏳ "Transcribiendo audio..."
+  ✅ "✅ Transcripción completada exitosamente"
+  
+Si falla (rojo):
+  ❌ "Error en la transcripción: ..."
+  → Verifica que Whisper esté corriendo
 ```
 
-**caseTypeCodes válidos:**
+### Paso 7: Click "Cargar Datos"
 ```
-ABUSO_SEXUAL
-NEGLIGENCIA
-ABANDONO
-EXPLOTACION
-TRATA
-VIOLENCIA_INTRAFAMILIAR
-DELITO_FINANCIERO
+Acción: Click en botón "🔄 Cargar Datos"
+Verificar:
+  ✅ Spinner mostrando "Analizando caso..."
+Resultado esperado: Se cargan análisis en tiempo real
 ```
 
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "typicalCrimes": [
-    {
-      "id": "crime-1",
-      "crimeType": "Violencia intrafamiliar",
-      "articleNumber": "Article 291",
-      "description": "...",
-      "matchPercentage": 85,
-      "aggravatingFactors": ["Menores presentes"],
-      "mitigatingFactors": []
-    }
-  ],
-  "primaryCrime": "Violencia intrafamiliar",
-  "typicalityScore": 85,
-  "recommendation": "...",
-  "analyzedAt": "...",
-  "analyzedBy": "Abogado"
-}
+### Paso 8: Ver Resultados
+```
+Haz click en cada tab:
+  ⚖️ Legal
+  🧠 Psicológico
+  👥 Social
+  🔗 Transversal
+  
+Verificar:
+  ✅ Cada tab muestra análisis
+  ✅ No hay errores en consola
+  ✅ Los datos se ven reales (no mocks vacíos)
 ```
 
-### Herramienta 3: Vencimientos Procesales
-
-**Endpoint:**
+### Resultado Final
 ```
-POST http://localhost:4000/api/legal-tools/deadlines/calculate
-```
-
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "eventDate": "2024-08-02",
-  "eventType": "DENUNCIA"
-}
-```
-
-**eventTypes válidos:**
-```
-DENUNCIA
-MEDIDAS_PROTECCION
-AUDIENCIA
-SENTENCIA
-APELACION
-```
-
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "deadlines": [
-    {
-      "id": "dl-1",
-      "eventType": "DENUNCIA",
-      "deadlineDate": "2024-09-02",
-      "businessDaysRemaining": 15,
-      "calendarDaysRemaining": 31,
-      "legalBasis": "Article 123",
-      "consequences": "Pérdida de acción",
-      "priority": "ALTA"
-    }
-  ],
-  "criticalDeadlines": 2,
-  "recommendation": "...",
-  "calculatedAt": "...",
-  "calculatedBy": "Abogado"
-}
+✅ PASO SI: Usuario puede subir audio y ver análisis real
+❌ PASO FALLA SI: 
+  - El botón no aparece
+  - Error en transcripción
+  - Análisis no carga
 ```
 
 ---
 
-## 🧠 MÓDULO 2: PSYCHOLOGICAL TOOLS (Psicólogo)
+## 🔐 TEST 2: Admin Verificando Herramientas
 
-### Acceso
+### Paso 1: Loguear como ADMINISTRADOR
 ```
-1. Login como PSICÓLOGO
-2. Menú lateral → 🧠 Herramientas Psicológicas
-3. Se abre: http://localhost:3100/dashboard/herramientas
-```
-
-### Herramienta 1: Indicadores de Trauma
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/psychological-tools/indicators/extract
+URL: http://localhost:3000/login
+Usuario: admin@defensoria.bo
+Verificar: Logues como ADMINISTRADOR
 ```
 
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "transcriptionId": "TRANS_ID_HERE"
-}
+### Paso 2: Navegar a Panel de Verificación
+```
+Opción A: URL directo: http://localhost:3000/admin/tools-verification
+Opción B: Sidebar → Sistema → "Verificar Herramientas"
+
+Verificar:
+  ✅ El menú "Verificar Herramientas" existe en Sistema
+  ✅ Link está activo (no 404)
 ```
 
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "traumaLevel": "ALTO",
-  "indicators": [
-    {
-      "id": "ind-1",
-      "name": "Pesadillas recurrentes",
-      "severity": "ALTA",
-      "description": "El menor reporta pesadillas...",
-      "evidence": "Testimonio verbal"
-    }
-  ],
-  "overallScore": 82,
-  "recommendation": "Se recomienda seguimiento psicológico intensivo",
-  "analyzedAt": "...",
-  "analyzedBy": "Psicólogo"
-}
+### Paso 3: Panel Carga y Muestra Health Checks
+```
+Verificar que aparecen 6 cards:
+  ✅ Ollama
+  ✅ Whisper API
+  ✅ RAG Service
+  ✅ PostgreSQL Database
+  ✅ Transcriptions
+  ✅ Knowledge Base
+  
+Color esperado:
+  🟢 Verde (OK) si el servicio está disponible
+  🟡 Amarillo (DEGRADED) si funciona limitado
+  🔴 Rojo (ERROR) si no está disponible
 ```
 
-### Herramienta 2: Escalas de Riesgo
-
-**Endpoint:**
+### Paso 4: Verificar Status General
 ```
-POST http://localhost:4000/api/psychological-tools/risk-scales/prefill
-```
-
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "transcriptionId": "TRANS_ID_HERE"
-}
+Arriba debe decir:
+  Estado General: 🟢 HEALTHY (si todos están OK)
+  O: 🟡 DEGRADED (si alguno falla)
+  O: 🔴 DOWN (si hay errores críticos)
+  
+Verificar timestamp está actualizado
 ```
 
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "scales": [
-    {
-      "id": "scale-1",
-      "name": "PCL-5 (TEPT)",
-      "score": 45,
-      "maxScore": 80,
-      "interpretation": "ALTO",
-      "subscales": [
-        {
-          "id": "sub-1",
-          "name": "Re-experiencia",
-          "score": 12,
-          "maxScore": 20
-        }
-      ]
-    }
-  ],
-  "overallClinicalRisk": "ALTO",
-  "analyzedAt": "...",
-  "analyzedBy": "Psicólogo"
-}
+### Paso 5: Click "Ejecutar Tests"
+```
+Acción: Click en botón azul "🧪 Ejecutar Tests en Vivo"
+Espera a que complete...
+
+Verificar:
+  ✅ Muestra "Ejecutando tests..."
+  ✅ Después muestra resultados
+  ✅ Resumen: "5/5 tests pasados (100%)" o similar
 ```
 
-### Herramienta 3: Traducción Clínica
-
-**Endpoint:**
+### Paso 6: Ver Resultados de Tests
 ```
-POST http://localhost:4000/api/psychological-tools/clinical-translator/translate
-```
-
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "notesText": "Paciente muestra signos de ansiedad severa, insomnio crónico y rumiación obsesiva sobre el evento traumático. Presenta también síntomas de disociación durante entrevista."
-}
+Verificar que muestra:
+  ✅ health_status: PASSED
+  ✅ ollama_status: PASSED
+  ✅ rag_status: PASSED
+  ✅ whisper_status: PASSED
+  ✅ transcriptions_status: PASSED
+  
+Si alguno falla:
+  ❌ Ver el mensaje de error y diagnosticar
 ```
 
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "translations": [
-    {
-      "id": "t-1",
-      "original": "ansiedad severa",
-      "translated": "Trastorno de Ansiedad Generalizada (TAG)",
-      "clinicalTerm": "Severe anxiety",
-      "forensicTerm": "Emotional distress impacting witness reliability",
-      "explanation": "Señala alteración emocional significativa"
-    }
-  ],
-  "keyTerms": ["TEPT", "Disociación", "Ansiedad"],
-  "translatedSummary": "Menor presenta síntomas consistentes con TEPT...",
-  "analyzedAt": "...",
-  "analyzedBy": "Psicólogo"
-}
+### Paso 7: Aprobar Herramientas
+```
+Si todo está OK (estado HEALTHY):
+  Acción: Click en botón VERDE "✅ Aprobar Herramientas"
+  
+Si hay errores:
+  El botón estará deshabilitado (gris)
+  Necesitas arreglar los servicios primero
+
+Verificar:
+  ✅ Muestra "✅ Herramientas aprobadas exitosamente"
+  ✅ Timestamp de aprobación
 ```
 
-### Herramienta 4: Análisis de Trauma
-
-**Endpoint:**
+### Resultado Final
 ```
-POST http://localhost:4000/api/psychological-tools/trauma/analyze
-```
+✅ PASO SI: 
+  - Panel carga
+  - Muestra health checks
+  - Tests ejecutan
+  - Botón de aprobación funciona
 
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "indicadores": [
-    "pesadillas_recurrentes",
-    "ansiedad_social",
-    "hipervigilancia",
-    "flashbacks"
-  ]
-}
-```
-
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "cumulativeTraumaLevel": "CRÍTICO",
-  "exposureCount": 4,
-  "traumaType": "TEPT complejo",
-  "accumulationFactors": [
-    "Exposición prolongada",
-    "Víctima vulnerable",
-    "Falta de apoyo"
-  ],
-  "overallScore": 92,
-  "recommendation": "Intervención inmediata recomendada",
-  "analyzedAt": "...",
-  "analyzedBy": "Psicólogo"
-}
+❌ PASO FALLA SI:
+  - Panel no carga (404)
+  - Error en health checks
+  - Tests no ejecutan
+  - No aparece botón de aprobación
 ```
 
 ---
 
-## 👥 MÓDULO 3: SOCIAL TOOLS (Trabajador Social)
+## 🔒 TEST 3: Verificar Acceso por Rol
 
-### Acceso
+### Test 3a: Usuario NO-ADMIN intenta acceder
 ```
-1. Login como SOCIAL
-2. Menú lateral → 👥 Herramientas Sociales
-3. Se abre: http://localhost:3100/dashboard/herramientas
-```
-
-### Herramienta 1: Estructura Familiar
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/social-tools/familymap/generate
+Loguear como: ABOGADO (no-admin)
+URL: http://localhost:3000/admin/tools-verification
+Resultado esperado:
+  🔒 Mensaje: "Acceso Denegado"
+  🔒 Tu rol: ABOGADO
+  (No puede acceder)
 ```
 
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "transcriptionId": "TRANS_ID_HERE"
-}
+### Test 3b: Menu item solo para ADMIN
+```
+Loguear como ABOGADO
+Sidebar → Sistema
+Verificar:
+  ✅ "Verificar Herramientas" NO aparece
+  ❌ Si aparece: ERROR - Acceso mal configurado
 ```
 
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "nnaName": "Carlos",
-  "nuclearFamily": [
-    {
-      "id": "fm-1",
-      "name": "María García",
-      "relationship": "Madre",
-      "age": 38,
-      "livesWithNNA": true,
-      "socialVulnerabilities": ["Desempleo", "Vivienda precaria"]
-    }
-  ],
-  "extendedFamily": [
-    {
-      "id": "fm-2",
-      "name": "Ana García",
-      "relationship": "Abuela",
-      "age": 65,
-      "livesWithNNA": false,
-      "socialVulnerabilities": []
-    }
-  ],
-  "familyDynamics": "Familia con conflictividad moderada...",
-  "vulnerabilities": ["Pobreza", "Vivienda precaria"],
-  "analyzedAt": "...",
-  "analyzedBy": "Trabajador Social"
-}
+### Resultado Final
 ```
-
-### Herramienta 2: Evaluación Vulnerabilidad
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/social-tools/vulnerability/calculate
-```
-
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "ingresos": 500,
-  "vivienda": "PRECARIA",
-  "cargasFamiliares": 3
-}
-```
-
-**vivienda válidos:**
-```
-PRECARIA
-INFORMAL
-INADECUADA
-PROPIA
-```
-
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "vulnerabilityScore": 78,
-  "vulnerabilityLevel": "ALTO",
-  "riskFactors": [
-    {
-      "id": "rf-1",
-      "name": "Pobreza extrema",
-      "severity": "ALTA",
-      "description": "Ingresos por debajo del mínimo",
-      "description": "Acceso a programas de apoyo social"
-    }
-  ],
-  "supportPrograms": [
-    {
-      "id": "sp-1",
-      "name": "Bono Juana Azurduy",
-      "type": "ASIGNACION",
-      "availability": "DISPONIBLE"
-    }
-  ],
-  "recommendations": "Se recomienda inscripción en...",
-  "analyzedAt": "...",
-  "analyzedBy": "Trabajador Social"
-}
-```
-
-### Herramienta 3: Mapeo Ambiental
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/social-tools/environmental/map
-```
-
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "transcriptionId": "TRANS_ID_HERE"
-}
-```
-
-**Esperado:**
-```json
-{
-  "analysisId": "uuid",
-  "caseId": "case-id",
-  "environmentalFactors": [
-    {
-      "id": "ef-1",
-      "category": "SEGURIDAD",
-      "factor": "Violencia comunitaria",
-      "severity": "ALTA",
-      "mitigationStrategy": "Apoyo psicosocial comunitario"
-    }
-  ],
-  "riskProfile": "Entorno de alto riesgo...",
-  "protectionFactors": [
-    "Presencia de escuela cercana",
-    "Centro de salud accesible"
-  ],
-  "recommendations": "Intervenciones comunitarias...",
-  "analyzedAt": "...",
-  "analyzedBy": "Trabajador Social"
-}
+✅ PASO SI: Solo ADMINISTRADOR puede ver y acceder
+❌ PASO FALLA SI: Otros roles ven el panel
 ```
 
 ---
 
-## 🔗 MÓDULO 4: TRANSVERSAL TOOLS (Todos)
+## 📊 TEST 4: Estadísticas
 
-### Acceso
+### Paso 1: Admin ve estadísticas
 ```
-1. Login con cualquier rol
-2. Menú lateral → (tu herramienta)
-3. Desplazarse hasta "Herramientas Transversales"
-```
-
-### Herramienta 1: Línea de Tiempo Unificada
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/transversal-tools/timeline/unified
+En panel de verificación, debe mostrar:
+  📊 Estadísticas:
+    • Transcripciones Completadas: X/Y (Z%)
+    • Análisis Realizados: N
+    • Documentos en KB: M
 ```
 
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE"
-}
+### Paso 2: Verificar números sensatos
+```
+Transcripciones Completadas:
+  ✅ El numerador ≤ denominador
+  ✅ Porcentaje está entre 0-100%
+  
+Análisis Realizados:
+  ✅ Es un número positivo (>= 0)
+  
+Documentos en KB:
+  ✅ Es un número positivo
 ```
 
-**Esperado:**
-```json
-{
-  "timelineId": "uuid",
-  "caseId": "case-id",
-  "events": [
-    {
-      "id": "evt-1",
-      "date": "2024-01-15",
-      "title": "Denuncia inicial",
-      "description": "Se recibe denuncia por negligencia",
-      "type": "legal",
-      "documentId": "doc-001"
-    },
-    {
-      "id": "evt-2",
-      "date": "2024-01-18",
-      "title": "Evaluación psicológica",
-      "description": "Realización de evaluación inicial",
-      "type": "psychological",
-      "metadata": { "evaluador": "Dr. López" }
-    }
-  ],
-  "analyzedAt": "..."
-}
+### Resultado Final
 ```
-
-### Herramienta 2: Reporte Anonimizado
-
-**Endpoint:**
-```
-POST http://localhost:4000/api/transversal-tools/anonymizer/anonymize
-```
-
-**Request JSON:**
-```json
-{
-  "caseId": "CASE_ID_HERE",
-  "reporteId": "REPORTE_ID_HERE"
-}
-```
-
-**Esperado:**
-```json
-{
-  "anonymizationId": "uuid",
-  "caseId": "case-id",
-  "reportId": "reporte-id",
-  "reportContent": "El NNA [ANONIMIZADO] de [ANONIMIZADO] años...",
-  "anonymizationRules": [
-    {
-      "id": "rule-1",
-      "original": "Carlos García López",
-      "replacement": "[ANONIMIZADO-001]",
-      "occurrences": 5
-    }
-  ],
-  "confidentialityLevel": "ALTAMENTE_CONFIDENCIAL",
-  "generatedAt": "...",
-  "generatedBy": "Usuario"
-}
+✅ PASO SI: Las estadísticas son coherentes
+❌ PASO FALLA SI: Números negativos, NaN, o sin sentido
 ```
 
 ---
 
-## 📊 CHECKLIST DE VERIFICACIÓN
+## 🐛 TEST 5: Diagnóstico de Problemas
 
-### Legal Tools
-- [ ] Discrepancias: Endpoint responde
-- [ ] Tipicidad: Endpoint responde
-- [ ] Deadlines: Endpoint responde
-
-### Psychological Tools
-- [ ] Indicadores: Endpoint responde
-- [ ] Escalas: Endpoint responde
-- [ ] Traducción: Endpoint responde
-- [ ] Trauma: Endpoint responde
-
-### Social Tools
-- [ ] Familia: Endpoint responde
-- [ ] Vulnerabilidad: Endpoint responde
-- [ ] Ambiental: Endpoint responde
-
-### Transversal Tools
-- [ ] Timeline: Endpoint responde
-- [ ] Anonimizar: Endpoint responde
-
----
-
-## 🛠️ HERRAMIENTAS PARA TESTING
-
-### Postman
+### Si el botón "Subir Entrevista" NO aparece:
 ```
-1. Descargar: https://www.postman.com/downloads/
-2. Crear colección con URLs arriba
-3. Agregar headers: Authorization: Bearer TOKEN
+1. Verifica que NO eres ADMINISTRADOR
+   (admin solo usa /tools-demo sin upload)
+   
+2. Abre Console (F12)
+   → Busca errores rojo
+   → Copia y reporta
+   
+3. Verifica que la URL es: /tools-demo
+   (no /dashboard/tools-demo ni otra)
+   
+4. Recarga la página: Ctrl+Shift+R
 ```
 
-### cURL (Terminal)
-```bash
-# Obtener token
-curl -X POST http://localhost:4000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"abogado@defensoria.gob.bo","password":"Password123!"}'
-
-# Usar token en siguiente request
-curl -X POST http://localhost:4000/api/legal-tools/discrepancies/analyze \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d {...}
+### Si "Verificar Herramientas" NO aparece en sidebar:
+```
+1. Verifica que ERES ADMINISTRADOR
+   (debe mostrar tu rol en sidebar)
+   
+2. En Sidebar → Sistema
+   (¿ves "Configuración IA", "Base de Conocimiento", etc.?)
+   
+3. Si no ves nada: reload de página: Ctrl+Shift+R
+   
+4. Si sigue sin aparecer:
+   a) Abre Console (F12)
+   b) Copia errores
+   c) Reporta
 ```
 
-### Swagger UI
+### Si la transcripción falla:
 ```
-http://localhost:4000/api/docs
+Error: "Error en la transcripción: Whisper API sin respuesta"
+→ Whisper no está corriendo
+  Solución: npm start whisper (en otra terminal)
 
-Ventajas:
-✅ Interfaz visual
-✅ Auto-complete
-✅ Documentación inline
-✅ Respuestas formateadas
-```
+Error: "Error en la transcripción: caseId inválido"
+→ El caseId no existe
+  Solución: Selecciona otro caso del dropdown
 
----
-
-## 🚨 TROUBLESHOOTING
-
-### Error: "Unauthorized"
-**Solución:**
-```bash
-1. Verificar token está en Authorization header
-2. Token debe estar con "Bearer " prefijo
-3. Verificar token no esté expirado
+Error: "Error en la transcripción: Archivo no válido"
+→ El archivo no es audio (.mp3, .wav, etc.)
+  Solución: Selecciona un archivo audio válido
 ```
 
-### Error: "Case not found"
-**Solución:**
-```bash
-1. Usar IDs reales de BD
-2. Obtener de Swagger: GET /cases
-3. O desde Prisma Studio
+### Si el panel de admin no carga:
 ```
+Error: "Acceso Denegado - Solo admins"
+→ No eres ADMINISTRADOR
+  Solución: Logúeate como admin
 
-### Error: "CORS error"
-**Solución:**
-```bash
-1. Backend debe tener CORS habilitado
-2. Frontend en http://localhost:3100
-3. API en http://localhost:4000
-```
-
-### Endpoint devuelve null/vacío
-**Solución:**
-```bash
-1. Verificar datos de entrada son válidos
-2. Revisar logs del backend
-3. Comprobar BD tiene datos seeded
+Error: "Error checking tools health"
+→ Algún servicio está caído
+  Verificar:
+  ✅ Ollama: curl http://localhost:11434/api/tags
+  ✅ Whisper: curl http://localhost:8000/docs
+  ✅ PostgreSQL: psql -d defensoria
 ```
 
 ---
 
-## 💡 TIPS
+## 📝 CHECKLIST FINAL
 
-- **Usa Swagger primero** para entender estructura de requests
-- **Copia responses** para entender qué esperar
-- **Prueba con datos reales** de tu BD
-- **Guarda tokens** en variable para reutilizar
-- **Toma screenshots** de respuestas exitosas
+| Item | Status | Notas |
+|------|--------|-------|
+| Usuario puede subir audio | ✅/❌ | |
+| Transcripción funciona | ✅/❌ | |
+| Análisis carga | ✅/❌ | |
+| Admin ve panel | ✅/❌ | |
+| Health checks muestran | ✅/❌ | |
+| Tests ejecutan | ✅/❌ | |
+| Botón aprobación existe | ✅/❌ | |
+| Acceso por rol | ✅/❌ | |
+| Sin errores en console | ✅/❌ | |
+| Compilaciones OK | ✅/❌ | |
 
 ---
 
-**¡Listo para testing manual! 🎯**
+## 📞 REPORTAR PROBLEMAS
 
+Si algo no funciona:
+
+1. **Abre Console** (F12 en navegador)
+2. **Copia errores** que aparecen en rojo
+3. **Reporta**:
+   - URL donde ocurre
+   - Rol del usuario
+   - Error exacto
+   - Pasos para reproducir
+
+---
+
+## ✅ TESTING COMPLETADO
+
+Si todos los items del checklist están ✅, las herramientas están **LISTAS PARA PRODUCCIÓN**.
+
+**Éxito**: 🎉 Las herramientas Phase 2 funcionan correctamente
