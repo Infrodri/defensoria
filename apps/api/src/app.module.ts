@@ -31,6 +31,8 @@ import { LegalToolsModule } from './modules/legal-tools/legal-tools.module';
 import { PsychologicalToolsModule } from './modules/psychological-tools/psychological-tools.module';
 import { SocialToolsModule } from './modules/social-tools/social-tools.module';
 import { TransversalToolsModule } from './modules/transversal-tools/transversal-tools.module';
+import { SocialIntakeModule } from './modules/social-intake/social-intake.module';
+import { ConciliationModule } from './modules/conciliation/conciliation.module';
 
 @Module({
   imports: [
@@ -68,6 +70,8 @@ import { TransversalToolsModule } from './modules/transversal-tools/transversal-
     PsychologicalToolsModule,
     SocialToolsModule,
     TransversalToolsModule,
+    SocialIntakeModule,
+    ConciliationModule,
   ],
   controllers: [],
   providers: [],

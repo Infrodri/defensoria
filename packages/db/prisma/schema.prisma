@@ -233,6 +233,10 @@ model User {
   transversalTimelinesCreated TransversalUnifiedTimeline[] @relation("TransversalTimelineCreators")
   transversalReportsCreated TransversalAnonymizedReport[] @relation("TransversalReportCreators")
 
+  socialIntakeForms          SocialIntakeForm[]          @relation("SocialIntakeForms")
+  conciliationEvaluations    ConciliationEvaluation[]    @relation("ConciliationEvaluations")
+  conciliationProcesses      ConciliationProcess[]       @relation("ConciliationProcesses")
+
   @@map("users")
 }
 
@@ -315,6 +319,10 @@ model Case {
 
   transversalTimelines TransversalUnifiedTimeline[] @relation("CaseTransversalTimelines")
   transversalReports TransversalAnonymizedReport[] @relation("CaseTransversalReports")
+
+  socialIntakeForm        SocialIntakeForm?
+  conciliationEvaluation  ConciliationEvaluation?
+  conciliationProcesses   ConciliationProcess[]
 
   @@index([currentPhase])
   @@index([riskLevel])
@@ -994,4 +1002,74 @@ model ToolApproval {
 
   @@index([approvedAt])
   @@map("tool_approvals")
+}
+
+// =====================================================
+// FICHA SOCIAL Y CONCILIACIÓN (TAREA 1 Y 2)
+// =====================================================
+
+model SocialIntakeForm {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                    String    @unique @db.Uuid
+  socialWorkerId            String    @db.Uuid
+  interviewDate             DateTime  @db.Timestamptz(6)
+  interviewLocation         String
+  incidentDescription       String    @db.Text
+  incidentLocation          String
+  incidentDate              DateTime? @db.Timestamptz(6)
+  incidentWitnesses         String?   @db.Text
+  familyStructure           String    @db.Text
+  socialEconomicSituation   String    @db.Text
+  immediateDangerAssessment Boolean   @default(false)
+  dangerLevel               RiskLevel?
+  professionalObservations  String    @db.Text
+  initialRecommendations    String    @db.Text
+  isCompleted               Boolean   @default(false)
+  completedAt               DateTime? @db.Timestamptz(6)
+  createdAt                 DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime  @updatedAt @db.Timestamptz(6)
+
+  case         Case @relation(fields: [caseId], references: [id])
+  socialWorker User @relation("SocialIntakeForms", fields: [socialWorkerId], references: [id])
+
+  @@map("social_intake_forms")
+}
+
+model ConciliationEvaluation {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId            String   @unique @db.Uuid
+  evaluatedBy       String   @db.Uuid
+  isConciliable     Boolean
+  reason            String   @db.Text
+  hasMaltrato       Boolean  @default(false)
+  hasCriminalAction Boolean  @default(false)
+  hasAuthorityLoss  Boolean  @default(false)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  case       Case @relation(fields: [caseId], references: [id])
+  evaluator  User @relation("ConciliationEvaluations", fields: [evaluatedBy], references: [id])
+
+  @@map("conciliation_evaluations")
+}
+
+model ConciliationProcess {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                String    @db.Uuid
+  scheduledDate         DateTime  @db.Timestamptz(6)
+  location              String
+  leadLawyerId          String    @db.Uuid
+  isCompleted           Boolean   @default(false)
+  completedAt           DateTime? @db.Timestamptz(6)
+  agreementReached      Boolean?
+  agreementText         String?   @db.Text
+  homologationRequested Boolean   @default(false)
+  homologationDate      DateTime? @db.Timestamptz(6)
+  courtDecision         String?   @db.Text
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+
+  case       Case @relation(fields: [caseId], references: [id])
+  leadLawyer User @relation("ConciliationProcesses", fields: [leadLawyerId], references: [id])
+
+  @@map("conciliation_processes")
 }
