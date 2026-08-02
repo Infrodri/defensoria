@@ -9,7 +9,7 @@ import { Role } from '@defensoria/shared';
 @ApiTags('Audit')
 @Controller('audit')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.JEFATURA)
+@Roles(Role.JEFATURA, Role.ADMINISTRADOR)
 @ApiBearerAuth()
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}

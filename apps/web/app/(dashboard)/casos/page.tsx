@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { FileText, ArrowRight, UserPlus, Shield } from 'lucide-react';
+import { formatPhase, formatInterventionPath, formatCaseType } from '@defensoria/shared';
+import { FileText, ArrowRight, UserPlus } from 'lucide-react';
 
 export default function CasosListPage() {
   const { user } = useAuth();
@@ -19,8 +20,8 @@ export default function CasosListPage() {
   }, []);
 
   return (
-    <div>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>
             Expedientes de Casos
@@ -78,10 +79,12 @@ export default function CasosListPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.375rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--bosque-profundo)', fontSize: '1rem' }}>
                       {c.caseCode}
                     </span>
@@ -95,7 +98,7 @@ export default function CasosListPage() {
                         fontWeight: 700,
                       }}
                     >
-                      {c.currentPhase}
+                      {formatPhase(c.currentPhase)}
                     </span>
                     <span
                       style={{
@@ -107,7 +110,7 @@ export default function CasosListPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {c.currentInterventionPath}
+                      {formatInterventionPath(c.currentInterventionPath)}
                     </span>
                   </div>
 
@@ -116,7 +119,7 @@ export default function CasosListPage() {
                   </div>
 
                   <div style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
-                    Tipo de caso: <strong>{c.caseType}</strong> · Oficina: {c.currentOffice?.name}
+                    Tipo de caso: <strong>{formatCaseType(c.caseType)}</strong> · Oficina: {c.currentOffice?.name}
                   </div>
                 </div>
 
@@ -133,6 +136,7 @@ export default function CasosListPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.375rem',
+                    flexShrink: 0,
                   }}
                 >
                   Abrir Expediente <ArrowRight size={16} />
@@ -145,3 +149,4 @@ export default function CasosListPage() {
     </div>
   );
 }
+

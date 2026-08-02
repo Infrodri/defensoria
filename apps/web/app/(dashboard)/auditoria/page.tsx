@@ -6,12 +6,12 @@ import { useAuth } from '@/lib/auth-context';
 import { ShieldCheck, Lock, User, Clock, ShieldAlert } from 'lucide-react';
 
 export default function AuditoriaPage() {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.role === 'JEFATURA') {
+    if (currentUser?.role === 'JEFATURA' || currentUser?.role === 'ADMINISTRADOR') {
       fetchApi('/audit')
         .then((data) => setLogs(data))
         .catch(() => setLogs([]))
@@ -19,15 +19,15 @@ export default function AuditoriaPage() {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [currentUser]);
 
-  if (user?.role !== 'JEFATURA') {
+  if (currentUser?.role !== 'JEFATURA' && currentUser?.role !== 'ADMINISTRADOR') {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 1rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
         <ShieldAlert size={48} color="var(--riesgo-alto)" style={{ marginBottom: '1rem' }} />
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--bosque-profundo)' }}>Acceso Restringido</h2>
         <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
-          El registro inmutable de auditoría solo es accesible para el rol de **Jefatura de Unidad**.
+          El registro inmutable de auditoría solo es accesible para los roles de **Administrador General** y **Jefatura de Unidad**.
         </p>
       </div>
     );

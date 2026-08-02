@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AppointmentsService, CreateAppointmentDto } from './appointments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -24,8 +24,45 @@ export class AppointmentsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Agenda centralizada (filtro opcional por oficina)' })
-  async findAll(@Query('officeId') officeId?: string) {
-    return this.appointmentsService.findAll(officeId);
+  @ApiOperation({ summary: 'Agenda centralizada o personal de citaciones' })
+  async findAll(
+    @Query('officeId') officeId?: string,
+    @Query('onlyMine') onlyMine?: string,
+    @CurrentUser('id') userId?: string,
+  ) {
+    return this.appointmentsService.findAll(officeId, userId, onlyMine === 'true');
+  }
+
+  @Patch(':id/reassign')
+  @Post(':id/reassign')
+  @ApiOperation({ summary: 'Reasignar citación y habilitar representación de expediente a un nuevo profesional' })
+  async reassign(
+    @Param('id') id: string,
+    @Body() body: { targetUserId: string; reason?: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.appointmentsService.reassign(id, body.targetUserId, body.reason, userId);
+  }
+
+  @Post('reassign-body')
+  @ApiOperation({ summary: 'Reasignar citación con ID en body' })
+  async reassignBody(
+    @Body() body: { appointmentId: string; targetUserId: string; reason?: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.appointmentsService.reassign(body.appointmentId, body.targetUserId, body.reason, userId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar o reasignar citación de expediente' })
+  async update(
+    @Param('id') id: string,
+    @Body() body: { targetUserId?: string; reason?: string; title?: string; status?: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    if (body.targetUserId) {
+      return this.appointmentsService.reassign(id, body.targetUserId, body.reason, userId);
+    }
+    return this.appointmentsService.reassign(id, userId, body.reason, userId);
   }
 }

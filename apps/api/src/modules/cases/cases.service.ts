@@ -1,5 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { CaseAccessService } from '../../common/case-access/case-access.service';
 import { CaseType, Role, RoleInCase, Phase, InterventionPath, RiskLevel } from '@defensoria/shared';
 
 export interface CreateCaseDto {
@@ -28,7 +30,10 @@ export interface UpdatePathDto {
 
 @Injectable()
 export class CasesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private caseAccessService: CaseAccessService,
+  ) {}
 
   private async generateCaseCode(): Promise<string> {
     const year = new Date().getFullYear();
@@ -138,35 +143,52 @@ export class CasesService {
   }
 
   async findAll(user: { id: string; role: Role; officeId: string | null }) {
-    // Jefatura & Secretaria see all cases in office
-    if (user.role === Role.JEFATURA || user.role === Role.SECRETARIA) {
+    // Administrador sees all cases across all offices
+    if (user.role === Role.ADMINISTRADOR) {
       return this.prisma.case.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
           parties: {
-            include: {
-              person: true,
-            },
+            include: { person: true },
           },
           currentOffice: true,
           teamHistory: {
             where: { endDate: null },
             include: {
-              user: {
-                select: { id: true, firstName: true, lastName: true, role: true },
-              },
+              user: { select: { id: true, firstName: true, lastName: true, role: true } },
             },
           },
         },
       });
     }
 
-    // Professionals (Abogado, Psicologo, Social) see cases assigned to them (active or historical)
+    // Jefatura & Secretaria see all cases in their specific office
+    if (user.role === Role.JEFATURA || user.role === Role.SECRETARIA) {
+      return this.prisma.case.findMany({
+        where: { currentOfficeId: user.officeId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          parties: {
+            include: { person: true },
+          },
+          currentOffice: true,
+          teamHistory: {
+            where: { endDate: null },
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, role: true } },
+            },
+          },
+        },
+      });
+    }
+
+    // Professionals (Abogado, Psicologo, Social) see cases assigned to them (active only)
     return this.prisma.case.findMany({
       where: {
         teamHistory: {
           some: {
             userId: user.id,
+            endDate: null,
           },
         },
       },
@@ -190,7 +212,9 @@ export class CasesService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: any) {
+    await this.caseAccessService.assertUserHasAccess(id, user);
+
     const caseData = await this.prisma.case.findUnique({
       where: { id },
       include: {
@@ -263,6 +287,116 @@ export class CasesService {
           assignedBy: assignedByUserId,
         },
       });
+    });
+  }
+
+  async generateAccessPin(caseId: string) {
+    const caseItem = await this.prisma.case.findUnique({ where: { id: caseId } });
+    if (!caseItem) {
+      throw new NotFoundException('Expediente no encontrado');
+    }
+
+    const rawPin = Math.floor(100000 + Math.random() * 900000).toString();
+    const pinHash = await bcrypt.hash(rawPin, 10);
+
+    await this.prisma.case.update({
+      where: { id: caseId },
+      data: { accessPinHash: pinHash },
+    });
+
+    return {
+      pin: rawPin,
+      caseCode: caseItem.caseCode,
+    };
+  }
+
+  async getAnalytics() {
+    const totalCases = await this.prisma.case.count();
+    
+    const byPath = await this.prisma.case.groupBy({
+      by: ['currentInterventionPath'],
+      _count: { _all: true },
+    });
+
+    const byRisk = await this.prisma.case.groupBy({
+      by: ['riskLevel'],
+      _count: { _all: true },
+    });
+
+    const byType = await this.prisma.case.groupBy({
+      by: ['caseType'],
+      _count: { _all: true },
+    });
+
+    const byPhase = await this.prisma.case.groupBy({
+      by: ['currentPhase'],
+      _count: { _all: true },
+    });
+
+    return {
+      totalCases,
+      byInterventionPath: byPath.map(p => ({ name: p.currentInterventionPath, count: p._count._all })),
+      byRiskLevel: byRisk.map(r => ({ name: r.riskLevel || 'SIN_EVALUAR', count: r._count._all })),
+      byCaseType: byType.map(t => ({ name: t.caseType, count: t._count._all })),
+      byPhase: byPhase.map(ph => ({ name: ph.currentPhase, count: ph._count._all })),
+    };
+  }
+
+  async massTransfer(dto: { fromUserId: string; toUserId: string; reason: string }, assignedByUserId: string) {
+    const fromUser = await this.prisma.user.findUnique({ where: { id: dto.fromUserId } });
+    const toUser = await this.prisma.user.findUnique({ where: { id: dto.toUserId } });
+
+    if (!fromUser || !toUser) {
+      throw new NotFoundException('Usuario origen o destino no encontrado');
+    }
+
+    if (fromUser.role !== toUser.role) {
+      throw new BadRequestException('Solo se pueden transferir casos entre profesionales del mismo rol');
+    }
+
+    // Find all active assignments for fromUser
+    const activeAssignments = await this.prisma.caseTeamHistory.findMany({
+      where: {
+        userId: dto.fromUserId,
+        endDate: null,
+      },
+      select: { caseId: true, role: true },
+    });
+
+    if (activeAssignments.length === 0) {
+      return { success: true, message: 'No hay expedientes activos para transferir', transferredCount: 0 };
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Close all active assignments for fromUser
+      await tx.caseTeamHistory.updateMany({
+        where: {
+          userId: dto.fromUserId,
+          endDate: null,
+        },
+        data: {
+          endDate: new Date(),
+        },
+      });
+
+      // 2. Create new assignments for toUser
+      const newAssignments = activeAssignments.map((assignment) => ({
+        caseId: assignment.caseId,
+        userId: dto.toUserId,
+        role: assignment.role,
+        reason: dto.reason || 'Transferencia masiva administrativa',
+        assignedBy: assignedByUserId,
+      }));
+
+      await tx.caseTeamHistory.createMany({
+        data: newAssignments,
+      });
+
+      return {
+        success: true,
+        message: 'Transferencia masiva completada',
+        transferredCount: newAssignments.length,
+      };
     });
   }
 }

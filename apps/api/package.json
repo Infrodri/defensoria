@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "nest build && node dist/apps/api/src/main.js",
     "build": "nest build",
     "start": "nest start",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:ley548": "ts-node -r tsconfig-paths/register src/scripts/seed-ley548.ts",
+    "migrate:knowledge": "ts-node -r tsconfig-paths/register src/scripts/migrate-knowledge-chunks.ts",
+    "migrate:knowledge:dry-run": "ts-node -r tsconfig-paths/register src/scripts/migrate-knowledge-chunks.ts -- --dry-run",
+    "migrate:knowledge:verbose": "ts-node -r tsconfig-paths/register src/scripts/migrate-knowledge-chunks.ts -- --verbose"
   },
   "dependencies": {
     "@defensoria/db": "*",
@@ -22,12 +26,14 @@
     "@nestjs/swagger": "^11.0.0",
     "@types/minio": "^7.1.0",
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "minio": "^8.0.7",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
+    "pdf-parse": "^1.1.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -37,9 +43,11 @@
     "@nestjs/testing": "^11.0.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.11.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
+    "@types/pdf-parse": "^1.1.5",
     "typescript": "^5.3.3",
     "vitest": "^4.0.0"
   }

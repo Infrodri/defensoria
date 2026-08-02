@@ -27,6 +27,7 @@ import { AiConfigModule } from './modules/ai-config/ai-config.module';
 import { CatalogsModule } from './modules/catalogs/catalogs.module';
 import { SystemBackupModule } from './modules/system-backup/system-backup.module';
 import { QuestionnairesModule } from './modules/questionnaires/questionnaires.module';
+import { LegalToolsModule } from './modules/legal-tools/legal-tools.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { QuestionnairesModule } from './modules/questionnaires/questionnaires.mo
     CatalogsModule,
     SystemBackupModule,
     QuestionnairesModule,
+    LegalToolsModule,
   ],
   controllers: [],
   providers: [],

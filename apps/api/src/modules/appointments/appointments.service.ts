@@ -47,28 +47,104 @@ export class AppointmentsService {
     });
   }
 
-  async findAll(officeId?: string) {
+  async findAll(officeId?: string, userId?: string, onlyMine?: boolean) {
+    const whereClause: any = {};
+
+    if (officeId && officeId !== 'ALL') {
+      whereClause.case = { currentOfficeId: officeId };
+    }
+
+    if (userId && onlyMine) {
+      whereClause.OR = [
+        { createdBy: userId },
+        { case: { teamHistory: { some: { userId, endDate: null } } } },
+      ];
+    }
+
     return this.prisma.appointment.findMany({
-      where: officeId
-        ? {
-            case: { currentOfficeId: officeId },
-          }
-        : {},
+      where: whereClause,
       include: {
         case: {
           select: {
             id: true,
             caseCode: true,
             currentPhase: true,
+            riskLevel: true,
+            currentOffice: {
+              select: { id: true, name: true, code: true },
+            },
             parties: {
+              where: { isPrimary: true },
               include: { person: true },
             },
           },
         },
-        creator: { select: { id: true, firstName: true, lastName: true, role: true } },
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            office: { select: { id: true, name: true, code: true } },
+          },
+        },
       },
       orderBy: { scheduledAt: 'asc' },
-      take: 50,
     });
+  }
+
+  async reassign(appointmentId: string, targetUserId: string, reason: string | undefined, currentUserId: string) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { case: true, creator: true },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(`Citación con ID ${appointmentId} no encontrada`);
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException(`Usuario profesional destino no encontrado`);
+    }
+
+    // 1. Update appointment createdBy / assigned professional
+    const updatedAppointment = await this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        createdBy: targetUserId,
+      },
+    });
+
+    // 2. Assign target user to case team (enables RLS access & case representation)
+    if (appointment.caseId) {
+      await this.prisma.caseTeamHistory.create({
+        data: {
+          caseId: appointment.caseId,
+          userId: targetUserId,
+          role: targetUser.role,
+          reason: reason || `Reasignación de citación "${appointment.title}"`,
+          assignedBy: currentUserId,
+        },
+      });
+
+      // 3. Register ActionLog entry on the case
+      await this.prisma.actionLog.create({
+        data: {
+          caseId: appointment.caseId,
+          authorId: currentUserId,
+          actionType: 'DERIVACION',
+          title: 'Reasignación de Citación y Representación',
+          content: `Citación "${appointment.title}" y acceso al expediente reasignados al profesional ${targetUser.firstName} ${targetUser.lastName} (${targetUser.role}). Motivo: ${reason || 'Representación y cobertura operativa'}.`,
+          isSigned: true,
+          signedAt: new Date(),
+        },
+      });
+    }
+
+    return updatedAppointment;
   }
 }

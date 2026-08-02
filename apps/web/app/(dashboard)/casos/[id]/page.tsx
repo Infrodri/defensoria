@@ -6,6 +6,9 @@ import { useAuth } from '@/lib/auth-context';
 import { PhaseRail } from '@/components/cases/phase-rail';
 import { ReportEditor } from '@/components/reports/report-editor';
 import { EvidenceGallery } from '@/components/evidences/evidence-gallery';
+import { CaseTimeline } from '@/components/cases/case-timeline';
+import { AiCopilot } from '@/components/ai/ai-copilot';
+import { formatCaseType, formatInterventionPath, formatActionType, formatAppointmentType, formatRiskLevel } from '@defensoria/shared';
 import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin, ShieldAlert, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 
@@ -18,7 +21,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const [reports, setReports] = useState<any[]>([]);
   const [evidences, setEvidences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'informes' | 'evidencias' | 'agenda' | 'narrativa'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'informes' | 'evidencias' | 'agenda' | 'narrativa' | 'lineatiempo'>('resumen');
 
   // Assignment State
   const [assignUserId, setAssignUserId] = useState('');
@@ -39,20 +42,47 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const [appLocation, setAppLocation] = useState('');
   const [submittingApp, setSubmittingApp] = useState(false);
 
+  // External Portal PIN State
+  const [generatedPin, setGeneratedPin] = useState<string | null>(null);
+
+  const handleGeneratePin = async () => {
+    try {
+      const res = await fetchApi(`/cases/${caseId}/generate-pin`, { method: 'POST' });
+      setGeneratedPin(res.pin);
+      alert(`NUEVO PIN GENERADO PARA TUTOR: ${res.pin}\nEntregue este PIN al tutor junto con el Código de Expediente (${caseData.caseCode}).`);
+    } catch (err: any) {
+      alert(err.message || 'Error al generar PIN');
+    }
+  };
+
+  // Staff users list for interactive assignment dropdown
+  const [staffUsers, setStaffUsers] = useState<any[]>([]);
+
+  const canManageCase = user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA' || user?.role === 'SECRETARIA';
+
   const loadCaseDetails = async () => {
     try {
-      const [cData, logs, apps, reps, evs] = await Promise.all([
+      const promises: Promise<any>[] = [
         fetchApi(`/cases/${caseId}`),
         fetchApi(`/action-logs/case/${caseId}`).catch(() => []),
         fetchApi(`/appointments/case/${caseId}`).catch(() => []),
         fetchApi(`/reports/case/${caseId}`).catch(() => []),
         fetchApi(`/evidences/case/${caseId}`).catch(() => []),
-      ]);
+      ];
+
+      if (canManageCase) {
+        promises.push(fetchApi('/users').catch(() => []));
+      }
+
+      const [cData, logs, apps, reps, evs, uList] = await Promise.all(promises);
       setCaseData(cData);
       setActionLogs(logs);
       setAppointments(apps);
       setReports(reps);
       setEvidences(evs);
+      if (uList) {
+        setStaffUsers(uList);
+      }
     } catch (err) {
       setCaseData(null);
     } finally {
@@ -61,8 +91,10 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   useEffect(() => {
-    loadCaseDetails();
-  }, [caseId]);
+    if (user) {
+      loadCaseDetails();
+    }
+  }, [caseId, user]);
 
   const handleAssignTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,7 +208,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const complainant = caseData.parties?.find((p: any) => p.roleInCase === 'DENUNCIANTE')?.person;
 
   return (
-    <div>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div style={{ marginBottom: '1.5rem' }}>
         <Link href="/casos" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--bosque-profundo)', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', marginBottom: '0.75rem' }}>
@@ -190,11 +222,11 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                 {caseData.caseCode}
               </h1>
               <span style={{ backgroundColor: 'oklch(0.95 0.03 65)', color: 'var(--tierra-calida)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 700 }}>
-                {caseData.currentInterventionPath}
+                {formatInterventionPath(caseData.currentInterventionPath)}
               </span>
               {caseData.riskLevel && (
                 <span style={{ backgroundColor: caseData.riskLevel === 'ALTO' ? 'var(--riesgo-alto)' : 'var(--salvia)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.875rem', fontWeight: 700 }}>
-                  Riesgo {caseData.riskLevel}
+                  Riesgo {formatRiskLevel(caseData.riskLevel)}
                 </span>
               )}
             </div>
@@ -206,6 +238,27 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
           <div style={{ textAlign: 'right', fontSize: '0.875rem', opacity: 0.8 }}>
             <div>Oficina actual: <strong>{caseData.currentOffice?.name}</strong></div>
             <div>Apertura: {new Date(caseData.createdAt).toLocaleDateString('es-BO')}</div>
+            {canManageCase && (
+              <button
+                onClick={handleGeneratePin}
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.35rem 0.75rem',
+                  backgroundColor: 'var(--tierra-calida)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                }}
+              >
+                <Lock size={12} /> {generatedPin ? `PIN: ${generatedPin}` : 'Generar PIN Tutor'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -304,7 +357,22 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             cursor: 'pointer',
           }}
         >
-          Agenda ({appointments.length})
+          Agenda / Citas ({appointments.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('lineatiempo')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderBottom: activeTab === 'lineatiempo' ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            fontWeight: activeTab === 'lineatiempo' ? 700 : 500,
+            color: activeTab === 'lineatiempo' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+            cursor: 'pointer',
+          }}
+        >
+          Línea de Tiempo
         </button>
       </div>
 
@@ -349,19 +417,19 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem' }}>
               <div>
                 <span style={{ opacity: 0.6, display: 'block' }}>Tipo de Trámite:</span>
-                <strong>{caseData.caseType}</strong>
+                <strong>{formatCaseType(caseData.caseType)}</strong>
               </div>
 
               <div>
                 <span style={{ opacity: 0.6, display: 'block' }}>Nivel de Riesgo Evaluado:</span>
                 <strong style={{ color: caseData.riskLevel === 'ALTO' ? 'var(--riesgo-alto)' : 'var(--bosque-profundo)' }}>
-                  {caseData.riskLevel || 'PENDIENTE DE EVALUACIÓN'}
+                  {formatRiskLevel(caseData.riskLevel)}
                 </strong>
               </div>
 
               <div>
                 <span style={{ opacity: 0.6, display: 'block' }}>Vía de Intervención:</span>
-                <strong>{caseData.currentInterventionPath}</strong>
+                <strong>{formatInterventionPath(caseData.currentInterventionPath)}</strong>
               </div>
             </div>
           </div>
@@ -372,6 +440,8 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
       {activeTab === 'informes' && (
         <ReportEditor
           caseId={caseId}
+          caseCode={caseData.caseCode}
+          nnaName={primaryNna ? `${primaryNna.firstName} ${primaryNna.lastName}` : undefined}
           reports={reports}
           onReportUpdated={loadCaseDetails}
         />
@@ -431,7 +501,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
 
-          {(user?.role === 'JEFATURA' || user?.role === 'SECRETARIA') && (
+          {canManageCase && (
             <form onSubmit={handleAssignTeam} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
                 Asignar Profesional
@@ -442,7 +512,10 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Rol a Asignar</label>
                   <select
                     value={assignRole}
-                    onChange={(e: any) => setAssignRole(e.target.value)}
+                    onChange={(e: any) => {
+                      setAssignRole(e.target.value);
+                      setAssignUserId('');
+                    }}
                     style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                   >
                     <option value="ABOGADO">Área Legal (Abogado/a)</option>
@@ -452,15 +525,33 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>ID de Usuario</label>
-                  <input
-                    type="text"
-                    value={assignUserId}
-                    onChange={(e) => setAssignUserId(e.target.value)}
-                    placeholder="ID del profesional..."
-                    required
-                    style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                  />
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Profesional Asignado</label>
+                  {staffUsers.length > 0 ? (
+                    <select
+                      value={assignUserId}
+                      onChange={(e) => setAssignUserId(e.target.value)}
+                      required
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                    >
+                      <option value="">-- Seleccionar Profesional --</option>
+                      {staffUsers
+                        .filter((u) => u.role === assignRole)
+                        .map((u) => (
+                          <option key={u.id} value={u.id}>
+                            [{u.role}] {u.firstName} {u.lastName} ({u.office?.code || 'CENTRAL'})
+                          </option>
+                        ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={assignUserId}
+                      onChange={(e) => setAssignUserId(e.target.value)}
+                      placeholder="ID del profesional..."
+                      required
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -523,7 +614,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '12px', backgroundColor: 'var(--bosque-profundo)', color: 'white', fontWeight: 700 }}>
-                            {log.actionType}
+                            {formatActionType(log.actionType)}
                           </span>
                           {log.isSigned && (
                             <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '12px', backgroundColor: 'var(--salvia)', color: 'white', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -642,7 +733,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* TAB CONTENT: Agenda del Caso */}
       {activeTab === 'agenda' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: caseData?.isClosed ? '1fr' : '2fr 1fr', gap: '1.5rem' }}>
           <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
               Citas y Audiencias del Expediente
@@ -665,7 +756,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tierra-calida)', textTransform: 'uppercase' }}>
-                          {app.appointmentType}
+                          {formatAppointmentType(app.appointmentType)}
                         </span>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)' }}>
                           {app.title}
@@ -687,7 +778,8 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
 
-          <form onSubmit={handleCreateAppointment} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          {!caseData?.isClosed && (
+            <form onSubmit={handleCreateAppointment} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
               Programar Cita u Audiencia
             </h3>
@@ -758,8 +850,16 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
               </button>
             </div>
           </form>
+          )}
         </div>
       )}
+      {activeTab === 'lineatiempo' && (
+        <CaseTimeline caseId={caseId} />
+      )}
+
+      {/* AI Copilot Widget */}
+      <AiCopilot context={caseData.narrative} isLegalRole={user?.role === 'ABOGADO' || user?.role === 'JEFATURA'} />
+
     </div>
   );
 }

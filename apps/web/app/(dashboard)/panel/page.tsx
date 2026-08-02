@@ -3,20 +3,37 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { fetchApi } from '@/lib/api';
-import { FileText, AlertTriangle, Clock, Users, ArrowRight } from 'lucide-react';
+import { FileText, AlertTriangle, Clock, Users, ArrowRight, Calendar, Zap, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PanelPage() {
   const { user } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
+  const [myAppointments, setMyAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchApi('/cases')
-      .then((data) => setCases(data))
-      .catch(() => setCases([]))
+    Promise.all([
+      fetchApi('/cases'),
+      fetchApi('/appointments?onlyMine=true'),
+    ])
+      .then(([casesData, appData]) => {
+        setCases(casesData);
+        setMyAppointments(appData);
+      })
+      .catch(() => {
+        setCases([]);
+        setMyAppointments([]);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  // Filter urgent appointments (High risk cases or upcoming 48 hours)
+  const urgentAppointments = myAppointments.filter((app) => {
+    const isHighRisk = app.case?.riskLevel === 'ALTO';
+    const isAudienceOrInterview = app.appointmentType === 'AUDIENCIA' || app.appointmentType === 'ENTREVISTA';
+    return isHighRisk || isAudienceOrInterview;
+  });
 
   return (
     <div>
@@ -69,6 +86,114 @@ export default function PanelPage() {
           </div>
         </div>
       </div>
+
+      {/* Section: Urgent Appointments for Logged-In Professional */}
+      <section style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--bosque-profundo)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Zap size={20} color="var(--riesgo-alto)" /> Citaciones Urgentes y Próximos Compromisos (Mi Agenda)
+            </h2>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--grafito)', opacity: 0.8, marginTop: '0.2rem' }}>
+              Compromisos prioritarios asignados a tu rol ({user?.role}) con expedientes en riesgo o citaciones programadas
+            </p>
+          </div>
+          <Link
+            href="/citas"
+            style={{
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: 'var(--salvia)',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+            }}
+          >
+            Ver Mi Agenda Completa <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        {loading ? (
+          <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>Cargando citaciones de tu agenda personal...</p>
+        ) : urgentAppointments.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <Calendar size={32} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
+            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--bosque-profundo)', margin: 0 }}>
+              No tienes citaciones ni audiencias urgentes pendientes para hoy
+            </p>
+            <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
+              Todos tus compromisos agendados están al día.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {urgentAppointments.slice(0, 4).map((app) => {
+              const dateObj = new Date(app.scheduledAt);
+              const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const dateStr = dateObj.toLocaleDateString();
+              const nnaParty = app.case?.parties?.[0]?.person;
+              const nnaName = nnaParty ? `${nnaParty.firstName} ${nnaParty.lastName}` : 'NNA no especificado';
+
+              return (
+                <div
+                  key={app.id}
+                  style={{
+                    backgroundColor: 'var(--papel)',
+                    padding: '1rem',
+                    borderRadius: 'var(--radius)',
+                    border: '1.5px solid var(--border)',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--bosque-profundo)', backgroundColor: 'oklch(0.94 0.02 165)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                        🕒 {dateStr} - {timeStr}
+                      </span>
+                      {app.case?.riskLevel === 'ALTO' && (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 800, backgroundColor: 'oklch(0.92 0.08 30)', color: 'oklch(0.4 0.15 30)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                          🔴 RIESGO ALTO
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--bosque-profundo)', marginBottom: '0.2rem' }}>
+                      {app.title}
+                    </div>
+
+                    {app.case && (
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--grafito)', marginBottom: '0.5rem' }}>
+                        Expediente: <strong style={{ fontFamily: 'monospace' }}>{app.case.caseCode}</strong> ({nnaName})
+                      </div>
+                    )}
+
+                    {app.location && (
+                      <div style={{ fontSize: '0.75rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <MapPin size={12} /> {app.location}
+                      </div>
+                    )}
+                  </div>
+
+                  {app.case && (
+                    <div style={{ marginTop: '1rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                      <Link
+                        href={`/casos/${app.case.id}`}
+                        style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--salvia)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                      >
+                        Ver Expediente <ArrowRight size={12} />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Recent Cases Section */}
       <section style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>

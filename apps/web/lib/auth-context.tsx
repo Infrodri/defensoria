@@ -3,12 +3,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchApi } from './api';
 
+import { Role } from '@defensoria/shared';
+
 export interface UserProfile {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'JEFATURA' | 'ABOGADO' | 'PSICOLOGO' | 'SOCIAL' | 'SECRETARIA' | 'REFERENTE_TUTOR';
+  role: Role | 'ADMINISTRADOR' | 'JEFATURA' | 'ABOGADO' | 'PSICOLOGO' | 'SOCIAL' | 'SECRETARIA' | 'REFERENTE_TUTOR';
   office?: {
     id: string;
     name: string;
