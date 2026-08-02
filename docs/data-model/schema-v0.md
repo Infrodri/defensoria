@@ -42,7 +42,7 @@ erDiagram
 
 | Enum Name | Values |
 | :--- | :--- |
-| `Role` | `JEFATURA`, `ABOGADO`, `PSICOLOGO`, `SOCIAL`, `SECRETARIA` |
+| `Role` | `ADMINISTRADOR`, `JEFATURA`, `ABOGADO`, `PSICOLOGO`, `SOCIAL`, `SECRETARIA`, `REFERENTE_TUTOR` |
 | `DocumentType` | `CI`, `PASAPORTE`, `PARTIDA_NACIMIENTO`, `SIN_DOCUMENTO` |
 | `Gender` | `MASCULINO`, `FEMENINO`, `OTRO` |
 | `CaseType` | `DENUNCIA_VULNERACION`, `CONSUMO_SUSTANCIAS`, `VENTA_ALCOHOL`, `DERECHO_EDUCACION`, `EXTRAVIO`, `NNA_INFRACTOR`, `FISCALIZACION` |
@@ -80,10 +80,10 @@ System users.
 *   **updatedAt**: DateTime (TIMESTAMPTZ)
 
 ### 2. Office
-DNA offices (Central + District offices).
+DNA offices (Central + 8 District offices in Sucre: `CENTRAL`, `DIST_1`, `DIST_2`, `DIST_3`, `DIST_4`, `DIST_5`, `DIST_6`, `DIST_7`, `DIST_8`).
 *   **id**: UUID v7, PK
-*   **name**: String
-*   **code**: String, unique (e.g., 'CENTRAL', 'D1', 'D2')
+*   **name**: String (e.g., 'Defensoría Central Sucre', 'Defensoría Distrital 1 — Mercado Campesino')
+*   **code**: String, unique (e.g., 'CENTRAL', 'DIST_1', ..., 'DIST_8')
 *   **address**: String, nullable
 *   **phone**: String, nullable
 *   **isActive**: Boolean, default true
@@ -257,6 +257,57 @@ Append-only, immutable audit trail.
 *   **ipAddress**: String
 *   **createdAt**: DateTime (TIMESTAMPTZ)
 *   *Note*: NO UPDATE, NO DELETE permissions on this table for the application role.
+
+### 15. SystemModule
+Dynamic system modules and RBAC permission rules managed by the Administrator.
+*   **id**: UUID v7, PK
+*   **code**: String, UNIQUE (e.g. `MOD_DISTRICTS`, `MOD_USERS`, `MOD_INFRACTORES`)
+*   **name**: String
+*   **description**: Text, nullable
+*   **permissions**: JSONB (Stores access level per role: ADMINISTRADOR, JEFATURA, ABOGADO, PSICOLOGO, SOCIAL, SECRETARIA)
+*   **isCustom**: Boolean, default true (false for built-in core modules)
+*   **createdAt**: DateTime (TIMESTAMPTZ)
+*   **updatedAt**: DateTime (TIMESTAMPTZ)
+
+### 16. SystemSetting
+Global configurations (AI models, endpoints).
+*   **key**: String, PK
+*   **value**: String
+*   **description**: Text, nullable
+*   **updatedBy**: UUID, FK → User
+*   **updatedAt**: DateTime (TIMESTAMPTZ)
+
+### 17. SystemCatalog
+Master catalogs for dropdowns and generic types (e.g., `VIOLENCE_TYPES`).
+*   **id**: UUID v7, PK
+*   **code**: String, UNIQUE
+*   **name**: String
+*   **description**: Text, nullable
+
+### 18. CatalogItem
+Values inside a catalog (e.g., `VIOLENCIA_FISICA` inside `VIOLENCE_TYPES`).
+*   **id**: UUID v7, PK
+*   **catalogId**: UUID, FK → SystemCatalog
+*   **value**: String
+*   **label**: String
+*   **isActive**: Boolean, default true
+*   **order**: Int, default 0
+
+### 19. LegalDocument
+Root entity for RAG knowledge base.
+*   **id**: UUID v7, PK
+*   **title**: String
+*   **isActive**: Boolean, default true (allows soft-deleting superseded laws)
+*   **version**: String, nullable
+*   **createdAt**: DateTime (TIMESTAMPTZ)
+
+### 20. LegalChunk
+Vectorized chunks of legal documents.
+*   **id**: UUID v7, PK
+*   **legalDocumentId**: UUID, FK → LegalDocument
+*   **content**: Text
+*   **embedding**: Unsupported("vector(768)")
+*   **metadata**: JSONB
 
 ---
 

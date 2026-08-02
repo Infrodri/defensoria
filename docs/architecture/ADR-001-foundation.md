@@ -106,6 +106,7 @@ graph TD
 - **Decision**: Implement a two-layer security model: Application guards (NestJS) for route protection, and PostgreSQL Row-Level Security (RLS) for data filtering.
 - **Rationale**: Guards handle broad access (e.g., "is this user a psychologist?"). RLS ensures users only see data they are assigned to (e.g., "is this psychologist assigned to this specific case?"). Jefatura sees all cases. RLS will use direct `EXISTS` on `case_team` tables. A Prisma interceptor will set `SET LOCAL app.user_id` per transaction.
 - **Consequences**: Security is enforced at the database level, preventing data leaks even if an API route is misconfigured.
+- **Update (01/08/2026)**: La implementación de RLS nativo en Postgres (`RlsContextInterceptor`) queda diferida. Actualmente, la única capa de autorización a nivel de recurso y fuente de verdad es `CaseAccessService` a nivel de aplicación (Fase 2.5).
 
 ```mermaid
 sequenceDiagram

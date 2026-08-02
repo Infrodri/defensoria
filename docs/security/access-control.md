@@ -14,15 +14,20 @@ The system uses a Role-Based Access Control (RBAC) model combined with Row-Level
 
 ### Permissions Matrix
 
-| Resource/Action | JEFATURA | ABOGADO | PSICOLOGO | SOCIAL | SECRETARIA | REFERENTE_TUTOR |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Resource/Action | ADMINISTRADOR | JEFATURA | ABOGADO | PSICOLOGO | SOCIAL | SECRETARIA | REFERENTE_TUTOR |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **System & Administration** |
+| Manage Offices / Distritos | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Manage Users & Roles | ✅ | ✅ (Creación) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Manage Dynamic Modules & RBAC | ✅ (CRUD Total) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Manage System Settings | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Cases** |
-| Create | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| View Own | ✅ | 📋 | 📋 | 📋 | ✅ | 📋 (limited) |
-| View All | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Update | ✅ | 📋 | 📋 | 📋 | ✅ | ❌ |
-| Close/Archive | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Reopen | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Create | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| View Own | ✅ | ✅ | 📋 | 📋 | 📋 | ✅ | 📋 (limited) |
+| View All | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Update | ✅ | ✅ | 📋 | 📋 | 📋 | ✅ | ❌ |
+| Close/Archive | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Reopen | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Workflow** |
 | Assign Team | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Reassign Team | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
