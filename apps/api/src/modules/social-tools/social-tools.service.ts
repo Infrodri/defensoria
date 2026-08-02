@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { RAGService } from '../knowledge/rag.service';
 import { GenerateFamilyMapDto } from './dto/generate-family-map.dto';
 import { CalculateVulnerabilityDto } from './dto/calculate-vulnerability.dto';
 import { MapEnvironmentalDto } from './dto/map-environmental.dto';
@@ -14,6 +15,7 @@ export class SocialToolsService {
   constructor(
     private prisma: PrismaService,
     private caseAccessService: CaseAccessService,
+    private ragService: RAGService,
   ) {}
 
   async generateFamilyMap(dto: GenerateFamilyMapDto, userId: string) {
@@ -34,13 +36,99 @@ export class SocialToolsService {
       throw new NotFoundException('Transcripción no encontrada');
     }
 
+    // Buscar documentos sobre estructura familiar
+    const ragChunks = await this.ragService.searchSimilarChunks(
+      'Estructura familiar, dinámicas familiares, relaciones, familiograma, vulnerabilidad familiar',
+      5,
+    );
+
+    const ragContext = this.ragService.buildRAGContext(
+      ragChunks.map((c) => ({
+        content: c.content,
+        documentTitle: c.documentTitle,
+      })),
+    );
+
+    const systemPrompt = `Eres un trabajador social experto en intervención familiar y Ley 548 (Código Niña, Niño y Adolescente) de Bolivia.
+Tu tarea es analizar la transcripción para identificar:
+- Miembros de la familia y sus relaciones
+- Dinámicas familiares
+- Factores de vulnerabilidad familiar
+- Recursos de apoyo existentes
+- Recomendaciones de intervención social`;
+
+    const userQuery = `Analiza la estructura y dinámicas familiares en esta transcripción:
+
+${transcription.text}`;
+
+    const analysis = await this.ragService.queryOllamaWithRAG(
+      userQuery,
+      systemPrompt,
+      ragContext,
+    );
+
     return {
-      miembros: [
-        { nombre: 'Juan', edad: 40, relacion: 'Padre' },
-        { nombre: 'Maria', edad: 35, relacion: 'Madre' }
-      ],
-      dinamicas: ['Conflicto parental', 'Comunicación deficiente']
+      miembros: this.extractFamilyMembers(analysis),
+      dinamicas: this.extractDynamics(analysis),
+      vulnerabilidades: this.extractVulnerabilities(analysis),
+      recomendaciones: this.extractRecommendations(analysis),
+      analisisCompleto: analysis,
     };
+  }
+
+  private extractFamilyMembers(text: string): any[] {
+    const members = [];
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('padre') || lines[i].includes('madre') || lines[i].includes('hermano')) {
+        members.push({
+          nombre: `Miembro ${members.length + 1}`,
+          relacion: this.extractRelation(lines[i]),
+          vulnerabilidades: [],
+        });
+      }
+    }
+    return members.length > 0 ? members : [{ nombre: 'Ver análisis completo', relacion: 'Familia', vulnerabilidades: [] }];
+  }
+
+  private extractRelation(line: string): string {
+    if (line.includes('padre')) return 'Padre';
+    if (line.includes('madre')) return 'Madre';
+    if (line.includes('hermano')) return 'Hermano/a';
+    return 'Familiar';
+  }
+
+  private extractDynamics(text: string): string[] {
+    const dynamics = [];
+    const keywords = ['conflicto', 'comunicación', 'violencia', 'apoyo', 'desvinculación'];
+    for (const keyword of keywords) {
+      if (text.toLowerCase().includes(keyword)) {
+        dynamics.push(`Factor identificado: ${keyword}`);
+      }
+    }
+    return dynamics.slice(0, 3);
+  }
+
+  private extractVulnerabilities(text: string): string[] {
+    const vulnerabilities = [];
+    const keywords = ['pobreza', 'desempleo', 'vivienda precaria', 'enfermedad', 'adicción'];
+    for (const keyword of keywords) {
+      if (text.toLowerCase().includes(keyword)) {
+        vulnerabilities.push(keyword);
+      }
+    }
+    return vulnerabilities;
+  }
+
+  private extractRecommendations(text: string): string[] {
+    const recs = [];
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (line.includes('recomendar') || line.includes('sugerir') || line.includes('intervención')) {
+        recs.push(line.trim().substring(0, 100));
+      }
+    }
+    return recs.slice(0, 3);
   }
 
   async calculateVulnerability(dto: CalculateVulnerabilityDto, userId: string) {

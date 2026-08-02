@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { TransversalToolsController } from './transversal-tools.controller';
 import { TransversalToolsService } from './transversal-tools.service';
 import { PrismaModule } from '../prisma/prisma.module';
-// AuditModule is global so we might not need to import it explicitly, but doing so is fine.
+import { KnowledgeModule } from '../knowledge/knowledge.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, KnowledgeModule],
   controllers: [TransversalToolsController],
   providers: [TransversalToolsService],
 })
