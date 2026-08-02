@@ -30,6 +30,15 @@ export default function IngestaCasoPage() {
   // Case Details
   const [caseType, setCaseType] = useState('DENUNCIA_VULNERACION');
   const [intakeNarrative, setIntakeNarrative] = useState('');
+  
+  // Third Party Complainant
+  const [isThirdPartyComplainant, setIsThirdPartyComplainant] = useState(false);
+  const [complainantFullName, setComplainantFullName] = useState('');
+  const [complainantDocumentId, setComplainantDocumentId] = useState('');
+  const [complainantRelation, setComplainantRelation] = useState('MADRE');
+  const [complainantPhone, setComplainantPhone] = useState('');
+  const [complainantAddress, setComplainantAddress] = useState('');
+  
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,14 +104,30 @@ export default function IngestaCasoPage() {
         finalNnaId = newPerson.id;
       }
 
+      // Prepare case payload
+      const casePayload: any = {
+        nnaId: finalNnaId,
+        caseType,
+        intakeNarrative,
+        isThirdPartyComplainant,
+      };
+
+      // Add third party complainant fields if applicable
+      if (isThirdPartyComplainant) {
+        if (!complainantFullName.trim()) {
+          throw new Error('Nombre del denunciante es obligatorio');
+        }
+        casePayload.complainantFullName = complainantFullName;
+        casePayload.complainantDocumentId = complainantDocumentId || undefined;
+        casePayload.complainantRelation = complainantRelation;
+        casePayload.complainantPhone = complainantPhone || undefined;
+        casePayload.complainantAddress = complainantAddress || undefined;
+      }
+
       // Create Case
       const newCase = await fetchApi('/cases', {
         method: 'POST',
-        body: JSON.stringify({
-          caseType,
-          nnaId: finalNnaId,
-          intakeNarrative,
-        }),
+        body: JSON.stringify(casePayload),
       });
 
       router.push(`/casos/${newCase.id}`);
@@ -414,6 +439,104 @@ export default function IngestaCasoPage() {
                 required
                 style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
               />
+            </div>
+
+            {/* Denunciante / Third Party Section */}
+            <div style={{ padding: '1.25rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <input
+                  type="checkbox"
+                  id="isThirdParty"
+                  checked={isThirdPartyComplainant}
+                  onChange={(e) => {
+                    setIsThirdPartyComplainant(e.target.checked);
+                    if (!e.target.checked) {
+                      // Reset third party fields
+                      setComplainantFullName('');
+                      setComplainantDocumentId('');
+                      setComplainantRelation('MADRE');
+                      setComplainantPhone('');
+                      setComplainantAddress('');
+                    }
+                  }}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <label htmlFor="isThirdParty" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                  ¿La denuncia es presentada por un tercero (no por el NNA)?
+                </label>
+              </div>
+
+              {isThirdPartyComplainant && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Nombre Completo del Denunciante *</label>
+                      <input
+                        type="text"
+                        value={complainantFullName}
+                        onChange={(e) => setComplainantFullName(e.target.value)}
+                        placeholder="ej: María García Rodríguez"
+                        required
+                        style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Documento de Identidad (CI/Pasaporte)</label>
+                      <input
+                        type="text"
+                        value={complainantDocumentId}
+                        onChange={(e) => setComplainantDocumentId(e.target.value)}
+                        placeholder="ej: 1234567-LP"
+                        style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Relación con el NNA</label>
+                      <select
+                        value={complainantRelation}
+                        onChange={(e) => setComplainantRelation(e.target.value)}
+                        style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                      >
+                        <option value="MADRE">Madre</option>
+                        <option value="PADRE">Padre</option>
+                        <option value="TUTOR">Tutor/a</option>
+                        <option value="DOCENTE">Docente</option>
+                        <option value="VECINO">Vecino/a</option>
+                        <option value="DIRECTOR">Director/a de Institución</option>
+                        <option value="TRABAJADOR_SOCIAL">Trabajador Social</option>
+                        <option value="MEDICO">Médico/a</option>
+                        <option value="OTRO">Otro</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Teléfono de Contacto</label>
+                      <input
+                        type="tel"
+                        value={complainantPhone}
+                        onChange={(e) => setComplainantPhone(e.target.value)}
+                        placeholder="ej: +59123456789"
+                        style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Dirección de Domicilio</label>
+                    <input
+                      type="text"
+                      value={complainantAddress}
+                      onChange={(e) => setComplainantAddress(e.target.value)}
+                      placeholder="ej: Calle Bolívar #245, Barrio San Roque"
+                      style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
