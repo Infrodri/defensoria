@@ -166,6 +166,24 @@ enum TranscriptionTaskStatus {
   ERROR
 }
 
+enum DiscrepancyRiskLevel {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum ProcessualStatus {
+  EN_TIEMPO
+  PROXIMO
+  VENCIDO
+}
+
+enum ProcessualAlertLevel {
+  VERDE
+  AMARILLO
+  ROJO
+}
+
 model User {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email            String    @unique
@@ -193,6 +211,7 @@ model User {
   authoredActions        ActionLog[]               @relation("ActionAuthor")
   authoredReports        Report[]                  @relation("ReportAuthor")
   uploadedEvidences      Evidence[]                @relation("EvidenceUploader")
+  inspectionEvidenceUploaded InspectionEvidenceFile[] @relation("InspectionEvidenceUploader")
   createdAppointments    Appointment[]             @relation("CreatedAppointments")
   notifications          Notification[]            @relation("UserNotifications")
   escalatedNotifications Notification[]            @relation("EscalatedNotifications")
@@ -206,6 +225,10 @@ model User {
   questionnairesCreated   QuestionnaireTemplate[]   @relation("QuestionnaireCreator")
   questionnairesAnswered  QuestionnaireResponse[]   @relation("QuestionnaireResponses")
   transcriptionsCreated   Transcription[]           @relation("TranscriptionsCreated")
+  
+  discrepancyAnalysisCreated DiscrepancyAnalysis[]  @relation("DiscrepancyAnalysts")
+  penalTypicityAnalysisCreated PenalTypicityAnalysis[] @relation("PenalTypicityAnalysts")
+  processualDeadlineCreated ProcessualDeadline[]     @relation("ProcessualDeadlineCreators")
 
   @@map("users")
 }
@@ -282,6 +305,10 @@ model Case {
   inspections   Inspection[]
   questionnaires QuestionnaireResponse[]
   transcriptions Transcription[]
+  
+  discrepancyAnalyses DiscrepancyAnalysis[] @relation("CaseDiscrepancies")
+  penalTypicityAnalyses PenalTypicityAnalysis[] @relation("CasePenalTypicities")
+  processualDeadlines ProcessualDeadline[] @relation("CaseProcessualDeadlines")
 
   @@index([currentPhase])
   @@index([riskLevel])
@@ -568,7 +595,7 @@ model InspectionEvidenceFile {
   evidenceType    InspectionEvidenceType
   
   uploadedBy      String                    @db.Uuid
-  uploader        User                      @relation(fields: [uploadedBy], references: [id])
+  uploader        User                      @relation("InspectionEvidenceUploader", fields: [uploadedBy], references: [id])
   
   createdAt       DateTime                  @default(now()) @db.Timestamptz(6)
   
@@ -832,5 +859,81 @@ model Transcription {
   createdBy       String                  @db.Uuid
   creator         User                    @relation("TranscriptionsCreated", fields: [createdBy], references: [id])
   
+  discrepancyAnalysesAsTarget DiscrepancyAnalysis[] @relation("DiscrepancyCurrentTranscription")
+  penalTypicityAnalyses PenalTypicityAnalysis[] @relation("PenalTypicityTranscriptions")
+  
   @@map("transcriptions")
+}
+
+// =====================================================
+// LEGAL TOOLS - 3 TABLAS NUEVAS (FASE 2)
+// =====================================================
+
+model DiscrepancyAnalysis {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                String                @db.Uuid
+  case                  Case                  @relation("CaseDiscrepancies", fields: [caseId], references: [id], onDelete: Cascade)
+  
+  currentTranscriptionId String               @db.Uuid
+  currentTranscription  Transcription         @relation("DiscrepancyCurrentTranscription", fields: [currentTranscriptionId], references: [id], onDelete: Cascade)
+  
+  comparableDocumentIds String[]              @db.Uuid @default([])
+  
+  discrepancies         Json                                              // Array de discrepancias detectadas
+  consistencyScore      Float                 @default(0)                // 0-100
+  riskLevel             DiscrepancyRiskLevel
+  recommendation        String?               @db.Text
+  
+  analyzedAt            DateTime              @default(now()) @db.Timestamptz(6)
+  analyzedBy            String                @db.Uuid
+  analyst               User                  @relation("DiscrepancyAnalysts", fields: [analyzedBy], references: [id])
+  
+  @@index([caseId])
+  @@index([analyzedAt])
+  @@map("discrepancy_analyses")
+}
+
+model PenalTypicityAnalysis {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId            String                @db.Uuid
+  case              Case                  @relation("CasePenalTypicities", fields: [caseId], references: [id], onDelete: Cascade)
+  
+  transcriptionId   String                @db.Uuid
+  transcription     Transcription         @relation("PenalTypicityTranscriptions", fields: [transcriptionId], references: [id], onDelete: Cascade)
+  
+  potentialCrimes   Json                                                  // Array de delitos potenciales
+  primaryCrime      String                                                // Delito principal
+  secondaryCrimes   String[]              @default([])
+  evidenceGaps      String[]              @default([])
+  investigationPath String?               @db.Text
+  
+  analyzedAt        DateTime              @default(now()) @db.Timestamptz(6)
+  analyzedBy        String                @db.Uuid
+  analyst           User                  @relation("PenalTypicityAnalysts", fields: [analyzedBy], references: [id])
+  
+  @@index([caseId])
+  @@index([analyzedAt])
+  @@map("penal_typicality_analyses")
+}
+
+model ProcessualDeadline {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId            String                @db.Uuid
+  case              Case                  @relation("CaseProcessualDeadlines", fields: [caseId], references: [id], onDelete: Cascade)
+  
+  milestone         String                                                // "Audiencia Preliminar", etc.
+  calculatedDate    DateTime
+  daysRemaining     Int
+  status            ProcessualStatus
+  urgency           Int                   @default(0)                    // 0-100
+  alertLevel        ProcessualAlertLevel
+  relatedLaws       String[]              @default([])                   // ["Ley 548", "Art. 102"]
+  
+  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
+  createdBy         String                @db.Uuid
+  creator           User                  @relation("ProcessualDeadlineCreators", fields: [createdBy], references: [id])
+  
+  @@index([caseId])
+  @@index([calculatedDate])
+  @@map("processual_deadlines")
 }
