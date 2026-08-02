@@ -9,7 +9,15 @@ const ALLOWED_MIME_TYPES = [
   'image/png',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
   'audio/mpeg', // mp3
+  'audio/wav', // wav
+  'audio/ogg', // ogg
+  'audio/webm', // webm
+  'audio/x-m4a', // m4a (iOS)
+  'audio/mp4', // m4a (Android)
+  'audio/aac', // aac
   'video/mp4', // mp4
+  'video/quicktime', // mov (iOS)
+  'video/x-msvideo', // avi
 ];
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -37,7 +45,7 @@ export class EvidencesService {
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(`Formato de archivo no permitido. Formatos soportados: PDF, JPG, PNG, DOCX, MP3, MP4`);
+      throw new BadRequestException(`Formato de archivo no permitido. Formatos soportados: PDF, JPG, PNG, DOCX, MP3, WAV, OGG, WEBM, M4A, AAC, MP4, MOV, AVI`);
     }
 
     const existingCase = await this.prisma.case.findUnique({ where: { id: caseId } });

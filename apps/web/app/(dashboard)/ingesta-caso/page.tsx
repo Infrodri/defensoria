@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { Search, UserPlus, FileText, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AudioRecorder } from '@/components/audio-recorder';
 
 export default function IngestaCasoPage() {
   const router = useRouter();
@@ -34,6 +35,10 @@ export default function IngestaCasoPage() {
   // Case Details
   const [caseType, setCaseType] = useState('');
   const [intakeNarrative, setIntakeNarrative] = useState('');
+  
+  // Audio Recording
+  const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   
   // Third Party Complainant
   const [isThirdPartyComplainant, setIsThirdPartyComplainant] = useState(false);
@@ -155,6 +160,25 @@ export default function IngestaCasoPage() {
         method: 'POST',
         body: JSON.stringify(casePayload),
       });
+
+      // Upload audio if recorded
+      if (recordedAudio) {
+        try {
+          const formData = new FormData();
+          formData.append('file', recordedAudio, `entrevista-inicial-${Date.now()}.webm`);
+          formData.append('caseId', newCase.id);
+          formData.append('type', 'AUDIO');
+          formData.append('category', 'ENTREVISTA_INICIAL');
+          formData.append('description', `Grabación de entrevista inicial (${recordingDuration}s)`);
+
+          await fetchApi('/evidences/upload', {
+            method: 'POST',
+            body: formData,
+          });
+        } catch (audioErr) {
+          console.warn('Audio upload failed but case was created:', audioErr);
+        }
+      }
 
       router.push(`/casos/${newCase.id}`);
     } catch (err: any) {
@@ -470,6 +494,17 @@ export default function IngestaCasoPage() {
                 placeholder="Describa objetivamente los hechos reportados durante la primera recepción..."
                 required
                 style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+              />
+            </div>
+
+            {/* Audio Recording Optional */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Grabar Primera Entrevista (Opcional)</label>
+              <AudioRecorder 
+                onRecordingComplete={(blob, duration) => {
+                  setRecordedAudio(blob);
+                  setRecordingDuration(duration);
+                }}
               />
             </div>
 
