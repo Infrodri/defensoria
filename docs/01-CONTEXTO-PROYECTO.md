@@ -112,7 +112,7 @@ defensoria/
 | **ABOGADO** | Actuación jurídica, informes legales | Casos asignados |
 | **PSICOLOGO** | Evaluación e informes psicológicos | Casos asignados |
 | **SOCIAL** | Ficha social, informes sociales | Casos asignados |
-| **SECRETARIA** | Agenda, ingesta de casos | Operativo |
+| **SECRETARIA** | Agenda, inicio de casos | Operativo |
 | **REFERENTE_TUTOR** | Seguimiento de su NNA | Vista restringida |
 
 ---
@@ -188,7 +188,7 @@ Ley 548 Código NNA:
 
 ## Flujos de Trabajo Principales
 
-### 1. Ingesta de Caso
+### 1. Inicio de caso
 ```
 Secretaría/Jefatura → Buscar duplicados → Crear caso → Asignar equipo
 ```

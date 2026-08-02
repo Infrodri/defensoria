@@ -10,7 +10,7 @@ Operación:
   ✅ Panel General
   ✅ Agenda y Citas
   ✅ Expedientes
-  ✅ Ingesta de Caso
+  ✅ Inicio de caso
   ✅ Inspecciones
   ✅ Reportes GAM
   ✅ Balanceo de Equipo
@@ -42,7 +42,7 @@ Sistema:
   ✅ Panel General
   ✅ Agenda y Citas
   ✅ Expedientes
-  ✅ Ingesta de Caso
+  ✅ Inicio de caso
   ✅ Inspecciones
   ✅ Reportes GAM
   ✅ Balanceo de Equipo
@@ -130,7 +130,7 @@ Sistema:
 ```
 ✅ Panel General
 ✅ Agenda y Citas
-✅ Ingesta de Caso
+✅ Inicio de caso
 ✅ Inspecciones
 ✅ Expedientes (lectura)
 

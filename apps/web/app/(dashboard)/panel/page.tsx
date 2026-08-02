@@ -217,7 +217,7 @@ export default function PanelPage() {
                 gap: '0.5rem',
               }}
             >
-              + Ingesta de Caso Nuevo
+              + Inicio de Caso Nuevo
             </Link>
           )}
         </div>

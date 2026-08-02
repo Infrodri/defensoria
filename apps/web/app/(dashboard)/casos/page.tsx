@@ -47,7 +47,7 @@ export default function CasosListPage() {
               gap: '0.5rem',
             }}
           >
-            <UserPlus size={18} /> Ingesta de Caso Nuevo
+            <UserPlus size={18} /> Inicio de Caso Nuevo
           </Link>
         )}
       </header>

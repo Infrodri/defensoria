@@ -173,7 +173,7 @@ GRUPO: Gestión Territorial
 
 GRUPO: Expedientes
   → Expedientes             /casos
-  → Ingesta de Caso         /ingesta-caso
+  → Inicio de caso         /ingesta-caso
   → Reportes GAM            /reportes
 
 GRUPO: Inteligencia y Configuración
@@ -198,7 +198,7 @@ Quitar `Config IA`, `Base Conocimiento` y `Permisos`. Quedar:
 → Panel General           /panel
 → Agenda y Citas          /citas
 → Expedientes             /casos
-→ Ingesta de Caso         /ingesta-caso
+→ Inicio de caso         /ingesta-caso
 → Inspecciones            /inspecciones
 → Balanceo de Equipo      /equipo
 → Reportes GAM            /reportes

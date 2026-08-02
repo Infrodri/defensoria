@@ -238,7 +238,7 @@ ADMINISTRADOR (15 ítems en 3 secciones):
 │  ├─ Panel General
 │  ├─ Agenda y Citas
 │  ├─ Expedientes
-│  ├─ Ingesta de Caso
+│  ├─ Inicio de caso
 │  ├─ Inspecciones
 │  ├─ Reportes GAM
 │  └─ Balanceo de Equipo
@@ -257,7 +257,7 @@ JEFATURA (8 ítems):
 ├─ Panel General
 ├─ Agenda y Citas
 ├─ Expedientes
-├─ Ingesta de Caso
+├─ Inicio de caso
 ├─ Inspecciones
 ├─ Reportes GAM
 ├─ Balanceo de Equipo
@@ -266,7 +266,7 @@ JEFATURA (8 ítems):
 SECRETARIA (5 ítems):
 ├─ Panel General
 ├─ Agenda y Citas
-├─ Ingesta de Caso
+├─ Inicio de caso
 ├─ Inspecciones
 └─ Expedientes
 

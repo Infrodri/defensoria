@@ -48,7 +48,7 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 ### **PASOS DETALLADOS:**
 
 #### **Paso 2.1: Crear Persona (NNA)**
-1. Click en **"Ingesta de Caso"**
+1. Click en **"Inicio de caso"**
 2. Buscar si la persona ya existe en el sistema
 3. Si NO existe:
    - Click **"Crear Nueva Persona"**

@@ -192,7 +192,7 @@ export default function IngestaCasoPage() {
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
       <header style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>
-          Primera Recepción e Ingesta de Caso
+          Primera Recepción e Inicio de Caso
         </h1>
         <p style={{ color: 'var(--grafito)', opacity: 0.8, marginTop: '0.25rem' }}>
           Módulo operativo exclusivo de Secretaría y Jefatura

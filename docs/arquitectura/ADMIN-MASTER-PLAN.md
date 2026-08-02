@@ -118,7 +118,7 @@ El sistema opera con control de acceso basado en roles (RBAC) combinado con segu
 | **Gestión de Distritos** | **CRUD Total** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Gestión de Usuarios** | **CRUD Total** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Matriz de Permisos** | **CRUD Total** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Ingesta de Casos** | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Inicio de casos** | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | **Ver Casos Asignados** | ✅ (Todos) | ✅ (Todos) | 📋 (Propios) | 📋 (Propios) | 📋 (Propios) | ✅ (Todos) | 📋 (Limitado) |
 | **Transferir Expediente** | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | **Informes Sociales** | ✅ (Lectura) | ✅ (Lectura) | 🔒 (Token) | 🔒 (Token) | **CRUD** | ❌ | ❌ |
