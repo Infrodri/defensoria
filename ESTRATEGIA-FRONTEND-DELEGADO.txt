@@ -1,0 +1,222 @@
+================================================================================
+                  ESTRATEGIA FRONTEND - DELEGADO A MODELO BARATO
+================================================================================
+
+DECISIÓN: 🟢 FRONTEND LEGAL TOOLS - Código Simple, Delegable
+
+================================================================================
+
+PROPUESTA TÉCNICA
+
+Backend Status:
+✅ Legal Tools: 3 endpoints COMPLETADOS
+🟡 Psychological, Social, Transversal: EN CONSTRUCCIÓN por agentes
+
+Frontend Strategy:
+🟢 Implementar LEGAL TOOLS UI AHORA (código simple, delegable)
+   └─ 4 componentes React (~700 líneas, sin lógica compleja)
+
+Delegación a Modelo Barato:
+✅ Código presentacional (solo UI, sin lógica)
+✅ Patrón claro a replicar (phase-rail.tsx existente)
+✅ Props tipadas, CSS inline, TypeScript
+✅ 100% supervisable (simple de revisar)
+
+================================================================================
+
+COMPONENTES A CREAR (4 archivos)
+
+apps/web/components/legal-tools/
+
+1️⃣  discrepancy-analysis.tsx
+    - Mostrar análisis de discrepancias entre testimonios
+    - Progress bar de consistencia
+    - Cards por discrepancia con color por severidad
+    - ~200 líneas
+
+2️⃣  penal-typicality.tsx
+    - Mostrar análisis de delitos potenciales
+    - Cards por delito con likelihood %
+    - Checkmarks/Xmarks para elementos presentes/faltantes
+    - ~180 líneas
+
+3️⃣  processual-deadlines.tsx
+    - Mostrar semáforo de vencimientos (estilo phase-rail)
+    - Círculos de color: VERDE/AMARILLO/ROJO
+    - Connecting lines entre hitos
+    - ~200 líneas
+
+4️⃣  legal-tools-panel.tsx (integrador)
+    - Tab navigation para los 3 componentes
+    - Wrapper que combina los 3
+    - ~120 líneas
+
+Total: ~700 líneas (código simple, repetitivo, fácil de revisar)
+
+================================================================================
+
+INSTRUCCIONES PARA DELEGADO (Modelo Barato)
+
+Archivo Base: docs/PROMPT-FRONTEND-LEGAL-TOOLS.md
+
+COPIAR EXACTAMENTE:
+✓ Patrón de phase-rail.tsx (styling + estructura)
+✓ Props interfaces especificadas
+✓ UI layouts diagramados
+✓ Checklist de componentes
+✓ Reglas de CSS (var(--color) del tema)
+
+NO HACER:
+❌ Lógica de negocio
+❌ Llamadas API (solo props)
+❌ State management complejo
+❌ Cambios de arquitectura
+❌ Hardcoding de datos
+
+RESULTADO ESPERADO:
+✅ 4 archivos .tsx con componentes funcionales
+✅ Tipado completo con TypeScript
+✅ Styling consistente con tema existente
+✅ Sin errores de compilación
+✅ Listo para integración en casos/[id]/page.tsx
+
+================================================================================
+
+SUPERVISIÓN (Tu rol)
+
+Después que termina delegado, tú revisar:
+
+1. Build Check:
+   npm run build (en apps/web)
+   └─ 0 errors
+
+2. TypeScript Check:
+   npx tsc --noEmit
+   └─ 0 errors
+
+3. Code Review (20 minutos):
+   ✓ Props interfaces correctas
+   ✓ CSS inline usando var(--color)
+   ✓ No hay lógica de negocio
+   ✓ Componentes reutilizables
+   ✓ Archivos en ubicación correcta
+
+4. Visual Inspection (opcional):
+   npm run dev (en apps/web)
+   └─ Navegar a /casos/1 y agregar <LegalToolsPanel>
+   └─ Verificar rendering
+
+5. Integración:
+   - Si todo OK → mergear a develop
+   - Si hay errores → 5 min fix + re-review
+
+TIEMPO SUPERVISIÓN: ~30 minutos total
+
+================================================================================
+
+INTEGRACIÓN FINAL
+
+Ubicación de Uso:
+apps/web/app/(dashboard)/casos/[id]/page.tsx
+
+Cómo agregar:
+```typescript
+import { LegalToolsPanel } from '@/components/legal-tools/legal-tools-panel';
+
+// En el componente de caso:
+<LegalToolsPanel
+  caseId={caseId}
+  discrepancyData={mockDiscrepancyData}
+  typicalityData={mockTypicalityData}
+  deadlinesData={mockDeadlinesData}
+/>
+```
+
+Datos Mock (para testing):
+✓ Usar fake data por ahora
+✓ Después integrar API cuando esté lista
+✓ Props que el backend enviará vía API en Fase 2b
+
+================================================================================
+
+TIMELINE
+
+Delegación a Modelo Barato:   ~1.5 HORAS (código simple)
+Tu Supervisión:               ~30 MINUTOS (revisar)
+Integración:                  ~15 MINUTOS (mergear)
+────────────────────────────────────────
+TOTAL FRONTEND LEGAL TOOLS:   ~2 HORAS
+
+Después → Psych/Social/Transversal Tools Frontend (mismo patrón)
+
+================================================================================
+
+DECISIONES TÉCNICAS
+
+✅ React (Next.js) - Framework existente
+✅ TypeScript - Tipado completo
+✅ CSS inline + variables de tema - Consistente con codebase
+✅ Props sobre state - Simplicidad
+✅ Client components ('use client') - UI interactiva
+✅ Patrón de phase-rail.tsx - Coherencia visual
+
+❌ Tailwind - No usar (proyecto usa CSS variables)
+❌ Shadcn components - Overkill para esto
+❌ API calls en componentes - Separar en custom hooks después
+❌ Complex state (Redux, Zustand) - Props es suficiente
+
+================================================================================
+
+ARCHIVOS GENERADOS
+
+📄 docs/PROMPT-FRONTEND-LEGAL-TOOLS.md
+   └─ Prompt completo para delegado (copiar-pegar)
+   └─ Especificaciones de UI
+   └─ Checklist de implementación
+   └─ Ejemplos de layout
+
+📄 ESTRATEGIA-FRONTEND-DELEGADO.txt (este archivo)
+   └─ Resumen ejecutivo
+   └─ Timeline
+   └─ Instrucciones de supervisión
+
+================================================================================
+
+RECOMENDACIÓN FINAL
+
+✅ PROCEDER CON:
+- Delegación de Frontend Legal Tools a modelo barato
+- Yo supervisión (30 min)
+- Luego replicar patrón para Psych/Social/Transversal UI
+
+📊 PROGRESO CUANDO TERMINE:
+├─ Backend: 3/12 endpoints (25%)
+├─ Frontend: 3/12 componentes (25%)
+└─ Total: 6/24 = 25%
+
+⏱️ ETA COMPLETACIÓN TOTAL:
+- Backend (agentes):    ~5.5 horas más
+- Frontend (delegado):  ~6 horas más
+- Total Fase 2:        ~11.5 horas desde ahora
+
+================================================================================
+
+SIGUIENTE PASO
+
+1. Enviar docs/PROMPT-FRONTEND-LEGAL-TOOLS.md a modelo barato
+2. Modelo crea 4 archivos React
+3. Tú revisar (30 min)
+4. Mergear a develop
+5. Repetir para Psychological/Social/Transversal Frontend
+
+NO HAY BLOQUEADORES - TODO PARALLELIZABLE
+
+================================================================================
+
+Estado: 🟢 LISTO PARA DELEGAR FRONTEND
+
+Repo: c:\dev\defensoria
+Rama: feature/backend-tools-parallel
+Documentación: COMPLETA
+
+================================================================================
