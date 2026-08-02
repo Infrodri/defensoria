@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscrepancyRiskLevel } from '@prisma/client';
 import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { RAGService } from '../knowledge/rag.service';
 import { AnalyzeDiscrepanciesDto } from './dto/analyze-discrepancies.dto';
 import { AnalyzeTypicalityDto } from './dto/analyze-typicality.dto';
 import { CalculateDeadlineDto } from './dto/calculate-deadline.dto';
@@ -15,6 +16,7 @@ export class LegalToolsService {
   constructor(
     private prisma: PrismaService,
     private caseAccessService: CaseAccessService,
+    private ragService: RAGService,
   ) {}
 
   async analyzeDiscrepancies(
@@ -25,7 +27,7 @@ export class LegalToolsService {
     try {
       await this.caseAccessService.assertUserHasAccess(dto.caseId, {
         id: userId,
-        role: 'ABOGADO', // Este será reemplazado por el decorator @CurrentUser
+        role: 'ABOGADO',
       } as any);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
@@ -40,41 +42,134 @@ export class LegalToolsService {
       throw new NotFoundException('Transcripción no encontrada');
     }
 
-    // 3. Realizar análisis (placeholder - aquí iría lógica Ollama)
-    const analysisResult = {
-      discrepancies: [
-        {
-          category: 'FECHA',
-          severity: 'MEDIA',
-          currentStatement: 'El hecho ocurrió el 5 de agosto',
-          previousStatement: 'El hecho ocurrió el 6 de agosto',
-          implications: 'Podría afectar credibilidad del testimonio',
-          suggestedQuestion: '¿Puede confirmar exactamente qué día ocurrió?',
-        },
-      ],
-      consistencyScore: 85,
-      riskLevel: DiscrepancyRiskLevel.BAJO,
-      recommendation: 'Validar fechas exactas en próxima audiencia',
-    };
+    // 3. Obtener contenido de la transcripción
+    const transcriptionContent = transcription.text || 'Sin contenido de transcripción';
 
-    // 4. Guardar análisis en BD
+    // 4. Buscar documentos legales relevantes en la base de conocimiento
+    const ragChunks = await this.ragService.searchSimilarChunks(
+      `Análisis de discrepancias, inconsistencias testimoniales, entrevista, interrogatorio`,
+      5,
+    );
+
+    const ragContext = this.ragService.buildRAGContext(
+      ragChunks.map((c) => ({
+        content: c.content,
+        documentTitle: c.documentTitle,
+      })),
+    );
+
+    // 5. Consultar Ollama con RAG para análisis real
+    const systemPrompt = `Eres un abogado experto en entrevistas forense con experiencia en Ley 548 (Código Niña, Niño y Adolescente) de Bolivia.
+Tu tarea es analizar la transcripción de una entrevista para identificar discrepancias, inconsistencias o cambios en los testimonios.
+Proporciona un análisis estructurado con:
+- Discrepancias identificadas
+- Severidad de cada discrepancia (BAJA, MEDIA, ALTA)
+- Implicaciones legales
+- Preguntas sugeridas para aclarar
+- Score de consistencia general (0-100)
+- Recomendación legal`;
+
+    const userQuery = `Analiza esta transcripción e identifica discrepancias:
+
+${transcriptionContent}`;
+
+    const analysisText = await this.ragService.queryOllamaWithRAG(
+      userQuery,
+      systemPrompt,
+      ragContext,
+    );
+
+    // 6. Parsear respuesta de Ollama (formato flexible)
+    const discrepancies = this.parseDiscrepancies(analysisText);
+    const consistencyScore = this.extractConsistencyScore(analysisText);
+    const riskLevel = consistencyScore < 60 ? DiscrepancyRiskLevel.ALTO : 
+                      consistencyScore < 80 ? DiscrepancyRiskLevel.MEDIO : 
+                      DiscrepancyRiskLevel.BAJO;
+
+    // 7. Guardar análisis en BD
     const saved = await this.prisma.discrepancyAnalysis.create({
       data: {
         caseId: dto.caseId,
         currentTranscriptionId: dto.transcriptionId,
         comparableDocumentIds: dto.comparableDocuments || [],
-        discrepancies: analysisResult.discrepancies,
-        consistencyScore: analysisResult.consistencyScore,
-        riskLevel: analysisResult.riskLevel,
-        recommendation: analysisResult.recommendation,
+        discrepancies: discrepancies,
+        consistencyScore: consistencyScore,
+        riskLevel: riskLevel,
+        recommendation: this.extractRecommendation(analysisText),
         analyzedBy: userId,
       },
     });
 
     return {
       id: saved.id,
-      ...analysisResult,
+      discrepancies: discrepancies,
+      consistencyScore: consistencyScore,
+      riskLevel: riskLevel,
+      recommendation: saved.recommendation,
+      analyzedAt: saved.analyzedAt.toISOString(),
+      analyzedBy: userId,
+      ollamaAnalysis: analysisText,
     };
+  }
+
+  private parseDiscrepancies(text: string): any[] {
+    // Parser simple para extraer discrepancias del texto de Ollama
+    const discrepancies = [];
+    const lines = text.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (
+        line.includes('discrepancia') ||
+        line.includes('inconsistencia') ||
+        line.includes('cambio')
+      ) {
+        const severityMatch = line.match(/(BAJA|MEDIA|ALTA)/i);
+        const severity = severityMatch ? severityMatch[1].toUpperCase() : 'MEDIA';
+        
+        discrepancies.push({
+          id: `d-${discrepancies.length + 1}`,
+          category: line.substring(0, 100),
+          severity: severity,
+          currentStatement: 'Según Ollama',
+          previousStatement: 'Análisis completo en ollamaAnalysis',
+          implications: line.substring(0, 150),
+          suggestedQuestion: 'Ver análisis completo',
+        });
+      }
+    }
+
+    return discrepancies.length > 0
+      ? discrepancies
+      : [
+          {
+            id: 'd-1',
+            category: 'Análisis de Ollama',
+            severity: 'MEDIA',
+            currentStatement: 'Ver análisis completo',
+            previousStatement: 'Procesado por IA',
+            implications: text.substring(0, 200),
+            suggestedQuestion: 'Consultar con especialista',
+          },
+        ];
+  }
+
+  private extractConsistencyScore(text: string): number {
+    const scoreMatch = text.match(/(\d+)%|score.*?(\d+)/i);
+    if (scoreMatch) {
+      return Math.min(100, Math.max(0, parseInt(scoreMatch[1] || scoreMatch[2])));
+    }
+    return 75; // Default si no se encuentra
+  }
+
+  private extractRecommendation(text: string): string {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (line.includes('recomend') || line.includes('suger')) {
+        return line.substring(0, 300);
+      }
+    }
+    return 'Revisar análisis completo generado por IA';
   }
 
   async analyzeTypicality(dto: AnalyzeTypicalityDto, userId: string) {
