@@ -230,6 +230,9 @@ model User {
   penalTypicityAnalysisCreated PenalTypicityAnalysis[] @relation("PenalTypicityAnalysts")
   processualDeadlineCreated ProcessualDeadline[]     @relation("ProcessualDeadlineCreators")
 
+  transversalTimelinesCreated TransversalUnifiedTimeline[] @relation("TransversalTimelineCreators")
+  transversalReportsCreated TransversalAnonymizedReport[] @relation("TransversalReportCreators")
+
   @@map("users")
 }
 
@@ -309,6 +312,9 @@ model Case {
   discrepancyAnalyses DiscrepancyAnalysis[] @relation("CaseDiscrepancies")
   penalTypicityAnalyses PenalTypicityAnalysis[] @relation("CasePenalTypicities")
   processualDeadlines ProcessualDeadline[] @relation("CaseProcessualDeadlines")
+
+  transversalTimelines TransversalUnifiedTimeline[] @relation("CaseTransversalTimelines")
+  transversalReports TransversalAnonymizedReport[] @relation("CaseTransversalReports")
 
   @@index([currentPhase])
   @@index([riskLevel])
@@ -936,4 +942,40 @@ model ProcessualDeadline {
   @@index([caseId])
   @@index([calculatedDate])
   @@map("processual_deadlines")
+}
+
+// =====================================================
+// TRANSVERSAL TOOLS - 2 TABLAS NUEVAS (FASE 2)
+// =====================================================
+
+model TransversalUnifiedTimeline {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId            String    @db.Uuid
+  case              Case      @relation("CaseTransversalTimelines", fields: [caseId], references: [id], onDelete: Cascade)
+  
+  events            Json      // Array de eventos unificados de legal, psicologico y social
+  
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  createdBy         String    @db.Uuid
+  creator           User      @relation("TransversalTimelineCreators", fields: [createdBy], references: [id])
+
+  @@index([caseId])
+  @@map("transversal_unified_timelines")
+}
+
+model TransversalAnonymizedReport {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId            String    @db.Uuid
+  case              Case      @relation("CaseTransversalReports", fields: [caseId], references: [id], onDelete: Cascade)
+  
+  originalReportId  String    @db.Uuid
+  anonymizedContent String    @db.Text
+  replacements      Json      // Diccionario de reemplazos
+  
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  createdBy         String    @db.Uuid
+  creator           User      @relation("TransversalReportCreators", fields: [createdBy], references: [id])
+
+  @@index([caseId])
+  @@map("transversal_anonymized_reports")
 }
