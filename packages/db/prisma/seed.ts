@@ -75,7 +75,11 @@ async function main() {
   ];
 
   for (const mod of defaultModules) {
-    await prisma.systemModule.create({ data: mod });
+    await prisma.systemModule.upsert({
+      where: { code: mod.code },
+      update: mod,
+      create: mod,
+    });
   }
 
   // 1. Create All 9 District Offices of Sucre
@@ -357,7 +361,41 @@ async function main() {
   }
 
   console.log('🎉 Multi-district seed completed successfully for all 9 offices in Sucre!');
+  
+  // 6. Seed System Catalogs (Case Types)
+  const caseTypesCatalog = await prisma.systemCatalog.upsert({
+    where: { code: 'CASE_TYPES' },
+    update: {}, // No update needed, just ensure exists
+    create: {
+      code: 'CASE_TYPES',
+      name: 'Tipos de Casos / Trámites',
+      description: 'Catálogo de tipos de casos que puede registrar la Defensoría',
+    },
+  });
+
+  // Seed catalog items for case types
+  const caseTypesItems = [
+    { value: 'DENUNCIA_VULNERACION', label: 'Denuncia por Vulneración de Derechos', order: 1 },
+    { value: 'CONSUMO_SUSTANCIAS', label: 'Consumo de Sustancias', order: 2 },
+    { value: 'VENTA_ALCOHOL', label: 'Venta de Alcohol a Menores', order: 3 },
+    { value: 'DERECHO_EDUCACION', label: 'Vulneración del Derecho a la Educación', order: 4 },
+    { value: 'EXTRAVIO', label: 'Extravío / Desaparición', order: 5 },
+    { value: 'NNA_INFRACTOR', label: 'NNA Infractor de Ley Penal', order: 6 },
+    { value: 'FISCALIZACION', label: 'Fiscalización / Operativo', order: 7 },
+  ];
+
+  for (const item of caseTypesItems) {
+    await prisma.catalogItem.upsert({
+      where: { catalogId_value: { catalogId: caseTypesCatalog.id, value: item.value } },
+      update: { label: item.label, order: item.order },
+      create: { catalogId: caseTypesCatalog.id, ...item },
+    });
+  }
+
+  console.log('✅ Case Type Catalog seeded successfully!');
 }
+
+main()
 
 main()
   .catch((e) => {
