@@ -4,10 +4,12 @@ import { KnowledgeController } from './knowledge.controller';
 import { EmbeddingsService } from './embeddings.service';
 import { RAGService } from './rag.service';
 import { TranscriptionService } from './transcription.service';
+import { ToolsAdminService } from './tools-admin.service';
+import { ToolsAdminController } from './tools-admin.controller';
 
 @Module({
-  controllers: [KnowledgeController],
-  providers: [KnowledgeService, EmbeddingsService, RAGService, TranscriptionService],
-  exports: [RAGService, EmbeddingsService, TranscriptionService],
+  controllers: [KnowledgeController, ToolsAdminController],
+  providers: [KnowledgeService, EmbeddingsService, RAGService, TranscriptionService, ToolsAdminService],
+  exports: [RAGService, EmbeddingsService, TranscriptionService, ToolsAdminService],
 })
 export class KnowledgeModule {}
