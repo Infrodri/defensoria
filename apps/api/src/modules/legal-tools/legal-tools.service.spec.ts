@@ -37,7 +37,7 @@ describe('LegalToolsService', () => {
 
   describe('analyzeDiscrepancies', () => {
     it('should analyze discrepancies successfully', async () => {
-      const userId = 'user-123';
+      const user = { id: 'user-123', role: 'ABOGADO' } as any;
       const dto = {
         transcriptionId: 'trans-123',
         caseId: 'case-123',
@@ -47,7 +47,7 @@ describe('LegalToolsService', () => {
       vi.spyOn(prisma.transcription, 'findUnique').mockResolvedValue({ id: 'trans-123' } as any);
       vi.spyOn(prisma.discrepancyAnalysis, 'create').mockResolvedValue({ id: 'analysis-123' } as any);
 
-      const result = await service.analyzeDiscrepancies(dto, userId);
+      const result = await service.analyzeDiscrepancies(dto, user);
 
       expect(result).toBeDefined();
       expect(result.discrepancies).toBeDefined();
@@ -57,7 +57,7 @@ describe('LegalToolsService', () => {
       vi.spyOn(prisma.transcription, 'findUnique').mockResolvedValue(null);
 
       await expect(
-        service.analyzeDiscrepancies({ transcriptionId: 'invalid', caseId: 'case-123' }, 'user-123'),
+        service.analyzeDiscrepancies({ transcriptionId: 'invalid', caseId: 'case-123' }, { id: 'user-123', role: 'ABOGADO' } as any),
       ).rejects.toThrow('Transcripción no encontrada');
     });
   });

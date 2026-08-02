@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AccessUser } from '../../common/case-access/case-access.service';
 import { Role } from '@defensoria/shared';
 import { ExtractIndicatorsDto } from './dto/extract-indicators.dto';
 import { PrefillRiskScalesDto } from './dto/prefill-risk-scales.dto';
@@ -23,9 +24,9 @@ export class PsychologicalToolsController {
   @ApiOperation({ summary: 'Extraer indicadores de daño emocional y trauma score' })
   async extractIndicators(
     @Body() dto: ExtractIndicatorsDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.psychologicalToolsService.extractIndicators(dto, userId);
+    return this.psychologicalToolsService.extractIndicators(dto, user);
   }
 
   @Post('risk-scales/prefill')

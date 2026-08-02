@@ -3,20 +3,8 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService } from '../../common/case-access/case-access.service';
 import { CaseType, Role, RoleInCase, Phase, InterventionPath, RiskLevel } from '@defensoria/shared';
-
-export interface CreateCaseDto {
-  caseType: CaseType;
-  nnaId: string;
-  complainantId?: string;
-  accusedId?: string;
-  intakeNarrative: string;
-}
-
-export interface AssignTeamDto {
-  userId: string;
-  role: Role;
-  reason: string;
-}
+import { AssignTeamDto } from './dto/assign-team.dto';
+import { CreateCaseDto } from './dto/create-case.dto';
 
 export interface TransferOfficeDto {
   targetOfficeId: string;
@@ -78,6 +66,13 @@ export class CasesService {
           intakeNarrative: dto.intakeNarrative,
           currentOfficeId: officeId,
           createdBy: userId,
+          // Denunciante tercero
+          isThirdPartyComplainant: dto.isThirdPartyComplainant || false,
+          complainantFullName: dto.complainantFullName || null,
+          complainantDocumentId: dto.complainantDocumentId || null,
+          complainantRelation: dto.complainantRelation || null,
+          complainantPhone: dto.complainantPhone || null,
+          complainantAddress: dto.complainantAddress || null,
         },
       });
 

@@ -33,7 +33,7 @@ export class RAGService {
         Array<{
           id: string;
           content: string;
-          documentId: string;
+          legalDocumentId: string;
           document_title: string;
           metadata: any;
         }>
@@ -41,21 +41,20 @@ export class RAGService {
         SELECT 
           kc.id,
           kc.content,
-          kc."documentId",
+          kc."legalDocumentId",
           ld.title as document_title,
           kc.metadata,
-          (kc.embedding <=> $1::vector) as similarity
-        FROM "KnowledgeChunk" kc
-        JOIN "LegalDocument" ld ON kc."documentId" = ld.id
+          (kc.embedding <=> ${embeddingStr}::vector) as similarity
+        FROM "legal_chunks" kc
+        JOIN "legal_documents" ld ON kc."legalDocumentId" = ld.id
         WHERE ld."isActive" = true
         ORDER BY similarity ASC
-        LIMIT $2
+        LIMIT ${limit}
       `;
-
       return results.map((r) => ({
         id: r.id,
         content: r.content,
-        documentId: r.documentId,
+        documentId: r.legalDocumentId,
         documentTitle: r.document_title,
         metadata: r.metadata,
       }));

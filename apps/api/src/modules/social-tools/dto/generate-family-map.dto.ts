@@ -1,5 +1,5 @@
-import { IsUUID, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsUUID, IsNotEmpty, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GenerateFamilyMapDto {
   @ApiProperty({ description: 'ID del caso' })
@@ -7,8 +7,8 @@ export class GenerateFamilyMapDto {
   @IsNotEmpty()
   caseId: string;
 
-  @ApiProperty({ description: 'ID de la transcripción' })
+  @ApiPropertyOptional({ description: 'ID de la transcripción' })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  transcriptionId: string;
+  transcriptionId?: string;
 }

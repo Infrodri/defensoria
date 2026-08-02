@@ -67,17 +67,17 @@ test.describe('Autenticación & Login', () => {
     expect(isAuthenticated).toBe(false);
   });
 
-  test('Acceso denegado sin autenticación a /tools-demo', async ({ page }) => {
+  test('Acceso denegado sin autenticación a /herramientas', async ({ page }) => {
     // Intenta navegar sin autenticarse
-    await page.goto(`${BASE_URL}/tools-demo`);
+    await page.goto(`${BASE_URL}/herramientas`);
 
     // Debe redirigirse al login o mostrar error
     const currentUrl = page.url();
-    const isAtToolsDemo = currentUrl.includes('/tools-demo');
+    const isAtHerramientas = currentUrl.includes('/herramientas');
     const isAtLogin = currentUrl.includes('/login');
 
-    // Si está en tools-demo, verifica que no hay datos (sin autenticación)
-    if (isAtToolsDemo) {
+    // Si está en herramientas, verifica que no hay datos (sin autenticación)
+    if (isAtHerramientas) {
       const errorText = page.locator('text=/No autenticado|Debes iniciar sesión/i');
       await expect(errorText).toBeVisible({ timeout: 5000 });
     } else {
@@ -88,7 +88,7 @@ test.describe('Autenticación & Login', () => {
 });
 
 // ============================================================================
-// PÁGINA DEMO (/tools-demo)
+// PÁGINA HERRAMIENTAS (/herramientas)
 // ============================================================================
 
 test.describe('Página Demo (/tools-demo)', () => {

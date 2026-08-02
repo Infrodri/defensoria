@@ -120,66 +120,78 @@ export const TOOL_ORDER_BY_ROLE: Record<UserRole, string[]> = {
 /**
  * Descripción de herramientas por módulo
  */
-export const TOOL_DESCRIPTIONS: Record<string, { title: string; description: string; icon: string }> = {
+export const TOOL_DESCRIPTIONS: Record<string, { title: string; description: string; icon: string; steps: string }> = {
   legal_discrepancies: {
     title: 'Análisis de Discrepancias',
     description: 'Identifica inconsistencias entre testimonios y documentos',
     icon: '⚖️',
+    steps: '1. Selecciona el caso\n2. Sube o elige una transcripción\n3. El sistema detecta contradicciones automáticamente\n4. Revisa las preguntas sugeridas para aclaración',
   },
   legal_typicality: {
     title: 'Tipicidad Penal',
     description: 'Analiza si el relato se ajusta a tipos penales específicos',
     icon: '📋',
+    steps: '1. Ingresa o carga el relato del caso\n2. El sistema compara con tipos penales\n3. Recibe un listado de posibles figuras aplicables\n4. Usa la recomendación para fundamentar la denuncia',
   },
   legal_deadlines: {
     title: 'Vencimientos Procesales',
     description: 'Calcula plazos legales importantes del caso',
     icon: '⏰',
+    steps: '1. Ingresa la fecha de inicio del proceso\n2. Selecciona el tipo de procedimiento\n3. El sistema calcula todos los plazos críticos\n4. Recibe alertas de vencimientos próximos',
   },
   psychological_indicators: {
     title: 'Indicadores de Trauma',
     description: 'Extrae indicadores de daño emocional y trauma',
     icon: '🧠',
+    steps: '1. Carga la transcripción de la entrevista\n2. El sistema analiza el lenguaje y respuestas\n3. Identifica indicadores de trauma presentes\n4. Genera informe con severidad y tipo de trauma',
   },
   psychological_scales: {
     title: 'Escalas de Riesgo',
     description: 'Pre-llena escalas de evaluación psicológica',
     icon: '📊',
+    steps: '1. Selecciona la escala a completar (ej. ACES, PHQ-9)\n2. Ingresa la transcripción o resumen de sesión\n3. El sistema pre-llena los ítems con evidencia\n4. Revisa y ajusta antes de finalizar',
   },
   psychological_translation: {
     title: 'Traducción Clínica',
     description: 'Traduce notas clínicas a lenguaje forense',
     icon: '💬',
+    steps: '1. Ingresa las notas clínicas del expediente\n2. Selecciona el contexto destino (forense/legal)\n3. El sistema traduce la terminología\n4. Exporta el texto adaptado para el informe',
   },
   psychological_trauma: {
     title: 'Análisis de Trauma',
     description: 'Analiza trauma acumulado y exposición',
     icon: '🔍',
+    steps: '1. Carga historial de sesiones o transcripciones\n2. El sistema evalúa exposición acumulada\n3. Identifica patrones de trauma complejo\n4. Sugiere intervenciones terapéuticas',
   },
   social_family: {
     title: 'Estructura Familiar',
     description: 'Genera familiograma y mapa de relaciones',
     icon: '👨‍👩‍👧‍👦',
+    steps: '1. Ingresa los datos de la entrevista familiar\n2. El sistema construye el familiograma\n3. Visualiza relaciones y dinámicas\n4. Identifica factores de riesgo y protección',
   },
   social_vulnerability: {
     title: 'Evaluación Vulnerabilidad',
     description: 'Calcula índice de vulnerabilidad social',
     icon: '⚠️',
+    steps: '1. Completa los factores sociales del caso\n2. El sistema pondera cada dimensión\n3. Genera un índice de vulnerabilidad\n4. Recibe recomendaciones de intervención',
   },
   social_environmental: {
     title: 'Mapeo Ambiental',
     description: 'Mapea factores de riesgo del entorno',
     icon: '🏘️',
+    steps: '1. Ingresa información del entorno del NNA\n2. El sistema identifica riesgos comunitarios\n3. Mapea recursos disponibles en la zona\n4. Genera plan de intervención contextualizado',
   },
   transversal_timeline: {
     title: 'Línea de Tiempo Unificada',
     description: 'Consolida eventos de todos los equipos',
     icon: '📅',
+    steps: '1. El sistema recopila eventos de todos los módulos\n2. Los ordena cronológicamente\n3. Detecta vacíos y inconsistencias temporales\n4. Genera visualización compartida del caso',
   },
   transversal_anonymize: {
     title: 'Reporte Anonimizado',
     description: 'Anonimiza datos sensibles en reportes',
     icon: '🔒',
+    steps: '1. Selecciona el reporte o documento a anonimizar\n2. El sistema detecta datos identificables\n3. Aplica técnicas de anonimización segura\n4. Descarga el documento listo para compartir',
   },
 };
 

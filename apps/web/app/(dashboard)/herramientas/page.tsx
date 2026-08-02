@@ -5,6 +5,8 @@ import { useAuth } from '@/lib/auth-context';
 import { getToolsByRole, groupToolsByModule, TOOL_DESCRIPTIONS, canReadTool, canWriteTool } from '@/lib/role-access';
 import { ProtectedTool } from '@/components/common/ProtectedTool';
 import { AlertCircle, Edit2, Lock } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 const styles = {
   container: {
@@ -28,21 +30,23 @@ const styles = {
   },
   modulesContainer: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: '2rem',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+    gap: '2.5rem',
+    alignItems: 'start',
   },
   moduleCard: {
     backgroundColor: 'white',
-    borderRadius: '10px',
-    border: '1px solid #e0e0e0',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
     transition: 'all 0.3s ease',
+    height: 'fit-content',
   },
   moduleHeader: {
     padding: '1.5rem',
     borderBottom: '2px solid var(--salvia)',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f8fafc',
   },
   moduleTitle: {
     fontSize: '1.25rem',
@@ -59,16 +63,17 @@ const styles = {
     padding: '1.5rem',
   },
   toolItem: {
-    padding: '1rem',
-    marginBottom: '0.75rem',
-    backgroundColor: '#fafafa',
-    borderRadius: '6px',
-    border: '1px solid #e8e8e8',
-    cursor: 'pointer',
+    padding: '1.2rem',
+    marginBottom: '1rem',
+    backgroundColor: '#fafbfc',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    cursor: 'help',
     transition: 'all 0.2s ease',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    position: 'relative' as const,
   },
   toolInfo: {
     flex: 1,
@@ -139,42 +144,57 @@ function ToolItemComponent({ toolId, canRead, canWrite }: ToolItemProps) {
   
   if (!tool) return null;
 
-  return (
-    <div
-      style={{
-        ...styles.toolItem,
-        backgroundColor: canWrite ? '#f0f9f0' : '#f5f5f5',
-        border: canWrite ? '1px solid #90ee90' : '1px solid #e0e0e0',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = canWrite ? '#e8f5e8' : '#efefef';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = canWrite ? '#f0f9f0' : '#f5f5f5';
-      }}
-    >
-      <div style={styles.toolInfo}>
-        <div style={styles.toolName}>
-          {tool.icon} {tool.title}
-        </div>
-        <div style={styles.toolDescription}>{tool.description}</div>
-      </div>
-      {!canRead ? (
-        <div style={{ ...styles.permissionBadge, ...styles.readOnly }}>
-          <Lock size={12} />
-          Sin acceso
-        </div>
-      ) : canWrite ? (
-        <div style={{ ...styles.permissionBadge, ...styles.readWrite }}>
-          <Edit2 size={12} />
-          Lectura/Edición
-        </div>
-      ) : (
-        <div style={{ ...styles.permissionBadge, ...styles.readOnly }}>
-          Lectura
-        </div>
-      )}
+  const tooltipContent = (
+    <div>
+      <strong>{tool.icon} {tool.title}</strong>
+      <br/>
+      <span style={{ fontSize: '13px', opacity: 0.9 }}>{tool.description}</span>
+      <br/><br/>
+      <strong>¿Cómo se usa?</strong>
+      <br/>
+      <span style={{ fontSize: '12px', whiteSpace: 'pre-line', opacity: 0.9 }}>{tool.steps}</span>
     </div>
+  );
+
+  return (
+    <Tooltip content={tooltipContent} position="right">
+      <div
+        style={{
+          ...styles.toolItem,
+          backgroundColor: canWrite ? '#f0f9f0' : '#f5f5f5',
+          border: canWrite ? '1px solid #90ee90' : '1px solid #e0e0e0',
+          cursor: 'help',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = canWrite ? '#e8f5e8' : '#efefef';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = canWrite ? '#f0f9f0' : '#f5f5f5';
+        }}
+      >
+        <div style={styles.toolInfo}>
+          <div style={styles.toolName}>
+            {tool.icon} {tool.title}
+          </div>
+          <div style={styles.toolDescription}>{tool.description}</div>
+        </div>
+        {!canRead ? (
+          <div style={{ ...styles.permissionBadge, ...styles.readOnly }}>
+            <Lock size={12} />
+            Sin acceso
+          </div>
+        ) : canWrite ? (
+          <div style={{ ...styles.permissionBadge, ...styles.readWrite }}>
+            <Edit2 size={12} />
+            Lectura/Edición
+          </div>
+        ) : (
+          <div style={{ ...styles.permissionBadge, ...styles.readOnly }}>
+            Lectura
+          </div>
+        )}
+      </div>
+    </Tooltip>
   );
 }
 
@@ -193,8 +213,12 @@ export default function HerramientasPage() {
     );
   }
 
+  // DEBUG: Log para verificar role
+  console.log('DEBUG Herramientas - User Role:', user.role);
+  
   // Obtener herramientas disponibles para el rol
   const availableTools = getToolsByRole(user.role as any);
+  console.log('DEBUG Herramientas - Available tools:', availableTools);
 
   if (availableTools.length === 0) {
     return (
@@ -216,6 +240,7 @@ export default function HerramientasPage() {
 
   // Agrupar herramientas por módulo
   const groupedTools = groupToolsByModule(availableTools as any);
+  console.log('DEBUG Herramientas - Grouped tools:', groupedTools);
 
   // Obtener información del módulo
   const getModuleInfo = (module: string) => {
@@ -261,9 +286,29 @@ export default function HerramientasPage() {
             <div key={module} style={styles.moduleCard}>
               {/* Header del módulo */}
               <div style={styles.moduleHeader}>
-                <div style={styles.moduleTitle}>
-                  <span style={styles.moduleIcon}>{moduleInfo.icon}</span>
-                  {moduleInfo.title}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <Tooltip
+                    content={
+                      <div>
+                        <strong>{moduleInfo.icon} {moduleInfo.title}</strong><br/>
+                        {module === 'legal' && 'Análisis de discrepancias, tipicidad penal y plazos procesales'}
+                        {module === 'psychological' && 'Indicadores de trauma, escalas de riesgo y traducciones clínicas'}
+                        {module === 'social' && 'Mapas familiares, vulnerabilidad y factores ambientales'}
+                        {module === 'transversal' && 'Líneas de tiempo, anonimización y herramientas multidisciplinarias'}
+                      </div>
+                    }
+                    position="bottom"
+                  >
+                    <div style={{ ...styles.moduleTitle, cursor: 'help' }}>
+                      <span style={styles.moduleIcon}>{moduleInfo.icon}</span>
+                      {moduleInfo.title}
+                    </div>
+                  </Tooltip>
+                  <StatusBadge
+                    status="active"
+                    userRole={user.role as any}
+                    toolType={module as any}
+                  />
                 </div>
               </div>
 
@@ -282,14 +327,13 @@ export default function HerramientasPage() {
                 <button
                   style={styles.button}
                   onClick={() => {
-                    // Navegar a la página de herramientas específica
                     const moduleMap: Record<string, string> = {
-                      legal: '/tools-demo?tab=legal',
-                      psychological: '/tools-demo?tab=psychological',
-                      social: '/tools-demo?tab=social',
-                      transversal: '/tools-demo?tab=transversal',
+                      legal: '/herramientas/legal',
+                      psychological: '/herramientas/psicologico',
+                      social: '/herramientas/social',
+                      transversal: '/herramientas/transversal',
                     };
-                    window.location.href = moduleMap[module] || '/tools-demo';
+                    window.location.href = moduleMap[module] || '/herramientas';
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = 'var(--salvia-oscuro)';

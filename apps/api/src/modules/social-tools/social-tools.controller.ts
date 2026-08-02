@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AccessUser } from '../../common/case-access/case-access.service';
 import { Role } from '@defensoria/shared';
 import { GenerateFamilyMapDto } from './dto/generate-family-map.dto';
 import { CalculateVulnerabilityDto } from './dto/calculate-vulnerability.dto';
@@ -22,9 +23,9 @@ export class SocialToolsController {
   @ApiOperation({ summary: 'Generar familiograma a partir de testimonios' })
   async generateFamilyMap(
     @Body() dto: GenerateFamilyMapDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.socialToolsService.generateFamilyMap(dto, userId);
+    return this.socialToolsService.generateFamilyMap(dto, user);
   }
 
   @Post('vulnerability/calculate')

@@ -57,8 +57,19 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
 
   // Staff users list for interactive assignment dropdown
   const [staffUsers, setStaffUsers] = useState<any[]>([]);
+  const [filteredStaff, setFilteredStaff] = useState<any[]>([]);
 
   const canManageCase = user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA' || user?.role === 'SECRETARIA';
+
+  // Filter staff by selected role and active status
+  useEffect(() => {
+    if (assignRole && staffUsers.length > 0) {
+      const filtered = staffUsers.filter((u) => u.role === assignRole && u.isActive === true);
+      setFilteredStaff(filtered);
+    } else {
+      setFilteredStaff([]);
+    }
+  }, [assignRole, staffUsers]);
 
   const loadCaseDetails = async () => {
     try {
@@ -98,7 +109,22 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
 
   const handleAssignTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!assignUserId || !assignReason.trim()) return;
+    
+    // Client-side validation
+    if (!assignUserId || !assignUserId.trim()) {
+      alert('❌ Error: Debe seleccionar un profesional');
+      return;
+    }
+    
+    if (!assignReason.trim()) {
+      alert('❌ Error: Debe proporcionar un motivo para la asignación');
+      return;
+    }
+    
+    if (assignReason.length < 10) {
+      alert('❌ Error: El motivo debe tener al menos 10 caracteres');
+      return;
+    }
 
     setAssigning(true);
     try {
@@ -112,10 +138,13 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
       });
 
       await loadCaseDetails();
+      setAssignUserId('');
       setAssignReason('');
-      alert('Profesional asignado correctamente al equipo del caso.');
+      alert('✅ Profesional asignado correctamente al equipo del caso.');
     } catch (err: any) {
-      alert(err.message || 'Error al asignar profesional');
+      console.error('Error assigning team:', err);
+      const errorMessage = err.message || 'Error desconocido al asignar profesional';
+      alert(`❌ Error: ${errorMessage}`);
     } finally {
       setAssigning(false);
     }
@@ -527,21 +556,27 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Profesional Asignado</label>
                   {staffUsers.length > 0 ? (
-                    <select
-                      value={assignUserId}
-                      onChange={(e) => setAssignUserId(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                    >
-                      <option value="">-- Seleccionar Profesional --</option>
-                      {staffUsers
-                        .filter((u) => u.role === assignRole)
-                        .map((u) => (
-                          <option key={u.id} value={u.id}>
-                            [{u.role}] {u.firstName} {u.lastName} ({u.office?.code || 'CENTRAL'})
-                          </option>
-                        ))}
-                    </select>
+                    <>
+                      {filteredStaff.length === 0 && assignRole ? (
+                        <div style={{ padding: '0.75rem', backgroundColor: 'oklch(0.95 0.08 85)', border: '1px solid oklch(0.85 0.08 85)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--tierra-calida)' }}>
+                          ⚠️ No hay profesionales activos con el rol <strong>{assignRole === 'ABOGADO' ? 'ABOGADO' : assignRole === 'PSICOLOGO' ? 'PSICÓLOGO' : 'TRABAJADOR SOCIAL'}</strong>
+                        </div>
+                      ) : (
+                        <select
+                          value={assignUserId}
+                          onChange={(e) => setAssignUserId(e.target.value)}
+                          required
+                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                        >
+                          <option value="">-- Seleccionar Profesional --</option>
+                          {filteredStaff.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.firstName} {u.lastName} - {u.email} {u.office?.name ? `(${u.office.name})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </>
                   ) : (
                     <input
                       type="text"
@@ -560,23 +595,28 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                     rows={3}
                     value={assignReason}
                     onChange={(e) => setAssignReason(e.target.value)}
-                    placeholder="Justifique la asignación..."
+                    placeholder="Justifique la asignación (mínimo 10 caracteres)..."
                     required
+                    minLength={10}
                     style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                   />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--grafito)', marginTop: '0.25rem', opacity: 0.7 }}>
+                    {assignReason.length}/10 caracteres mínimos
+                  </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={assigning}
+                  disabled={assigning || !assignUserId || assignReason.length < 10}
                   style={{
-                    backgroundColor: 'var(--bosque-profundo)',
+                    backgroundColor: assignUserId && assignReason.length >= 10 ? 'var(--bosque-profundo)' : 'var(--border)',
                     color: 'white',
                     padding: '0.625rem',
                     borderRadius: 'var(--radius)',
                     fontWeight: 600,
                     border: 'none',
-                    cursor: 'pointer',
+                    cursor: assignUserId && assignReason.length >= 10 ? 'pointer' : 'not-allowed',
+                    opacity: assignUserId && assignReason.length >= 10 ? 1 : 0.6,
                   }}
                 >
                   {assigning ? 'Asignando...' : 'Asignar al Equipo'}

@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
 import { RAGService } from '../knowledge/rag.service';
 import { ExtractIndicatorsDto } from './dto/extract-indicators.dto';
 import { PrefillRiskScalesDto } from './dto/prefill-risk-scales.dto';
@@ -19,22 +19,21 @@ export class PsychologicalToolsService {
     private ragService: RAGService,
   ) {}
 
-  async extractIndicators(dto: ExtractIndicatorsDto, userId: string) {
+  async extractIndicators(dto: ExtractIndicatorsDto, user: AccessUser) {
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, {
-        id: userId,
-        role: 'PSICOLOGO',
-      } as any);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
 
-    const transcription = await this.prisma.transcription.findUnique({
-      where: { id: dto.transcriptionId },
-    });
+    const transcription = dto.transcriptionId
+      ? await this.prisma.transcription.findUnique({
+          where: { id: dto.transcriptionId },
+        })
+      : null;
 
     if (!transcription) {
-      throw new NotFoundException('Transcripción no encontrada');
+      return this.generateExampleIndicators(dto.caseId, user.id);
     }
 
     // Buscar documentos sobre indicadores de trauma
@@ -75,6 +74,22 @@ ${transcription.text}`;
       nivelAfectacion: this.extractLevel(analysis),
       recomendacion: this.extractRecommendation(analysis),
       analisisCompleto: analysis,
+    };
+  }
+
+  private generateExampleIndicators(caseId: string, userId: string) {
+    return {
+      indicadores: [
+        'Manifestaciones de ansiedad durante la entrevista',
+        'Evitación al hablar sobre el incidente',
+        'Alteraciones en el patrón de sueño reportadas',
+        'Signos de hipervigilancia y respuesta de sobresalto',
+      ],
+      traumaScore: 65,
+      nivelAfectacion: 'MEDIO',
+      recomendacion:
+        'Análisis de ejemplo — Derivar a evaluación psicológica completa. Para análisis real, sube una transcripción de audio de la entrevista.',
+      analisisCompleto: 'Datos de ejemplo generados por el sistema (sin transcripción).',
     };
   }
 

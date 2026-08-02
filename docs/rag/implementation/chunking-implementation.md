@@ -1,4 +1,4 @@
-# Solución al Problema de Fragmentación Incorrecta en RAG
+﻿# Solución al Problema de Fragmentación Incorrecta en RAG
 
 **Fecha**: 2026-08-01  
 **Problema reportado**: Los chunks generados por el sistema RAG cortan oraciones en medio, perdiendo contexto y duplicando información de forma incorrecta.
@@ -142,7 +142,7 @@ Si el texto NO contiene artículos legales detectables:
 ## Documentación Creada
 
 ### 1. ADR-025: Estrategia Mejorada PDF a Markdown
-**Ubicación**: `docs/architecture/ADR-025-pdf-to-markdown-strategy.md`
+**Ubicación**: `docs/arquitectura/ADR/ADR-025-pdf-to-markdown-strategy.md`
 
 **Contenido**:
 - Análisis técnico del problema
@@ -151,7 +151,7 @@ Si el texto NO contiene artículos legales detectables:
 - Código de ejemplo
 
 ### 2. Plantilla para Leyes en Markdown
-**Ubicación**: `docs/guides/PLANTILLA-LEY-MARKDOWN.md`
+**Ubicación**: `docs/rag/guias/markdown-template.md`
 
 **Contenido**:
 - Formato correcto para Markdown legal
@@ -160,7 +160,7 @@ Si el texto NO contiene artículos legales detectables:
 - FAQ y troubleshooting
 
 ### 3. Ejemplo Real: Ley 1371
-**Ubicación**: `docs/examples/ley-1371-ejemplo.md`
+**Ubicación**: `docs/ejemplos/ley-1371-complete.md`
 
 **Contenido**:
 - Ley completa formateada correctamente
@@ -168,7 +168,7 @@ Si el texto NO contiene artículos legales detectables:
 - Muestra parágrafos, incisos y estructura compleja
 
 ### 4. Guía de Ingesta (Actualizada)
-**Ubicación**: `docs/guides/knowledge-base-ingestion-guide.md`
+**Ubicación**: `docs/rag/guias/ingestion-guide.md`
 
 **Contenido actualizado**:
 - Ahora recomienda Markdown como opción #1
@@ -282,7 +282,7 @@ Section 2:
 ## Documentación Creada
 
 ### ADR-025: Estrategia Mejorada PDF a Markdown
-**Ubicación**: `docs/architecture/ADR-025-pdf-to-markdown-strategy.md`
+**Ubicación**: `docs/arquitectura/ADR/ADR-025-pdf-to-markdown-strategy.md`
 
 **Contenido**:
 - Análisis del problema
@@ -292,7 +292,7 @@ Section 2:
 - Decisión recomendada por fases
 
 ### Guía de Usuario para Administradores
-**Ubicación**: `docs/guides/knowledge-base-ingestion-guide.md`
+**Ubicación**: `docs/rag/guias/ingestion-guide.md`
 
 **Contenido**:
 - 3 opciones de ingesta ordenadas por calidad
@@ -465,7 +465,7 @@ Entrenar modelo específico para reconocer:
 - **ADR-023**: Arquitectura IA Local Soberana
 - **ADR-024**: Estrategia de Ingesta RAG (HTML vs PDF)
 - **ADR-025**: Estrategia PDF a Markdown (nuevo)
-- **Guía de Usuario**: `docs/guides/knowledge-base-ingestion-guide.md`
+- **Guía de Usuario**: `docs/rag/guias/ingestion-guide.md`
 - **Código fuente**: `apps/api/src/modules/knowledge/knowledge.service.ts`
 
 ---
@@ -482,3 +482,6 @@ El problema de fragmentación incorrecta ha sido resuelto mediante:
 
 **Estado**: Implementado y listo para testing
 **Impacto**: Mejora significativa en la calidad de recuperación RAG
+
+
+

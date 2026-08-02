@@ -40,7 +40,7 @@ describe('PsychologicalToolsService', () => {
 
       const result = await service.extractIndicators(
         { caseId: 'case-123', transcriptionId: 'trans-123' },
-        'user-123',
+        { id: 'user-123', role: 'PSICOLOGO' } as any,
       );
 
       expect(result).toBeDefined();

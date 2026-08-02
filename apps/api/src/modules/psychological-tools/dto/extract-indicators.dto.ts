@@ -1,5 +1,5 @@
-import { IsUUID, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsUUID, IsNotEmpty, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ExtractIndicatorsDto {
   @ApiProperty()
@@ -7,8 +7,8 @@ export class ExtractIndicatorsDto {
   @IsNotEmpty()
   caseId: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  transcriptionId: string;
+  transcriptionId?: string;
 }

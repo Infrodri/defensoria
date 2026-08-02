@@ -15,7 +15,7 @@ export default function AiConfigPage() {
 
   const [llmModel, setLlmModel] = useState('qwen2.5:7b');
   const [embedModel, setEmbedModel] = useState('nomic-embed-text');
-  const [whisperEndpoint, setWhisperEndpoint] = useState('http://localhost:8000/asr');
+  const [whisperEndpoint, setWhisperEndpoint] = useState('http://localhost:8000/v1/audio/transcriptions');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -188,7 +188,7 @@ export default function AiConfigPage() {
             type="text"
             value={whisperEndpoint}
             onChange={(e) => setWhisperEndpoint(e.target.value)}
-            placeholder="http://localhost:8000/asr"
+            placeholder="http://localhost:8000/v1/audio/transcriptions"
             style={{
               width: '100%',
               padding: '0.625rem 0.875rem',

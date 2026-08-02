@@ -1,79 +1,41 @@
-# Sistema RAG - Índice Completo
+﻿# Sistema RAG — Índice Completo
 
-**Para Agentes IA**: Este es el punto de entrada para TODO sobre el sistema RAG. Leer en orden numérico.
-
----
-
-## 🎯 Lectura Obligatoria (en orden)
-
-### 1. [01-RAG-OVERVIEW.md](01-RAG-OVERVIEW.md) - 5 min
-**Qué es, por qué existe, cómo funciona** (resumen ejecutivo)
-
-### 2. Según tu rol:
-
-**Si eres Desarrollador**:
-- [architecture/chunking-strategy.md](architecture/chunking-strategy.md)
-- [implementation/chunking-implementation.md](implementation/chunking-implementation.md)
-
-**Si eres Administrador/Usuario**:
-- [guides/ingestion-guide.md](guides/ingestion-guide.md)
-- [guides/markdown-template.md](guides/markdown-template.md)
-
-**Si necesitas Testing**:
-- [testing/test-plan.md](testing/test-plan.md)
+**Para Agentes IA**: Este es el punto de entrada para TODO sobre el sistema RAG. Muestra los documentos reales disponibles en `rag/` y su contenido. Todo enlaces apunta a archivos existentes en el repo.
 
 ---
 
-## 📂 Estructura Completa
+## 📂 Estructura Real de `rag/`
 
 ```
 rag/
-├── 00-RAG-INDEX.md                              ← TÚ ESTÁS AQUÍ
-├── 01-RAG-OVERVIEW.md                           ← LEER PRIMERO (resumen)
-│
-├── architecture/                                ← Decisiones técnicas
-│   └── chunking-strategy.md                     ← Estrategia UN ARTÍCULO = UN CHUNK
-│
-├── guides/                                      ← Guías de usuario
-│   ├── ingestion-guide.md                       ← Cómo ingestar documentos
-│   └── markdown-template.md                     ← Formato correcto Markdown legal
-│
-├── examples/                                    ← Ejemplos reales
-│   └── ley-1371-complete.md                     ← Ley 1371 formateada
-│
-├── testing/                                     ← Testing
-│   └── test-plan.md                             ← Plan completo de tests
-│
-└── implementation/                              ← Detalles técnicos
-    ├── chunking-implementation.md               ← Código y solución implementada
-    ├── new-features.md                          ← Script migración, validador, preview
-    └── complete-summary.md                      ← Resumen completo implementación
+├── 00-RAG-INDEX.md                              ← TÚ ESTÁS AQUÍ (este archivo)
+├── guias/
+│   ├── ingestion-guide.md                       ← Cómo ingestar documentos legales
+│   └── markdown-template.md                     ← Formato correcto de Markdown legal
+├── implementation/
+│   ├── chunking-implementation.md               ← Solución a la fragmentación (UN ARTÍCULO = UN CHUNK)
+│   └── new-features.md                          ← Nuevas funcionalidades (migración, validador, preview)
+└── testing/
+    └── test-plan.md                             ← Plan de pruebas del sistema RAG
 ```
+
+> Nota: el ejemplo `ley-1371-complete.md` vive en la raíz de docs en [`../ejemplos/ley-1371-complete.md`](../ejemplos/ley-1371-complete.md). Las decisiones técnicas (ADR) relevantes al RAG viven en [`arquitectura/ADR/`](../arquitectura/ADR/).
 
 ---
 
 ## 🔍 Documentos por Tema
 
-### Arquitectura y Diseño
+### Implementación (Desarrolladores)
 | Documento | Tema | Tiempo |
 |-----------|------|--------|
-| [01-RAG-OVERVIEW.md](01-RAG-OVERVIEW.md) | Resumen ejecutivo | 5 min |
-| [architecture/chunking-strategy.md](architecture/chunking-strategy.md) | Estrategia técnica | 10 min |
-| [ADR-023](../architecture/ADR-023-ia-local-soberana.md) | IA local soberana | 10 min |
-| [ADR-024](../architecture/ADR-024-rag-ingestion-strategy.md) | Estrategia de ingesta | 10 min |
+| [implementation/chunking-implementation.md](implementation/chunking-implementation.md) | Solución a la fragmentación | 20 min |
+| [implementation/new-features.md](implementation/new-features.md) | Nuevas funcionalidades | 15 min |
 
-### Guías de Usuario
+### Guías de Ingesta (Administradores / Usuarios)
 | Documento | Para quién | Tiempo |
 |-----------|------------|--------|
-| [guides/ingestion-guide.md](guides/ingestion-guide.md) | Administradores | 15 min |
-| [guides/markdown-template.md](guides/markdown-template.md) | Todos | 10 min |
-
-### Implementación
-| Documento | Tema | Tiempo |
-|-----------|------|--------|
-| [implementation/chunking-implementation.md](implementation/chunking-implementation.md) | Solución fragmentación | 20 min |
-| [implementation/new-features.md](implementation/new-features.md) | 3 nuevas funcionalidades | 15 min |
-| [implementation/complete-summary.md](implementation/complete-summary.md) | Resumen total | 10 min |
+| [guias/ingestion-guide.md](guias/ingestion-guide.md) | Administradores | 15 min |
+| [guias/markdown-template.md](guias/markdown-template.md) | Todos | 10 min |
 
 ### Testing
 | Documento | Tema | Tiempo |
@@ -84,46 +46,29 @@ rag/
 
 ## 🚀 Flujos de Lectura por Objetivo
 
-### Objetivo 1: "Entender qué es RAG y cómo funciona"
+### Objetivo 1: "Ingestar un documento legal"
 ```
-1. 01-RAG-OVERVIEW.md                    (5 min)
-2. architecture/chunking-strategy.md     (10 min)
+1. guias/ingestion-guide.md             (15 min)
+2. guias/markdown-template.md           (10 min)
+3. ../ejemplos/ley-1371-complete.md     (5 min - ver ejemplo)
 ```
-**Resultado**: Entenderás el principio "UN ARTÍCULO = UN CHUNK"
+**Resultado**: Sabrás cómo preparar e ingestar leyes.
 
-### Objetivo 2: "Ingestar un documento legal"
+### Objetivo 2: "Entender la implementación técnica RAG"
 ```
-1. guides/ingestion-guide.md             (15 min)
-2. guides/markdown-template.md           (10 min)
-3. examples/ley-1371-complete.md         (5 min - ver ejemplo)
+1. implementation/chunking-implementation.md       (20 min)
+2. implementation/new-features.md                  (15 min)
+3. apps/api/src/modules/knowledge/                 (revisar código)
 ```
-**Resultado**: Sabrás cómo preparar e ingestar leyes
+**Resultado**: Entenderás cómo funciona el sistema y su chunking por artículo.
 
-### Objetivo 3: "Entender la implementación técnica"
-```
-1. 01-RAG-OVERVIEW.md                              (5 min)
-2. architecture/chunking-strategy.md               (10 min)
-3. implementation/chunking-implementation.md       (20 min)
-4. apps/api/src/modules/knowledge/knowledge.service.ts  (revisar código)
-```
-**Resultado**: Entenderás cómo funciona el código
-
-### Objetivo 4: "Implementar nuevas funcionalidades RAG"
-```
-1. implementation/chunking-implementation.md       (20 min - entender actual)
-2. implementation/new-features.md                  (15 min - ver ejemplos)
-3. architecture/chunking-strategy.md               (10 min - decisiones)
-4. Código fuente en apps/api/src/modules/knowledge/
-```
-**Resultado**: Tendrás contexto para extender el sistema
-
-### Objetivo 5: "Testear el sistema RAG"
+### Objetivo 3: "Testear el sistema RAG"
 ```
 1. testing/test-plan.md                  (20 min)
-2. examples/ley-1371-complete.md         (usar como test data)
+2. ../ejemplos/ley-1371-complete.md      (usar como test data)
 3. Ejecutar tests del plan
 ```
-**Resultado**: Verificarás que el sistema funciona correctamente
+**Resultado**: Verificarás que el sistema funciona correctamente.
 
 ---
 
@@ -154,55 +99,15 @@ Chunk #2: "Artículo 2.- (FINALIDAD) La finalidad... [contenido completo]"
 - **Método**: Similaridad coseno
 - **Top K**: 5-10 chunks más relevantes
 
-### Planos de Conocimiento
-- **Plano A**: Base jurídica (público) - Leyes, jurisprudencia
-- **Plano B**: Datos del caso (privado) - Evidencias, informes
-
 ---
 
-## 🔗 Enlaces a Código Fuente
+## 🔗 Decisiones Importantes (ADR)
 
-### Backend
-```
-apps/api/src/modules/knowledge/
-├── knowledge.controller.ts      ← Endpoints REST
-├── knowledge.service.ts         ← Lógica chunking
-├── embeddings.service.ts        ← Cliente Ollama
-└── dto/validate-markdown.dto.ts ← Validación
-```
-
-### Frontend
-```
-apps/web/components/knowledge/
-└── markdown-preview-validator.tsx  ← Preview visual
-```
-
-### Scripts
-```
-apps/api/src/scripts/
-└── migrate-knowledge-chunks.ts  ← Migración documentos
-```
-
----
-
-## ⚠️ Decisiones Importantes (ADRs)
-
-### ADR-023: IA Local Soberana
-- ✅ Cero fine-tuning (todo vía RAG)
-- ✅ 100% offline (soberanía de datos NNA)
-- ✅ Planos A y B separados
-- ✅ Gate de validación humana
-
-📄 [Leer ADR completo](../architecture/ADR-023-ia-local-soberana.md)
-
-### ADR-024 + ADR-025: Estrategia de Ingesta
-- ✅ Priorizar HTML sobre PDF
-- ✅ Chunking por artículo legal
-- ✅ Overlap solo en fallback
-- ✅ Markdown como opción de máxima calidad
-
-📄 [Leer ADR-024](../architecture/ADR-024-rag-ingestion-strategy.md)  
-📄 [Leer ADR-025](../architecture/ADR-025-pdf-to-markdown-strategy.md)
+| ADR | Tema | Link |
+|-----|------|------|
+| ADR-023 | IA local soberana | [../arquitectura/ADR/ADR-023-ia-local-soberana.md](../arquitectura/ADR/ADR-023-ia-local-soberana.md) |
+| ADR-024 | Estrategia de ingesta | [../arquitectura/ADR/ADR-024-rag-ingestion-strategy.md](../arquitectura/ADR/ADR-024-rag-ingestion-strategy.md) |
+| ADR-025 | PDF → Markdown | [../arquitectura/ADR/ADR-025-pdf-to-markdown-strategy.md](../arquitectura/ADR/ADR-025-pdf-to-markdown-strategy.md) |
 
 ---
 
@@ -213,35 +118,9 @@ apps/api/src/scripts/
 | Chunks por documento (antes) | 150-200 |
 | Chunks por documento (ahora) | 5-50* |
 | Reducción | ~95% |
-| Tiempo de ingesta | ~30 seg por ley |
 | Precisión recuperación | ~98% |
 
-\* Depende del número real de artículos
-
----
-
-## 🛠️ Herramientas y Comandos
-
-### Migrar documentos existentes
-```bash
-cd apps/api
-npm run migrate:knowledge:dry-run  # Simular
-npm run migrate:knowledge          # Aplicar
-```
-
-### Validar Markdown
-```bash
-curl -X POST http://localhost:4100/api/knowledge/validate-markdown \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"content":"..."}'
-```
-
-### Ver chunks de un documento
-```bash
-curl -X GET http://localhost:4100/api/knowledge/documents/{id}/chunks \
-  -H "Authorization: Bearer $TOKEN"
-```
+\* Depende del número real de artículos.
 
 ---
 
@@ -250,10 +129,10 @@ curl -X GET http://localhost:4100/api/knowledge/documents/{id}/chunks \
 Si modificas el sistema RAG:
 
 1. **Código cambiado** → Actualiza `implementation/chunking-implementation.md`
-2. **Nueva estrategia** → Crea ADR o actualiza `architecture/chunking-strategy.md`
-3. **Nueva guía usuario** → Agrega en `guides/`
-4. **Nuevo ejemplo** → Agrega en `examples/`
-5. **Actualiza este índice** si cambias estructura
+2. **Nueva funcionalidad** → Actualiza/crea en `implementation/new-features.md`
+3. **Nueva guía de ingesta** → Agrega en `guias/`
+4. **Nuevo ejemplo** → Agrega en `../ejemplos/`
+5. **Actualiza este índice** si cambia la estructura
 
 ---
 
@@ -261,14 +140,14 @@ Si modificas el sistema RAG:
 
 | Problema | Dónde buscar |
 |----------|--------------|
-| No detecta artículos | [guides/markdown-template.md](guides/markdown-template.md) |
+| No detecta artículos | [guias/markdown-template.md](guias/markdown-template.md) |
 | Chunks cortados | [implementation/chunking-implementation.md](implementation/chunking-implementation.md) |
-| Error de Ollama | [../architecture/ADR-023-ia-local-soberana.md](../architecture/ADR-023-ia-local-soberana.md) |
-| Migración falla | [implementation/new-features.md](implementation/new-features.md) |
+| Error de Ollama | [../arquitectura/ADR/ADR-023-ia-local-soberana.md](../arquitectura/ADR/ADR-023-ia-local-soberana.md) |
+| Migración/validador | [implementation/new-features.md](implementation/new-features.md) |
 
 ---
 
-**Última actualización**: 2026-08-01  
-**Versión**: 1.0.0
+**Última actualización**: 2026-08-02  
+**Versión**: 2.0.0
 
-**¿Comenzar?** → Lee [01-RAG-OVERVIEW.md](01-RAG-OVERVIEW.md)
+**¿Comenzar?** → Lee [`01-CONTEXTO-PROYECTO.md`](../../01-CONTEXTO-PROYECTO.md) para contexto global del proyecto.

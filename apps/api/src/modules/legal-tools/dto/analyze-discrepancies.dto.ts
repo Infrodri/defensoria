@@ -2,9 +2,10 @@ import { IsUUID, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AnalyzeDiscrepanciesDto {
+  @IsOptional()
   @IsUUID()
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
-  transcriptionId: string;
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000', required: false })
+  transcriptionId?: string;
 
   @IsUUID()
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })

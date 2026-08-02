@@ -1,4 +1,4 @@
-# Contexto del Proyecto - DNA Sucre
+﻿# Contexto del Proyecto - DNA Sucre
 
 **Tiempo de lectura**: 5 minutos  
 **Para**: Agentes IA nuevos en el proyecto
@@ -272,7 +272,7 @@ chore: actualizar dependencias
 **Si acabas de leer esto**:
 1. ✅ Ahora lee [02-ARQUITECTURA-RESUMEN.md](02-ARQUITECTURA-RESUMEN.md) para profundizar
 2. ✅ Si vas a trabajar con RAG: [rag/00-RAG-INDEX.md](rag/00-RAG-INDEX.md)
-3. ✅ Si necesitas el modelo de datos: [data-model/schema-v0.md](data-model/schema-v0.md)
+3. ✅ Si necesitas el modelo de datos: [modelo-datos/schema-v0.md](modelo-datos/schema-v0.md)
 
 **Cuando trabajes**:
 - Siempre verifica el código fuente como fuente de verdad
@@ -284,5 +284,6 @@ chore: actualizar dependencias
 **Referencias**:
 - Especificación completa: [master-spec.md](master-spec.md)
 - Arquitectura: [02-ARQUITECTURA-RESUMEN.md](02-ARQUITECTURA-RESUMEN.md)
-- ADRs: [architecture/](architecture/)
-- Modelo de datos: [data-model/schema-v0.md](data-model/schema-v0.md)
+- ADRs: [arquitectura/](arquitectura/)
+- Modelo de datos: [modelo-datos/schema-v0.md](modelo-datos/schema-v0.md)
+

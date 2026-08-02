@@ -40,7 +40,7 @@ describe('SocialToolsService', () => {
 
       const result = await service.generateFamilyMap(
         { caseId: 'case-123', transcriptionId: 'trans-123' },
-        'user-123',
+        { id: 'user-123', role: 'SOCIAL' } as any,
       );
 
       expect(result).toBeDefined();

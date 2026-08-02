@@ -8,7 +8,7 @@ import { fetchApi } from './api';
 
 export interface LegalDiscrepanciesRequest {
   caseId: string;
-  transcriptionId: string;
+  transcriptionId?: string;
   comparableDocuments?: string[];
 }
 
@@ -117,7 +117,7 @@ export async function calculateProcessualDeadlines(
 
 export interface TraumaIndicatorsRequest {
   caseId: string;
-  transcriptionId: string;
+  transcriptionId?: string;
 }
 
 export interface Indicator {
@@ -253,7 +253,7 @@ export async function analyzeTrauma(
 
 export interface FamilyMapRequest {
   caseId: string;
-  transcriptionId: string;
+  transcriptionId?: string;
 }
 
 export interface FamilyMember {

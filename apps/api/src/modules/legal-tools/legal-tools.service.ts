@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscrepancyRiskLevel } from '@prisma/client';
-import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
 import { RAGService } from '../knowledge/rag.service';
 import { AnalyzeDiscrepanciesDto } from './dto/analyze-discrepancies.dto';
 import { AnalyzeTypicalityDto } from './dto/analyze-typicality.dto';
@@ -22,21 +22,34 @@ export class LegalToolsService {
 
   async analyzeDiscrepancies(
     dto: AnalyzeDiscrepanciesDto,
-    userId: string,
+    user: AccessUser,
   ) {
     // 1. Validar acceso al caso
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, {
-        id: userId,
-        role: 'ABOGADO',
-      } as any);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
 
-    // 2. Verificar que la transcripción existe
-    let transcription = await this.prisma.transcription.findUnique({
-      where: { id: dto.transcriptionId },
+    // 2. Si no hay transcriptionId, intentar obtener la última del caso
+    let transcriptionId = dto.transcriptionId;
+    if (!transcriptionId) {
+      const latestTranscription = await this.prisma.transcription.findFirst({
+        where: { caseId: dto.caseId, status: 'COMPLETADA' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (latestTranscription) {
+        transcriptionId = latestTranscription.id;
+      } else {
+        // Si no hay transcripción, usar datos de ejemplo (análisis de prueba)
+        return this.generateExampleAnalysis(dto.caseId, user.id);
+      }
+    }
+
+    // 3. Verificar que la transcripción existe
+    const transcription = await this.prisma.transcription.findUnique({
+      where: { id: transcriptionId },
     });
 
     if (!transcription) {
@@ -45,7 +58,7 @@ export class LegalToolsService {
       );
     }
 
-    // 3. Si aún no está transcrita, usar el texto que proporcionó
+    // 4. Si aún no está transcrita, usar el texto que proporcionó
     if (!transcription.text || transcription.status !== 'COMPLETADA') {
       throw new BadRequestException(
         'La transcripción aún se está procesando o no se completó. Intenta más tarde.',
@@ -101,14 +114,14 @@ ${transcriptionContent}`;
     // 7. Guardar análisis en BD
     const saved = await this.prisma.discrepancyAnalysis.create({
       data: {
-        caseId: dto.caseId,
-        currentTranscriptionId: dto.transcriptionId,
+        case: { connect: { id: dto.caseId } },
+        currentTranscription: { connect: { id: transcriptionId } },
         comparableDocumentIds: dto.comparableDocuments || [],
         discrepancies: discrepancies,
         consistencyScore: consistencyScore,
         riskLevel: riskLevel,
         recommendation: this.extractRecommendation(analysisText),
-        analyzedBy: userId,
+        analyst: { connect: { id: user.id } },
       },
     });
 
@@ -119,8 +132,41 @@ ${transcriptionContent}`;
       riskLevel: riskLevel,
       recommendation: saved.recommendation,
       analyzedAt: saved.analyzedAt.toISOString(),
-      analyzedBy: userId,
+      analyzedBy: user.id,
       ollamaAnalysis: analysisText,
+    };
+  }
+
+  private generateExampleAnalysis(caseId: string, userId: string) {
+    return {
+      id: `example-${caseId}-${Date.now()}`,
+      discrepancies: [
+        {
+          id: 'd-example-1',
+          category: 'Temporal',
+          severity: 'MEDIA',
+          currentStatement: 'Fecha del incidente reportada como enero',
+          previousStatement: 'Fecha del incidente reportada como febrero',
+          implications: 'Posible confusión temporal en la declaración',
+          suggestedQuestion: '¿Podría confirmar la fecha exacta del incidente?',
+        },
+        {
+          id: 'd-example-2',
+          category: 'Personas presentes',
+          severity: 'BAJA',
+          currentStatement: 'Se encontraba solo en el momento',
+          previousStatement: 'Había un adulto presente',
+          implications: 'Variación en los presentes durante el hecho',
+          suggestedQuestion: '¿Había alguien más en el lugar al momento del hecho?',
+        },
+      ],
+      consistencyScore: 75,
+      riskLevel: 'MEDIO',
+      recommendation:
+        'Análisis de ejemplo — Para análisis real, sube una transcripción de audio de la entrevista.',
+      analyzedAt: new Date().toISOString(),
+      analyzedBy: userId,
+      ollamaAnalysis: 'Datos de ejemplo generados por el sistema (sin transcripción).',
     };
   }
 

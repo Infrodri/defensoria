@@ -1,4 +1,4 @@
-# Análisis de Brechas: Roles, Menús y Módulos por Disciplina
+﻿# Análisis de Brechas: Roles, Menús y Módulos por Disciplina
 
 **Fecha**: 2026-08-01  
 **Propósito**: Documento de trabajo para identificar qué está implementado, qué falta y qué hay que corregir en la capa de presentación y RBAC del sistema.
@@ -60,7 +60,7 @@ Y verificar que `/usuarios` tiene su `page.tsx` con guard `ADMINISTRADOR`.
 
 ### BRECHA 3 — JEFATURA: Tiene acceso a Config IA y Base Conocimiento que no le corresponde
 
-**Problema**: Según `docs/admin-master-plan.md` sección 7:
+**Problema**: Según `docs/arquitectura/ADMIN-MASTER-PLAN.md` sección 7:
 > "El Administrador General es el **único** rol con acceso a la parametrización de los motores de IA locales"
 
 Pero en `sidebar.tsx` JEFATURA tiene:
@@ -74,7 +74,7 @@ Pero en `sidebar.tsx` JEFATURA tiene:
 ### BRECHA 4 — JEFATURA: Tiene acceso a "Permisos" cuando no debe gestionar la matriz RBAC
 
 **Problema**: `sidebar.tsx` incluye `{ label: 'Permisos', href: '/permisos' }` para JEFATURA.  
-Según `docs/security/access-control.md`:
+Según `docs/seguridad/access-control.md`:
 ```
 Manage Dynamic Modules & RBAC | ✅ (CRUD Total) ADMINISTRADOR | ❌ JEFATURA
 ```
@@ -124,7 +124,7 @@ Manage Dynamic Modules & RBAC | ✅ (CRUD Total) ADMINISTRADOR | ❌ JEFATURA
 
 ### BRECHA 8 — SECRETARIA: Puede ver Inspecciones cuando no corresponde plenamente
 
-**Según `docs/admin-master-plan.md` tabla RBAC**:
+**Según `docs/arquitectura/ADMIN-MASTER-PLAN.md` tabla RBAC**:
 ```
 Inspecciones | ADMINISTRADOR: CRUD | JEFATURA: ✅ | ABOGADO: ✅ | PSICOLOGO: ❌ | SOCIAL: ❌ | SECRETARIA: ✅
 ```
@@ -381,3 +381,5 @@ El backend ya tiene todo. Lo que falta es **solo frontend**:
 2. `GET /api/disciplines` → Página `/panel/admin/disciplinas` (config disciplinas)
 3. `GET /api/instruments` → dentro de `/panel/admin/disciplinas`
 4. Los guards de rol existen en el backend. En el frontend deben agregarse checks en los `page.tsx` correspondientes.
+
+

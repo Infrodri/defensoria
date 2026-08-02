@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
 import { RAGService } from '../knowledge/rag.service';
 import { GenerateFamilyMapDto } from './dto/generate-family-map.dto';
 import { CalculateVulnerabilityDto } from './dto/calculate-vulnerability.dto';
@@ -18,22 +18,21 @@ export class SocialToolsService {
     private ragService: RAGService,
   ) {}
 
-  async generateFamilyMap(dto: GenerateFamilyMapDto, userId: string) {
+  async generateFamilyMap(dto: GenerateFamilyMapDto, user: AccessUser) {
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, {
-        id: userId,
-        role: 'SOCIAL',
-      } as any);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
 
-    const transcription = await this.prisma.transcription.findUnique({
-      where: { id: dto.transcriptionId },
-    });
+    const transcription = dto.transcriptionId
+      ? await this.prisma.transcription.findUnique({
+          where: { id: dto.transcriptionId },
+        })
+      : null;
 
     if (!transcription) {
-      throw new NotFoundException('Transcripción no encontrada');
+      return this.generateExampleFamilyMap(dto.caseId);
     }
 
     // Buscar documentos sobre estructura familiar
@@ -73,6 +72,25 @@ ${transcription.text}`;
       vulnerabilidades: this.extractVulnerabilities(analysis),
       recomendaciones: this.extractRecommendations(analysis),
       analisisCompleto: analysis,
+    };
+  }
+
+  private generateExampleFamilyMap(caseId: string) {
+    return {
+      miembros: [
+        { nombre: 'Madre', relacion: 'Madre', vulnerabilidades: ['Desempleo', 'Carga económica'] },
+        { nombre: 'NNA (principal)', relacion: 'Hijo/a', vulnerabilidades: ['Exposición a conflicto familiar'] },
+      ],
+      dinamicas: [
+        'Factor identificado: conflicto',
+        'Factor identificado: comunicación',
+      ],
+      vulnerabilidades: ['pobreza', 'vivienda precaria'],
+      recomendaciones: [
+        'Análisis de ejemplo — Realizar visita domiciliaria para evaluación completa.',
+        'Para análisis real, sube una transcripción de audio de la entrevista.',
+      ],
+      analisisCompleto: 'Datos de ejemplo generados por el sistema (sin transcripción).',
     };
   }
 
@@ -162,12 +180,25 @@ ${transcription.text}`;
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
 
-    const transcription = await this.prisma.transcription.findUnique({
-      where: { id: dto.transcriptionId },
-    });
+    const transcription = dto.transcriptionId
+      ? await this.prisma.transcription.findUnique({
+          where: { id: dto.transcriptionId },
+        })
+      : null;
 
     if (!transcription) {
-      throw new NotFoundException('Transcripción no encontrada');
+      return {
+        factoresRiesgo: {
+          hacinamiento: true,
+          consumo: false,
+          desercionEscolar: true,
+        },
+        recomendaciones: [
+          'Análisis de ejemplo — Visita domiciliaria.',
+          'Seguimiento escolar.',
+          'Para análisis real, sube una transcripción de audio.',
+        ],
+      };
     }
 
     return {

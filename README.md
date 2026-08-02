@@ -86,8 +86,21 @@ Desde la raíz del proyecto, puedes utilizar los comandos definidos en el `packa
 
 ## 8. Documentación
 
-- [Documentación Técnica y de Arquitectura](./docs/)
-- [Artefactos SDD](./openspec/)
+### 📚 **Documentación Completa**
+Toda la documentación del proyecto está organizada en la carpeta [`docs/`](./docs/)
+
+**Acceso rápido**:
+- 📖 **[Índice General de Documentación](./docs/README.md)** - Punto de partida para toda la documentación
+- 👥 **[Guías de Usuario](./docs/guias-usuario/)** - Guías para SECRETARIA, ABOGADO, PSICÓLOGO, TRABAJADOR SOCIAL, JEFATURA y ADMINISTRADOR
+- 🧪 **[Testing y QA](./docs/testing/TESTING-PHASE2-STATUS.md)** - Estado de testing y verificación
+- 🔧 **[Documentación Técnica](./docs/INTEGRATION_FRONTEND_API_PHASE2.md)** - Integración y arquitectura
+- 🤖 **[Agentes IA](./docs/INSTRUCCIONES-AGENTES.md)** - Configuración de agentes de IA
+- 📐 **[Artefactos SDD](./openspec/)** - Especificaciones de diseño
+
+### 🚀 **Para Empezar**
+- **Usuario del sistema**: Lee [`docs/guias-usuario/README.md`](./docs/guias-usuario/README.md)
+- **Desarrollador**: Lee [`docs/INTEGRATION_FRONTEND_API_PHASE2.md`](./docs/INTEGRATION_FRONTEND_API_PHASE2.md)
+- **QA/Tester**: Lee [`docs/testing/TESTING-PHASE2-STATUS.md`](./docs/testing/TESTING-PHASE2-STATUS.md)
 
 ## 9. Roadmap por fases
 

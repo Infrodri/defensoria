@@ -24,9 +24,23 @@ export interface UpdateUserDto {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(filters?: { role?: Role; isActive?: boolean }) {
+    const where: any = {};
+    
+    if (filters?.role) {
+      where.role = filters.role;
+    }
+    
+    if (filters?.isActive !== undefined) {
+      where.isActive = filters.isActive;
+    }
+
     const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: [
+        { role: 'asc' },
+        { lastName: 'asc' },
+      ],
       select: {
         id: true,
         email: true,
@@ -42,6 +56,7 @@ export class UsersService {
             id: true,
             name: true,
             code: true,
+            address: true,
           },
         },
         _count: {

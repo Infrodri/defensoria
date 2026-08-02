@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AccessUser } from '../../common/case-access/case-access.service';
 import { Role } from '@defensoria/shared';
 import { AnalyzeDiscrepanciesDto } from './dto/analyze-discrepancies.dto';
 import { AnalyzeTypicalityDto } from './dto/analyze-typicality.dto';
@@ -22,9 +23,9 @@ export class LegalToolsController {
   @ApiOperation({ summary: 'Analizar discrepancias entre testimonios' })
   async analyzeDiscrepancies(
     @Body() dto: AnalyzeDiscrepanciesDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.legalToolsService.analyzeDiscrepancies(dto, userId);
+    return this.legalToolsService.analyzeDiscrepancies(dto, user);
   }
 
   @Post('typicality/analyze')

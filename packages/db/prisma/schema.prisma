@@ -324,6 +324,14 @@ model Case {
   conciliationEvaluation  ConciliationEvaluation?
   conciliationProcesses   ConciliationProcess[]
 
+  // Denunciante tercero (cuando no es el NNA mismo)
+  isThirdPartyComplainant Boolean  @default(false)
+  complainantFullName     String?
+  complainantDocumentId   String?
+  complainantRelation     String?  // MADRE, PADRE, TIO, DOCENTE, VECINO, OTRO, ETC
+  complainantPhone        String?
+  complainantAddress      String?
+
   @@index([currentPhase])
   @@index([riskLevel])
   @@index([isClosed])

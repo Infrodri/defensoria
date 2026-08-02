@@ -1,0 +1,76 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "uvx",
+      "args": ["mcp-file-manager@latest"],
+      "env": {
+        "ALLOWED_DIRECTORIES": "c:\\dev\\defensoria",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    },
+    "shell": {
+      "command": "uvx", 
+      "args": ["mcp-shell@latest"],
+      "env": {
+        "WORKING_DIRECTORY": "c:\\dev\\defensoria",
+        "ALLOWED_COMMANDS": "npm,npx,git,node,cd,ls,dir,pwd,echo,cat,mkdir,rmdir",
+        "DANGEROUS_COMMANDS_BLOCKED": "rm -rf,del /s,format,shutdown",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-git@latest"],
+      "env": {
+        "GIT_REPOSITORY_PATH": "c:\\dev\\defensoria",
+        "AUTO_COMMIT": "false",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    },
+    "web-search": {
+      "command": "uvx",
+      "args": ["mcp-web-search@latest"],
+      "env": {
+        "SEARCH_ENGINE": "duckduckgo",
+        "MAX_RESULTS": "10",
+        "SAFE_SEARCH": "moderate",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    },
+    "postgres": {
+      "command": "uvx",
+      "args": ["postgres-mcp-server@latest"],
+      "env": {
+        "DATABASE_URL": "postgresql://localhost:5432/defensoria",
+        "MAX_CONNECTIONS": "5",
+        "READ_ONLY": "false",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    },
+    "typescript": {
+      "command": "uvx",
+      "args": ["typescript-mcp-server@latest"],
+      "env": {
+        "PROJECT_PATH": "c:\\dev\\defensoria",
+        "TSCONFIG_PATH": "c:\\dev\\defensoria\\apps\\api\\tsconfig.json,c:\\dev\\defensoria\\apps\\web\\tsconfig.json",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    },
+    "prisma": {
+      "command": "uvx",
+      "args": ["prisma-mcp-server@latest"],
+      "env": {
+        "SCHEMA_PATH": "c:\\dev\\defensoria\\packages\\db\\prisma\\schema.prisma",
+        "DATABASE_URL": "postgresql://localhost:5432/defensoria",
+        "LOG_LEVEL": "INFO"
+      },
+      "disabled": false
+    }
+  }
+}

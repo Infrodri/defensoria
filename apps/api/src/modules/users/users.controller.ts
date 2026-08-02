@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService, CreateUserDto, UpdateUserDto } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -15,9 +15,15 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar todos los funcionarios del sistema (Exclusivo Administrador y Jefatura)' })
-  async findAll() {
-    return this.usersService.findAll();
+  @ApiOperation({ summary: 'Listar todos los funcionarios del sistema (Exclusivo Administrador y Jefatura) - Filtrable por rol e isActive' })
+  async findAll(
+    @Query('role') role?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.usersService.findAll({
+      role: role as Role,
+      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+    });
   }
 
   @Get(':id')

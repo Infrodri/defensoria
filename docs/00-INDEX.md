@@ -1,4 +1,4 @@
-# Índice de Documentación - Sistema DNA
+﻿# Índice de Documentación - Sistema DNA
 
 **Para Agentes IA**: Este es el punto de entrada principal. Lea este documento primero para entender la estructura y saber qué leer según la tarea.
 
@@ -15,16 +15,16 @@
 → Ve a [rag/00-RAG-INDEX.md](rag/00-RAG-INDEX.md)
 
 ### Si necesitas entender el modelo de datos
-→ Ve a [data-model/schema-v0.md](data-model/schema-v0.md)
+→ Ve a [modelo-datos/schema-v0.md](modelo-datos/schema-v0.md)
 
 ### Si necesitas entender seguridad/RBAC
-→ Ve a [security/access-control.md](security/access-control.md)
+→ Ve a [seguridad/access-control.md](seguridad/access-control.md)
 
 ### Si necesitas ver la API
 → Ve a [api/](api/)
 
 ### Si necesitas decisiones arquitectónicas
-→ Ve a [architecture/](architecture/)
+→ Ve a [arquitectura/](arquitectura/)
 
 ---
 
@@ -36,39 +36,49 @@ docs/
 ├── 01-CONTEXTO-PROYECTO.md               ← Contexto general del proyecto
 ├── 02-ARQUITECTURA-RESUMEN.md            ← Resumen técnico
 │
-├── ROLES-Y-PERMISOS-RESUMEN.md           ← ⭐ EMPIEZA AQUÍ para roles/permisos
-├── INSTRUCCIONES-AGENTES-v2.md           ← ⭐ Instrucciones detalladas (COMPLETO)
-├── VERIFICACION-SINCRONIZACION.md        ← ⭐ Checklist de validación
+├── arquitectura/                         ← Documentación técnica de arquitectura
+│   ├── ROLES-Y-PERMISOS-RESUMEN.md       ← ⭐ EMPIEZA AQUÍ para roles/permisos
+│   ├── MASTER-SPEC.md                    ← Especificación canónica completa
+│   ├── ADMIN-MASTER-PLAN.md              ← Plan maestro administrador
+│   ├── SYSTEM-OVERVIEW.md                ← Visión general del sistema
+│   ├── INTEGRATION_FRONTEND_API.md       ← Integración frontend-backend
+│   └── UX-TOOLTIPS-IMPLEMENTACION.md     ← Implementación de tooltips
 │
-├── master-spec.md                        ← Especificación canónica completa
-├── admin-master-plan.md                  ← Plan maestro administrador
-├── system-overview.md                    ← Visión general del sistema
-├── known-risks.md                        ← Riesgos conocidos
+├── agentes-ia/                           ← Instrucciones para agentes IA
+│   └── INSTRUCCIONES-AGENTES.md          ← ⭐ Instrucciones detalladas (COMPLETO)
+│
+├── testing/                              ← Testing, verificación y QA
+│   └── VERIFICACION-SINCRONIZACION.md    ← ⭐ Checklist de validación
+│
+├── entregas/                             ← Entregas y resúmenes de fases
+│
+├── obsoletos/                               ← Obsoletos/superados (referencia)
+│   └── KNOWN-RISKS.md                    ← Riesgos conocidos
 │
 ├── rag/                                  ← Sistema RAG (TODO sobre IA)
 │   ├── 00-RAG-INDEX.md                   ← Índice RAG (leer primero)
 │   ├── 01-RAG-OVERVIEW.md                ← Resumen RAG
-│   ├── architecture/                     ← Decisiones técnicas RAG
-│   ├── guides/                           ← Guías de usuario RAG
-│   ├── examples/                         ← Ejemplos de documentos
+│   ├── arquitectura/                     ← Decisiones técnicas RAG
+│   ├── guias/                             ← Guías de usuario RAG
+│   ├── ejemplos/                        ← Ejemplos de documentos
 │   ├── testing/                          ← Tests RAG
 │   └── implementation/                   ← Detalles código RAG
 │
-├── architecture/                         ← ADRs (decisiones arquitectónicas)
+├── arquitectura/                         ← ADRs (decisiones arquitectónicas)
 │   ├── ADR-001-foundation.md
 │   ├── ADR-023-ia-local-soberana.md
 │   ├── ADR-024-rag-ingestion-strategy.md
 │   └── ADR-025-pdf-to-markdown-strategy.md
 │
-├── data-model/                           ← Esquemas de base de datos
+├── modelo-datos/                           ← Esquemas de base de datos
 │   └── schema-v0.md
 │
-├── security/                             ← Seguridad y RBAC
+├── seguridad/                             ← Seguridad y RBAC
 │   └── access-control.md
 │
 ├── api/                                  ← Documentación API REST
-├── legal/                                ← Marco legal boliviano
-└── roadmap/                              ← Fases del proyecto
+├── marco-legal/                                ← Marco legal boliviano
+└── hoja-de-ruta/                              ← Fases del proyecto
 ```
 
 ---
@@ -77,9 +87,9 @@ docs/
 
 ### Flujo 0: "Necesito entender roles y permisos" (PRIMERO)
 ```
-1. docs/ROLES-Y-PERMISOS-RESUMEN.md       (5 min)    ← EMPIEZA AQUÍ
-2. docs/INSTRUCCIONES-AGENTES-v2.md       (15 min)   ← Detalles técnicos
-3. docs/VERIFICACION-SINCRONIZACION.md    (10 min)   ← Validación
+1. docs/arquitectura/ROLES-Y-PERMISOS-RESUMEN.md  (5 min)    ← EMPIEZA AQUÍ
+2. docs/agentes-ia/INSTRUCCIONES-AGENTES.md       (15 min)   ← Detalles técnicos
+3. docs/testing/VERIFICACION-SINCRONIZACION.md    (10 min)   ← Validación
 ```
 **Resultado**: Entenderás qué rol hace qué, cómo se sincroniza todo.
 
@@ -87,7 +97,7 @@ docs/
 ```
 1. docs/01-CONTEXTO-PROYECTO.md          (5 min)
 2. docs/02-ARQUITECTURA-RESUMEN.md       (10 min)
-3. docs/data-model/schema-v0.md          (15 min)
+3. docs/modelo-datos/schema-v0.md          (15 min)
 ```
 **Resultado**: Entenderás el propósito, stack y estructura de datos.
 
@@ -95,15 +105,15 @@ docs/
 ```
 1. docs/rag/00-RAG-INDEX.md              (2 min)
 2. docs/rag/01-RAG-OVERVIEW.md           (5 min)
-3. docs/rag/architecture/chunking-strategy.md  (10 min)
+3. docs/arquitectura/ADR/chunking-strategy.md  (10 min)
 4. docs/rag/implementation/chunking-implementation.md  (20 min)
 ```
 **Resultado**: Entenderás la arquitectura RAG y cómo está implementada.
 
 ### Flujo 3: "Necesito entender los permisos/RBAC"
 ```
-1. docs/security/access-control.md       (10 min)
-2. docs/architecture/ADR-001-foundation.md  (buscar sección RBAC)
+1. docs/seguridad/access-control.md       (10 min)
+2. docs/arquitectura/ADR/ADR-001-foundation.md  (buscar sección RBAC)
 3. apps/api/src/common/guards/           (revisar código)
 ```
 **Resultado**: Entenderás el modelo de seguridad completo.
@@ -111,7 +121,7 @@ docs/
 ### Flujo 4: "Necesito modificar un módulo existente"
 ```
 1. docs/01-CONTEXTO-PROYECTO.md          (contexto)
-2. docs/data-model/schema-v0.md          (buscar tablas relevantes)
+2. docs/modelo-datos/schema-v0.md          (buscar tablas relevantes)
 3. apps/api/src/modules/[modulo]/        (revisar código)
 ```
 **Resultado**: Tendrás contexto suficiente para modificar con seguridad.
@@ -122,22 +132,22 @@ docs/
 
 ### Para Desarrolladores Backend
 - [02-ARQUITECTURA-RESUMEN.md](02-ARQUITECTURA-RESUMEN.md)
-- [data-model/schema-v0.md](data-model/schema-v0.md)
-- [architecture/ADR-001-foundation.md](architecture/ADR-001-foundation.md)
+- [modelo-datos/schema-v0.md](modelo-datos/schema-v0.md)
+- [arquitectura/ADR/ADR-001-foundation.md](arquitectura/ADR/ADR-001-foundation.md)
 - [rag/implementation/](rag/implementation/)
 
 ### Para Desarrolladores Frontend
 - [01-CONTEXTO-PROYECTO.md](01-CONTEXTO-PROYECTO.md)
 - [api/](api/) - Endpoints disponibles
-- [security/access-control.md](security/access-control.md) - RBAC
+- [seguridad/access-control.md](seguridad/access-control.md) - RBAC
 
 ### Para Ingenieros de IA/ML
 - [rag/00-RAG-INDEX.md](rag/00-RAG-INDEX.md) - TODO sobre RAG
-- [architecture/ADR-023-ia-local-soberana.md](architecture/ADR-023-ia-local-soberana.md)
+- [arquitectura/ADR/ADR-023-ia-local-soberana.md](arquitectura/ADR/ADR-023-ia-local-soberana.md)
 
 ### Para Administradores/Usuarios
-- [rag/guides/](rag/guides/) - Guías de uso
-- [rag/examples/](rag/examples/) - Ejemplos prácticos
+- [rag/guias/](rag/guias/) - Guías de uso
+- [ejemplos/](ejemplos/) - Ejemplos prácticos
 
 ---
 
@@ -145,18 +155,18 @@ docs/
 
 | Tema | Documento |
 |------|-----------|
-| **Roles y permisos (START HERE)** | [ROLES-Y-PERMISOS-RESUMEN.md](ROLES-Y-PERMISOS-RESUMEN.md) |
-| **Instrucciones completas para agentes** | [INSTRUCCIONES-AGENTES-v2.md](INSTRUCCIONES-AGENTES-v2.md) |
-| **Validación de sincronización** | [VERIFICACION-SINCRONIZACION.md](VERIFICACION-SINCRONIZACION.md) |
+| **Roles y permisos (START HERE)** | [arquitectura/ROLES-Y-PERMISOS-RESUMEN.md](arquitectura/ROLES-Y-PERMISOS-RESUMEN.md) |
+| **Instrucciones completas para agentes** | [agentes-ia/INSTRUCCIONES-AGENTES.md](agentes-ia/INSTRUCCIONES-AGENTES.md) |
+| **Validación de sincronización** | [testing/VERIFICACION-SINCRONIZACION.md](testing/VERIFICACION-SINCRONIZACION.md) |
 | Stack tecnológico | [01-CONTEXTO-PROYECTO.md](01-CONTEXTO-PROYECTO.md) |
-| Base de datos | [data-model/schema-v0.md](data-model/schema-v0.md) |
-| Autenticación | [architecture/ADR-001-foundation.md](architecture/ADR-001-foundation.md#adr-009) |
-| RBAC | [security/access-control.md](security/access-control.md) |
+| Base de datos | [modelo-datos/schema-v0.md](modelo-datos/schema-v0.md) |
+| Autenticación | [arquitectura/ADR/ADR-001-foundation.md](arquitectura/ADR/ADR-001-foundation.md#adr-009) |
+| RBAC | [seguridad/access-control.md](seguridad/access-control.md) |
 | RAG/IA | [rag/00-RAG-INDEX.md](rag/00-RAG-INDEX.md) |
-| Chunking | [rag/architecture/chunking-strategy.md](rag/architecture/chunking-strategy.md) |
+| Chunking | [arquitectura/ADR/chunking-strategy.md](arquitectura/ADR/chunking-strategy.md) |
 | API | [api/](api/) |
-| Riesgos | [known-risks.md](known-risks.md) |
-| Roadmap | [roadmap/](roadmap/) |
+| Riesgos | [obsoletos/KNOWN-RISKS.md](obsoletos/KNOWN-RISKS.md) |
+| Roadmap | [hoja-de-ruta/](hoja-de-ruta/) |
 
 ---
 
@@ -165,8 +175,8 @@ docs/
 ### Jerarquía de Fuentes de Verdad
 1. **Código fuente** (apps/) - La realidad actual
 2. **Documentos de implementación** (rag/implementation/, etc.) - Cómo funciona
-3. **ADRs** (architecture/) - Por qué se decidió así
-4. **Especificaciones** (master-spec.md) - La visión original
+3. **ADRs** (arquitectura/) - Por qué se decidió así
+4. **Especificaciones** (arquitectura/MASTER-SPEC.md) - La visión original
 
 Si hay contradicción, el código fuente gana.
 
@@ -195,3 +205,20 @@ Si modificas código significativamente:
 
 **Última actualización**: 2026-08-01  
 **Versión**: 1.0.0
+
+---
+
+## 📁 Nota de Reorganización (2026-08-02)
+
+La raíz de `docs/` se reorganizó en carpetas por categoría. Los archivos que antes vivían sueltos en la raíz ahora están en:
+
+- `arquitectura/` — Documentación técnica, permisos/roles, integración, master-spec, system-overview, tooltips.
+- `entregas/` — Resúmenes ejecutivos y entregas de fases (Phase 2, herramientas).
+- `testing/` — Testing manual, estado de verificación y separación de sincronización.
+- `agentes-ia/` — Instrucciones, delegaciones, prompts y guías para agentes IA.
+- `obsoletos/` — Versiones antiguas y documentos superados (referencia, no eliminar).
+
+El `README.md` de la raíz es el índice maestro actualizado. Para lo obsoleto, usa `docs/obsoletos/`.
+
+
+

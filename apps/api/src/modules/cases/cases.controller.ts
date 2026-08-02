@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, Param, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CasesService, CreateCaseDto, AssignTeamDto } from './cases.service';
+import { CasesService } from './cases.service';
+import { CreateCaseDto } from './dto/create-case.dto';
+import { AssignTeamDto } from './dto/assign-team.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
