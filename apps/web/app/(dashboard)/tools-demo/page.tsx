@@ -210,10 +210,10 @@ export default function ToolsDemoPage() {
       try {
         setCasesLoading(true);
         setCasesError(null);
-        const response = await getCasesList();
-        setCases(response.cases);
-        if (response.cases.length > 0) {
-          setSelectedCaseId(response.cases[0].id);
+        const casesArray = await getCasesList();
+        setCases(casesArray);
+        if (casesArray.length > 0) {
+          setSelectedCaseId(casesArray[0].id);
         }
       } catch (err) {
         setCasesError(formatApiError(err));

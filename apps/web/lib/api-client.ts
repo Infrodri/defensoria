@@ -446,8 +446,8 @@ export interface CasesListResponse {
   total: number;
 }
 
-export async function getCasesList(): Promise<CasesListResponse> {
-  return fetchApi<CasesListResponse>('/cases', {
+export async function getCasesList(): Promise<CaseDetail[]> {
+  return fetchApi<CaseDetail[]>('/cases', {
     method: 'GET',
   });
 }
