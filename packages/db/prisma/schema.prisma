@@ -102,9 +102,11 @@ enum AppointmentType {
 
 enum AppointmentStatus {
   PROGRAMADA
+  CONFIRMADA
   COMPLETADA
   CANCELADA
   REPROGRAMADA
+  NO_ASISTIO
 }
 
 enum NotificationType {

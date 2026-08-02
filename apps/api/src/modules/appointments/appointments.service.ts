@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentType, AppointmentStatus } from '@defensoria/shared';
 
@@ -90,6 +90,44 @@ export class AppointmentsService {
         },
       },
       orderBy: { scheduledAt: 'asc' },
+    });
+  }
+
+  async updateStatus(appointmentId: string, newStatus: any, reason?: string) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+
+    // Validar transiciones de estado permitidas
+    const validTransitions: Record<any, any[]> = {
+      PROGRAMADA: ['CONFIRMADA', 'CANCELADA'],
+      CONFIRMADA: ['COMPLETADA', 'REPROGRAMADA', 'CANCELADA', 'NO_ASISTIO'],
+      COMPLETADA: [],
+      CANCELADA: [],
+      REPROGRAMADA: ['CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_ASISTIO'],
+      NO_ASISTIO: [],
+    };
+
+    if (!validTransitions[appointment.status]?.includes(newStatus)) {
+      throw new BadRequestException(
+        `No se puede cambiar de estado ${appointment.status} a ${newStatus}`
+      );
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: newStatus,
+        updatedAt: new Date(),
+      },
+      include: {
+        case: { select: { id: true, caseCode: true } },
+        creator: { select: { id: true, firstName: true, lastName: true, role: true } },
+      },
     });
   }
 

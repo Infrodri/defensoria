@@ -33,6 +33,16 @@ export class AppointmentsController {
     return this.appointmentsService.findAll(officeId, userId, onlyMine === 'true');
   }
 
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Actualizar estado de cita (CONFIRMADA, COMPLETADA, CANCELADA, etc)' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: string; reason?: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.appointmentsService.updateStatus(id, body.status as any, body.reason);
+  }
+
   @Patch(':id/reassign')
   @Post(':id/reassign')
   @ApiOperation({ summary: 'Reasignar citación y habilitar representación de expediente a un nuevo profesional' })

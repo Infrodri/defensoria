@@ -97,9 +97,11 @@ export enum AppointmentType {
 
 export enum AppointmentStatus {
   PROGRAMADA = 'PROGRAMADA',
+  CONFIRMADA = 'CONFIRMADA',
   COMPLETADA = 'COMPLETADA',
   CANCELADA = 'CANCELADA',
   REPROGRAMADA = 'REPROGRAMADA',
+  NO_ASISTIO = 'NO_ASISTIO',
 }
 
 export enum NotificationType {
