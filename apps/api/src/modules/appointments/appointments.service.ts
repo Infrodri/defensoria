@@ -314,41 +314,56 @@ export class AppointmentsService {
       throw new NotFoundException(`Usuario profesional destino no encontrado`);
     }
 
-    // 1. Mover la cita al nuevo profesional: actualizar assignedProfessionalId
-    //    (createdBy se mantiene como auditoría de quién la creó originalmente)
-    const updatedAppointment = await this.prisma.appointment.update({
-      where: { id: appointmentId },
-      data: {
-        assignedProfessionalId: targetUserId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Mover la cita al nuevo profesional: actualizar assignedProfessionalId
+      //    (createdBy se mantiene como auditoría de quién la creó originalmente)
+      const updatedAppointment = await tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          assignedProfessionalId: targetUserId,
+        },
+      });
+
+      // 2. Assign target user to case team (enables RLS access & case representation)
+      if (appointment.caseId) {
+        // FIX 1 (Fase 0): cerrar filas activas previas del mismo (caseId, role)
+        // antes de crear la nueva — evita dos asignaciones activas duplicadas.
+        await tx.caseTeamHistory.updateMany({
+          where: {
+            caseId: appointment.caseId,
+            role: targetUser.role,
+            endDate: null,
+          },
+          data: {
+            endDate: new Date(),
+          },
+        });
+
+        await tx.caseTeamHistory.create({
+          data: {
+            caseId: appointment.caseId,
+            userId: targetUserId,
+            role: targetUser.role,
+            reason: reason || `Reasignación de citación "${appointment.title}"`,
+            assignedBy: currentUserId,
+          },
+        });
+
+        // 3. Register ActionLog entry on the case
+        await tx.actionLog.create({
+          data: {
+            caseId: appointment.caseId,
+            authorId: currentUserId,
+            actionType: 'DERIVACION',
+            title: 'Reasignación de Citación y Representación',
+            content: `Citación "${appointment.title}" y acceso al expediente reasignados al profesional ${targetUser.firstName} ${targetUser.lastName} (${targetUser.role}). Motivo: ${reason || 'Representación y cobertura operativa'}.`,
+            isSigned: true,
+            signedAt: new Date(),
+          },
+        });
+      }
+
+      return updatedAppointment;
     });
-
-    // 2. Assign target user to case team (enables RLS access & case representation)
-    if (appointment.caseId) {
-      await this.prisma.caseTeamHistory.create({
-        data: {
-          caseId: appointment.caseId,
-          userId: targetUserId,
-          role: targetUser.role,
-          reason: reason || `Reasignación de citación "${appointment.title}"`,
-          assignedBy: currentUserId,
-        },
-      });
-
-      // 3. Register ActionLog entry on the case
-      await this.prisma.actionLog.create({
-        data: {
-          caseId: appointment.caseId,
-          authorId: currentUserId,
-          actionType: 'DERIVACION',
-          title: 'Reasignación de Citación y Representación',
-          content: `Citación "${appointment.title}" y acceso al expediente reasignados al profesional ${targetUser.firstName} ${targetUser.lastName} (${targetUser.role}). Motivo: ${reason || 'Representación y cobertura operativa'}.`,
-          isSigned: true,
-          signedAt: new Date(),
-        },
-      });
-    }
-
-    return updatedAppointment;
   }
 }

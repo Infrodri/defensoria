@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { Prisma } from '@defensoria/db';
 import { CaseType, Role, RoleInCase, Phase, InterventionPath, RiskLevel } from '@defensoria/shared';
 import { AssignTeamDto } from './dto/assign-team.dto';
 import { CreateCaseDto } from './dto/create-case.dto';
@@ -23,32 +24,29 @@ export class CasesService {
     private caseAccessService: CaseAccessService,
   ) {}
 
-  private async generateCaseCode(): Promise<string> {
+  /**
+   * Genera el caseCode con formato `DNA-{año}-{secuencia 4 dígitos}`.
+   * FIX 6 (Fase 0): usa la secuencia PostgreSQL `case_code_seq` (nextval),
+   * que es atómica por construcción — elimina la condición de carrera del
+   * patrón anterior (findFirst + insert con caseCode @unique). El valor se
+   * consume aunque la transacción haga rollback (secuencia no transaccional),
+   * lo que es aceptable: solo produce saltos de numeración, nunca colisiones.
+   */
+  private async generateCaseCode(
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `DNA-${year}-`;
 
-    const lastCase = await this.prisma.case.findFirst({
-      where: { caseCode: { startsWith: prefix } },
-      orderBy: { createdAt: 'desc' },
-      select: { caseCode: true },
-    });
-
-    let sequence = 1;
-    if (lastCase && lastCase.caseCode) {
-      const parts = lastCase.caseCode.split('-');
-      const lastSeq = parseInt(parts[2], 10);
-      if (!isNaN(lastSeq)) {
-        sequence = lastSeq + 1;
-      }
-    }
-
-    const paddedSeq = sequence.toString().padStart(4, '0');
+    const [row] = await client.$queryRaw<{ nextval: number }[]>`
+      SELECT nextval('"case_code_seq"')::int AS nextval
+    `;
+    const seq = Number(row.nextval);
+    const paddedSeq = seq.toString().padStart(4, '0');
     return `${prefix}${paddedSeq}`;
   }
 
   async create(dto: CreateCaseDto, userId: string, officeId: string) {
-    const caseCode = await this.generateCaseCode();
-
     // Verify NNA exists
     const nna = await this.prisma.person.findUnique({ where: { id: dto.nnaId } });
     if (!nna) {
@@ -56,6 +54,9 @@ export class CasesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // 0. Generar caseCode DENTRO de la transacción (secuencia atómica)
+      const caseCode = await this.generateCaseCode(tx);
+
       // 1. Create Case
       const newCase = await tx.case.create({
         data: {
@@ -273,7 +274,32 @@ export class CasesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Close previous active assignment for this role if any
+      // FIX 2 (Fase 0): validar que el usuario destino tenga REALMENTE el rol
+      // solicitado. Antes el DTO aceptaba cualquier Role para cualquier userId.
+      const targetUser = await tx.user.findUnique({
+        where: { id: dto.userId },
+        select: { role: true },
+      });
+      if (!targetUser) {
+        throw new NotFoundException('Profesional destino no encontrado');
+      }
+
+      // Solo roles profesionales pueden asignarse al equipo de un caso
+      const assignableRoles: Role[] = [Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL];
+      if (!assignableRoles.includes(dto.role)) {
+        throw new BadRequestException(
+          'El rol asignado debe ser ABOGADO, PSICOLOGO o SOCIAL',
+        );
+      }
+
+      if (targetUser.role !== dto.role) {
+        throw new BadRequestException(
+          `El profesional seleccionado no tiene el rol ${dto.role}; su rol real es ${targetUser.role}`,
+        );
+      }
+
+      // FIX 1 (Fase 0): cerrar filas activas previas para (caseId, role) antes
+      // de crear la nueva — garantiza una única asignación activa por caso+rol
       await tx.caseTeamHistory.updateMany({
         where: {
           caseId,
@@ -376,11 +402,14 @@ export class CasesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Close all active assignments for fromUser
+      // FIX 1 (Fase 0): cerrar TODAS las filas activas de los (caseId, role) que
+      // se van a transferir, sin importar el usuario. Esto cierra las del usuario
+      // origen y también cualquier activa del destino/otros, evitando que una misma
+      // transferencia (o una actividad previa) deje una fila activa duplicada.
       await tx.caseTeamHistory.updateMany({
         where: {
-          userId: dto.fromUserId,
           endDate: null,
+          OR: activeAssignments.map((a) => ({ caseId: a.caseId, role: a.role })),
         },
         data: {
           endDate: new Date(),
