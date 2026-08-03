@@ -5,6 +5,7 @@ import { CreateCaseDto } from './dto/create-case.dto';
 import { AssignTeamDto } from './dto/assign-team.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@defensoria/shared';
@@ -34,6 +35,7 @@ export class CasesController {
   }
 
   @Get('analytics')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Obtener métricas y estadísticas agregadas del sistema (No nominal)' })
   async getAnalytics() {
     return this.casesService.getAnalytics();

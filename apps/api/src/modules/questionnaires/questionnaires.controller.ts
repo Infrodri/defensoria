@@ -5,6 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Role } from '@defensoria/shared';
+import { AccessUser } from '../../common/case-access/case-access.service';
 import { QuestionnairesService } from './questionnaires.service';
 import { CreateQuestionnnaireTemplateDto } from './dto/create-questionnaire-template.dto';
 import { CreateResponseDto } from './dto/create-response.dto';
@@ -60,9 +61,9 @@ export class QuestionnairesController {
   })
   async createResponse(
     @Body() dto: CreateResponseDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.questionnairesService.createResponse(dto, userId);
+    return this.questionnairesService.createResponse(dto, user);
   }
 
   /**
@@ -112,8 +113,8 @@ export class QuestionnairesController {
   })
   async markAsReviewed(
     @Param('id') id: string,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.questionnairesService.markAsReviewed(id, userId);
+    return this.questionnairesService.markAsReviewed(id, user);
   }
 }

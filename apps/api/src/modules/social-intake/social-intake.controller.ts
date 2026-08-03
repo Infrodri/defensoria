@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SocialIntakeService, CreateSocialIntakeDto } from './social-intake.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('SocialIntake')
@@ -28,6 +29,7 @@ export class SocialIntakeController {
   }
 
   @Get('case/:caseId')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Obtener ficha social de un caso' })
   async getByCase(@Param('caseId') caseId: string) {
     return this.socialIntakeService.getIntakeFormByCaseId(caseId);

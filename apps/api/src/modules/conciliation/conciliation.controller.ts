@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConciliationService, ScheduleHearingDto, RecordResultDto } from './conciliation.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Conciliation')
@@ -38,12 +39,14 @@ export class ConciliationController {
   }
 
   @Get('case/:caseId/evaluation')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Obtener evaluación de conciliabilidad de un caso' })
   async getEvaluation(@Param('caseId') caseId: string) {
     return this.conciliationService.getEvaluationByCaseId(caseId);
   }
 
   @Get('case/:caseId/processes')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Obtener procesos de conciliación de un caso' })
   async getProcesses(@Param('caseId') caseId: string) {
     return this.conciliationService.getProcessesByCaseId(caseId);

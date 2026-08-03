@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@ne
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AppointmentsService, CreateAppointmentDto } from './appointments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Appointments')
@@ -18,6 +19,7 @@ export class AppointmentsController {
   }
 
   @Get('case/:caseId')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Obtener historial de citas vinculadas a un expediente' })
   async findByCase(@Param('caseId') caseId: string) {
     return this.appointmentsService.findByCase(caseId);

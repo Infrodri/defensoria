@@ -33,9 +33,9 @@ export class SocialToolsController {
   @ApiOperation({ summary: 'Calcular índice de vulnerabilidad social' })
   async calculateVulnerability(
     @Body() dto: CalculateVulnerabilityDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.socialToolsService.calculateVulnerability(dto, userId);
+    return this.socialToolsService.calculateVulnerability(dto, user);
   }
 
   @Post('environmental/map')
