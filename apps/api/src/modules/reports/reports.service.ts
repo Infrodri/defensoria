@@ -38,6 +38,17 @@ export class ReportsService {
       throw new NotFoundException('Expediente no encontrado');
     }
 
+    // FIX 3 (Fase 0): snapshot de rol y disciplina VIGENTES del autor al momento
+    // de crear el informe. Antes authorRoleSnapshot / authorDisciplineSnapshot
+    // nunca se escribían. Fuente canónica de disciplina: user.discipline.name.
+    const author = await this.prisma.user.findUnique({
+      where: { id: authorId },
+      select: {
+        role: true,
+        discipline: { select: { name: true } },
+      },
+    });
+
     return this.prisma.report.create({
       data: {
         caseId: dto.caseId,
@@ -48,6 +59,8 @@ export class ReportsService {
         riskAssessment: dto.riskAssessment || null,
         status: ReportStatus.BORRADOR,
         version: 1,
+        authorRoleSnapshot: author?.role ?? null,
+        authorDisciplineSnapshot: author?.discipline?.name ?? null,
       },
     });
   }
@@ -102,6 +115,16 @@ export class ReportsService {
 
     this.checkReportRolePermission(parent.reportType as unknown as ReportType, authorRole);
 
+    // FIX 3 (Fase 0): mismo snapshot de rol/disciplina vigentes que en create,
+    // para que ningún Report se persista sin estos campos.
+    const author = await this.prisma.user.findUnique({
+      where: { id: authorId },
+      select: {
+        role: true,
+        discipline: { select: { name: true } },
+      },
+    });
+
     return this.prisma.report.create({
       data: {
         caseId: parent.caseId,
@@ -112,6 +135,8 @@ export class ReportsService {
         title: title || `Complementario v${parent.version + 1} - ${parent.title}`,
         content,
         status: ReportStatus.BORRADOR,
+        authorRoleSnapshot: author?.role ?? null,
+        authorDisciplineSnapshot: author?.discipline?.name ?? null,
       },
     });
   }
