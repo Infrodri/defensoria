@@ -4,6 +4,7 @@ import React, { useEffect, useState, use } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { PhaseRail } from '@/components/cases/phase-rail';
+import { InterventionStatusPanel } from '@/components/cases/intervention-status-panel';
 import { ReportEditor } from '@/components/reports/report-editor';
 import { EvidenceGallery } from '@/components/evidences/evidence-gallery';
 import { CaseTimeline } from '@/components/cases/case-timeline';
@@ -551,8 +552,8 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
         />
       )}
 
-      {/* TAB CONTENT: Equipo Interdisciplinario */}
       {activeTab === 'equipo' && (
+        <>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
           <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
@@ -691,6 +692,17 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
             </form>
           )}
         </div>
+
+        {/* Intervention progress panel - full width below the 2-col grid */}
+        <div style={{ marginTop: '1.5rem' }}>
+          <InterventionStatusPanel
+            caseId={caseId}
+            currentUserId={user?.id ?? ''}
+            currentUserRole={user?.role ?? ''}
+            onStatusChange={loadCaseDetails}
+          />
+        </div>
+        </>
       )}
 
       {/* TAB CONTENT: Bitácora / Actuaciones */}
