@@ -1,7 +1,8 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SocialToolsService } from './social-tools.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -46,5 +47,12 @@ export class SocialToolsController {
     @CurrentUser() user: AccessUser,
   ) {
     return this.socialToolsService.mapEnvironmental(dto, user);
+  }
+
+  @Get('environmental/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener mapeo ambiental de un caso (lectura)' })
+  async getEnvironmental(@Param('caseId') caseId: string) {
+    return this.socialToolsService.findEnvironmentalByCaseId(caseId);
   }
 }

@@ -18,6 +18,7 @@ import {
   CreateInspectionFindingDto,
 } from './inspections.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Inspecciones & Fiscalización')
@@ -53,12 +54,14 @@ export class InspectionsController {
   }
 
   @Get()
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Listar operativos de inspección' })
   async listInspections(@Query('caseId') caseId?: string) {
     return this.inspectionsService.listInspections(caseId);
   }
 
   @Get(':id')
+  @UseGuards(CaseAccessGuard)
   @ApiParam({ name: 'id', description: 'ID de la inspección' })
   @ApiOperation({ summary: 'Obtener detalles completos de una inspección' })
   async getInspection(@Param('id') id: string) {
@@ -124,6 +127,7 @@ export class InspectionsController {
    * NUEVO: Obtener archivos de evidencia
    */
   @Get(':id/evidence-files')
+  @UseGuards(CaseAccessGuard)
   @ApiParam({ name: 'id', description: 'ID de la inspección' })
   @ApiOperation({ summary: 'Listar archivos de evidencia (fotos, videos) de una inspección' })
   async getEvidenceFiles(@Param('id') inspectionId: string) {
@@ -147,6 +151,7 @@ export class InspectionsController {
    * NUEVO: Obtener hallazgos
    */
   @Get(':id/findings')
+  @UseGuards(CaseAccessGuard)
   @ApiParam({ name: 'id', description: 'ID de la inspección' })
   @ApiOperation({ summary: 'Listar hallazgos registrados' })
   async getFindings(@Param('id') inspectionId: string) {

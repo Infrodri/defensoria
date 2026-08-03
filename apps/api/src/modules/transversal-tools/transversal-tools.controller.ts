@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { TransversalToolsService } from './transversal-tools.service';
 import { CreateUnifiedTimelineDto } from './dto/create-unified-timeline.dto';
 import { AnonymizeReportDto } from './dto/anonymize-report.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -36,5 +37,19 @@ export class TransversalToolsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.transversalToolsService.anonymizeReport(dto.caseId, dto.reporteId, userId);
+  }
+
+  @Get('timeline/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener línea de tiempo unificada de un caso (lectura)' })
+  async getTimeline(@Param('caseId') caseId: string) {
+    return this.transversalToolsService.findTimelineByCaseId(caseId);
+  }
+
+  @Get('anonymizer/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener reportes anonimizados de un caso (lectura)' })
+  async getAnonymized(@Param('caseId') caseId: string) {
+    return this.transversalToolsService.findAnonymizedByCaseId(caseId);
   }
 }

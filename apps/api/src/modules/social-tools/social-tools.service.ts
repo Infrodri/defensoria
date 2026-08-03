@@ -290,4 +290,13 @@ ${transcription.text}`;
       ollamaAnalysis: analysisText,
     };
   }
+
+  // ── Read method (Fase 1) ──────────────────────────────
+
+  async findEnvironmentalByCaseId(caseId: string) {
+    return this.prisma.environmentalMapping.findMany({
+      where: { caseId },
+      orderBy: { analyzedAt: 'desc' },
+    });
+  }
 }

@@ -27,7 +27,7 @@ describe('SocialToolsService', () => {
           provide: PrismaService,
           useValue: {
             transcription: { findUnique: vi.fn() },
-            environmentalMapping: { create: vi.fn() },
+            environmentalMapping: { create: vi.fn(), findMany: vi.fn() },
           },
         },
         {
@@ -119,11 +119,29 @@ describe('SocialToolsService', () => {
         user,
       );
 
-      expect(result.factoresRiesgo).toHaveLength(2);
-      expect(result.factoresRiesgo[0].factor).toBe('Hacinamiento');
-      expect(result.factoresRiesgo[0].evidenciaTextual).toContain('seis personas');
-      expect(result.notaMetodologica).toBeDefined();
-      expect(prisma.environmentalMapping.create).toHaveBeenCalled();
-    });
-  });
+       expect(result.factoresRiesgo).toHaveLength(2);
+       expect(result.factoresRiesgo[0].factor).toBe('Hacinamiento');
+       expect(result.factoresRiesgo[0].evidenciaTextual).toContain('seis personas');
+       expect(result.notaMetodologica).toBeDefined();
+       expect(prisma.environmentalMapping.create).toHaveBeenCalled();
+     });
+   });
+
+   describe('findEnvironmentalByCaseId (Fase 1)', () => {
+     it('should return environmental mappings for a case', async () => {
+       const mockMappings = [
+         { id: 'em-1', caseId: 'case-123', factoresRiesgo: [] },
+       ];
+       vi.spyOn(prisma.environmentalMapping, 'findMany').mockResolvedValue(mockMappings as any);
+
+       const result = await service.findEnvironmentalByCaseId('case-123');
+
+       expect(prisma.environmentalMapping.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { analyzedAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+       expect(result[0].caseId).toBe('case-123');
+     });
+   });
 });

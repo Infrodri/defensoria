@@ -1,7 +1,8 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PsychologicalToolsService } from './psychological-tools.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -57,5 +58,26 @@ export class PsychologicalToolsController {
     @CurrentUser() user: AccessUser,
   ) {
     return this.psychologicalToolsService.analyzeTrauma(dto, user);
+  }
+
+  @Get('risk-scales/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener análisis de escalas de riesgo de un caso (lectura)' })
+  async getRiskScales(@Param('caseId') caseId: string) {
+    return this.psychologicalToolsService.findRiskScalesByCaseId(caseId);
+  }
+
+  @Get('clinical-translations/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener traducciones clínicas de un caso (lectura)' })
+  async getClinicalTranslations(@Param('caseId') caseId: string) {
+    return this.psychologicalToolsService.findClinicalTranslationsByCaseId(caseId);
+  }
+
+  @Get('trauma/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener análisis de trauma de un caso (lectura)' })
+  async getTraumaAnalyses(@Param('caseId') caseId: string) {
+    return this.psychologicalToolsService.findTraumaAnalysesByCaseId(caseId);
   }
 }

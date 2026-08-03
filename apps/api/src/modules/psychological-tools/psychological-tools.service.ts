@@ -473,6 +473,29 @@ Analiza el patrón de exposición y cronicidad como hipótesis clínica.`;
     };
   }
 
+  // ── Read methods (Fase 1) ──────────────────────────────────────
+
+  async findRiskScalesByCaseId(caseId: string) {
+    return this.prisma.riskScaleAnalysis.findMany({
+      where: { caseId },
+      orderBy: { analyzedAt: 'desc' },
+    });
+  }
+
+  async findClinicalTranslationsByCaseId(caseId: string) {
+    return this.prisma.clinicalTranslation.findMany({
+      where: { caseId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findTraumaAnalysesByCaseId(caseId: string) {
+    return this.prisma.traumaAnalysis.findMany({
+      where: { caseId },
+      orderBy: { analyzedAt: 'desc' },
+    });
+  }
+
   // ── Helpers determinísticos (el score NO lo genera el LLM) ────────────────
 
   private computeScaleResult(

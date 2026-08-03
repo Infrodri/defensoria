@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LegalToolsService } from './legal-tools.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -17,6 +18,20 @@ import { CalculateDeadlineDto } from './dto/calculate-deadline.dto';
 @ApiBearerAuth()
 export class LegalToolsController {
   constructor(private readonly legalToolsService: LegalToolsService) {}
+
+  @Get('discrepancies/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener análisis de discrepancias de un caso (lectura)' })
+  async getDiscrepancies(@Param('caseId') caseId: string) {
+    return this.legalToolsService.findDiscrepanciesByCaseId(caseId);
+  }
+
+  @Get('typicality/case/:caseId')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener análisis de tipicidad penal de un caso (lectura)' })
+  async getTypicality(@Param('caseId') caseId: string) {
+    return this.legalToolsService.findTypicalityByCaseId(caseId);
+  }
 
   @Post('discrepancies/analyze')
   @Roles(Role.ABOGADO, Role.ADMINISTRADOR)

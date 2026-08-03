@@ -27,8 +27,8 @@ describe('LegalToolsService', () => {
           provide: PrismaService,
           useValue: {
             transcription: { findUnique: vi.fn() },
-            discrepancyAnalysis: { create: vi.fn() },
-            penalTypicityAnalysis: { create: vi.fn() },
+             discrepancyAnalysis: { findMany: vi.fn(), create: vi.fn() },
+             penalTypicityAnalysis: { findMany: vi.fn(), create: vi.fn() },
             processualDeadline: { create: vi.fn() },
             case: { findUnique: vi.fn() },
           },
@@ -155,12 +155,48 @@ describe('LegalToolsService', () => {
       );
 
       expect(caseAccess.assertUserHasAccess).toHaveBeenCalledWith('case-123', user);
-      expect(result.deadlines).toHaveLength(1);
-      expect(result.deadlines[0].milestone).toBe('Audiencia Preliminar');
-      expect(result.dayType).toBe('CORRIDOS');
-      expect(result.alertLevel).toBeDefined();
-      expect(result.pendingValidations).toHaveLength(1);
-      expect(prisma.processualDeadline.create).toHaveBeenCalled();
-    });
-  });
+       expect(result.deadlines).toHaveLength(1);
+       expect(result.deadlines[0].milestone).toBe('Audiencia Preliminar');
+       expect(result.dayType).toBe('CORRIDOS');
+       expect(result.alertLevel).toBeDefined();
+       expect(result.pendingValidations).toHaveLength(1);
+       expect(prisma.processualDeadline.create).toHaveBeenCalled();
+     });
+   });
+
+   describe('findDiscrepanciesByCaseId (Fase 1)', () => {
+     it('should return discrepancy analyses for a case', async () => {
+       const mockAnalyses = [
+         { id: 'disc-1', caseId: 'case-123', potentialCrimes: ['Violencia Familiar'] },
+       ];
+       vi.spyOn(prisma.discrepancyAnalysis, 'findMany').mockResolvedValue(mockAnalyses as any);
+
+       const result = await service.findDiscrepanciesByCaseId('case-123');
+
+       expect(prisma.discrepancyAnalysis.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { analyzedAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+       expect(result[0].caseId).toBe('case-123');
+     });
+   });
+
+   describe('findTypicalityByCaseId (Fase 1)', () => {
+     it('should return typicity analyses for a case', async () => {
+       const mockAnalyses = [
+         { id: 'typ-1', caseId: 'case-123', primaryCrime: 'Violencia Familiar' },
+       ];
+       vi.spyOn(prisma.penalTypicityAnalysis, 'findMany').mockResolvedValue(mockAnalyses as any);
+
+       const result = await service.findTypicalityByCaseId('case-123');
+
+       expect(prisma.penalTypicityAnalysis.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { analyzedAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+       expect(result[0].caseId).toBe('case-123');
+     });
+   });
 });

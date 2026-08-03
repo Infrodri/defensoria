@@ -104,4 +104,11 @@ export class CasesController {
   ) {
     return this.casesService.reviewDisabilityReport(reportId, userId, dto.status);
   }
+
+  @Get(':id/record')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener registro consolidado del expediente (Caso + Ficha Social + Informes + Conciliación + Inspecciones + Evidencias + 8 Análisis IA)' })
+  async getRecord(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.casesService.getRecord(id, user);
+  }
 }

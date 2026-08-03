@@ -20,6 +20,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nes
 import { Response } from 'express';
 import { EvidencesService } from './evidences.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Evidences')
@@ -67,12 +68,14 @@ export class EvidencesController {
   }
 
   @Get('case/:caseId')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Listar archivos de evidencia del expediente con hash de integridad' })
   async findByCase(@Param('caseId') caseId: string) {
     return this.evidencesService.findByCase(caseId);
   }
 
   @Get(':id/download')
+  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Descargar o reproducir archivo de evidencia desde MinIO' })
   async downloadFile(@Param('id') id: string, @Res() res: Response) {
     const { evidence, stream } = await this.evidencesService.getDownloadStream(id);

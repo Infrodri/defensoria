@@ -561,4 +561,166 @@ export class CasesService {
       },
     });
   }
+
+  /**
+   * Obtiene el registro consolidado del expediente (Fase 1).
+   * Agrega en una sola respuesta: caso, ficha social, informes, conciliación,
+   * inspecciones, evidencias y 8 análisis de IA.
+   * Usa $transaction para consistencia de lectura.
+   */
+  async getRecord(caseId: string, user: any) {
+    // Validar acceso antes de consultar (CaseAccessGuard ya lo hace, pero doble check)
+    await this.caseAccessService.assertUserHasAccess(caseId, user);
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Caso base
+      const caseData = await tx.case.findUnique({
+        where: { id: caseId },
+        include: {
+          parties: {
+            include: { person: true },
+          },
+          currentOffice: true,
+        },
+      });
+
+      if (!caseData) {
+        throw new NotFoundException('Expediente no encontrado');
+      }
+
+      // 2. Ficha social
+      const socialIntake = await tx.socialIntakeForm.findUnique({
+        where: { caseId },
+        include: {
+          socialWorker: { select: { id: true, firstName: true, lastName: true } },
+        },
+      });
+
+      // 3. Informes (append-only, versionados)
+      const reports = await tx.report.findMany({
+        where: { caseId },
+        include: {
+          author: { select: { id: true, firstName: true, lastName: true, role: true } },
+          parentReport: { select: { id: true, title: true, version: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // 4. Conciliación
+      const evaluation = await tx.conciliationEvaluation.findUnique({
+        where: { caseId },
+        include: {
+          evaluator: { select: { id: true, firstName: true, lastName: true } },
+        },
+      });
+      const processes = await tx.conciliationProcess.findMany({
+        where: { caseId },
+        include: {
+          leadLawyer: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { scheduledDate: 'desc' },
+      });
+      const conciliation = { evaluation, processes };
+
+      // 5. Inspecciones (con findings + evidenceFiles)
+      const inspections = await tx.inspection.findMany({
+        where: { caseId },
+        include: {
+          establishment: true,
+          inspector: true,
+          location: true,
+          findings: true,
+          evidenceFiles: true,
+        },
+        orderBy: { scheduledAt: 'desc' },
+      });
+
+      // 6. Evidencias (con fileHash)
+      const evidences = await tx.evidence.findMany({
+        where: { caseId },
+        include: {
+          uploader: { select: { id: true, firstName: true, lastName: true, role: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // 7. Análisis de IA (8 tipos)
+      const [
+        discrepancies,
+        penalTypicity,
+        riskScales,
+        clinicalTranslations,
+        trauma,
+        environmental,
+        transversalTimeline,
+        transversalAnonymized,
+      ] = await Promise.all([
+        tx.discrepancyAnalysis.findMany({
+          where: { caseId },
+          orderBy: { analyzedAt: 'desc' },
+        }),
+        tx.penalTypicityAnalysis.findMany({
+          where: { caseId },
+          orderBy: { analyzedAt: 'desc' },
+        }),
+        tx.riskScaleAnalysis.findMany({
+          where: { caseId },
+          orderBy: { analyzedAt: 'desc' },
+        }),
+        tx.clinicalTranslation.findMany({
+          where: { caseId },
+          orderBy: { createdAt: 'desc' },
+        }),
+        tx.traumaAnalysis.findMany({
+          where: { caseId },
+          orderBy: { analyzedAt: 'desc' },
+        }),
+        tx.environmentalMapping.findMany({
+          where: { caseId },
+          orderBy: { analyzedAt: 'desc' },
+        }),
+        tx.transversalUnifiedTimeline.findMany({
+          where: { caseId },
+          orderBy: { createdAt: 'desc' },
+        }),
+        tx.transversalAnonymizedReport.findMany({
+          where: { caseId },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const aiAnalyses = {
+        discrepancies,
+        penalTypicity,
+        riskScales,
+        clinicalTranslations,
+        trauma,
+        environmental,
+        transversalTimeline,
+        transversalAnonymized,
+      };
+
+      return {
+        case: {
+          id: caseData.id,
+          caseCode: caseData.caseCode,
+          caseType: caseData.caseType,
+          currentPhase: caseData.currentPhase,
+          currentInterventionPath: caseData.currentInterventionPath,
+          riskLevel: caseData.riskLevel,
+          intakeNarrative: caseData.intakeNarrative,
+          isDisabled: caseData.isDisabled,
+          isClosed: caseData.isClosed,
+          currentOffice: caseData.currentOffice,
+          parties: caseData.parties,
+        },
+        socialIntake,
+        reports,
+        conciliation,
+        inspections,
+        evidences,
+        aiAnalyses,
+      };
+    });
+  }
 }

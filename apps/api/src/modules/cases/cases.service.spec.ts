@@ -39,6 +39,48 @@ describe('CasesService Integration Tests', () => {
         createMany: vi.fn(),
         findMany: vi.fn(),
       },
+      socialIntakeForm: {
+        findUnique: vi.fn(),
+      },
+      report: {
+        findMany: vi.fn(),
+      },
+      conciliationEvaluation: {
+        findUnique: vi.fn(),
+      },
+      conciliationProcess: {
+        findMany: vi.fn(),
+      },
+      inspection: {
+        findMany: vi.fn(),
+      },
+      evidence: {
+        findMany: vi.fn(),
+      },
+      discrepancyAnalysis: {
+        findMany: vi.fn(),
+      },
+      penalTypicityAnalysis: {
+        findMany: vi.fn(),
+      },
+      riskScaleAnalysis: {
+        findMany: vi.fn(),
+      },
+      clinicalTranslation: {
+        findMany: vi.fn(),
+      },
+      traumaAnalysis: {
+        findMany: vi.fn(),
+      },
+      environmentalMapping: {
+        findMany: vi.fn(),
+      },
+      transversalUnifiedTimeline: {
+        findMany: vi.fn(),
+      },
+      transversalAnonymizedReport: {
+        findMany: vi.fn(),
+      },
       $queryRaw: vi.fn(),
       $transaction: vi.fn((cb) => cb(prismaMock)),
     };
@@ -247,16 +289,83 @@ describe('CasesService Integration Tests', () => {
       await casesService.massTransfer({ fromUserId: 'from', toUserId: 'to', reason: 'traslado' }, 'admin-1');
 
       // updateMany con OR sobre los pares (caseId, role) - cierra activos de origen Y destino
-      expect(mockTx.caseTeamHistory.updateMany).toHaveBeenCalledWith({
-        where: {
-          endDate: null,
-          OR: [
-            { caseId: 'case-1', role: Role.ABOGADO },
-            { caseId: 'case-2', role: Role.ABOGADO },
-          ],
-        },
-        data: { endDate: expect.any(Date) },
-      });
-    });
-  });
+       expect(mockTx.caseTeamHistory.updateMany).toHaveBeenCalledWith({
+         where: {
+           endDate: null,
+           OR: [
+             { caseId: 'case-1', role: Role.ABOGADO },
+             { caseId: 'case-2', role: Role.ABOGADO },
+           ],
+         },
+         data: { endDate: expect.any(Date) },
+       });
+     });
+   });
+
+   describe('getRecord (Fase 1 consolidated endpoint)', () => {
+     it('should return full case record with all sub-resources and AI analyses', async () => {
+       const mockCase = {
+         id: 'case-123',
+         caseCode: 'DNA-2026-0001',
+         parties: [{ id: 'p1', person: { id: 'person-1', firstName: 'Ana', lastName: 'López' } }],
+         currentOffice: { id: 'office-1', name: 'Fiscalía Distrital' },
+       };
+       const mockSocialIntake = { id: 'si-1', caseId: 'case-123', socialWorker: { id: 'sw-1', firstName: 'Carlos', lastName: 'García' } };
+       const mockReports = [{ id: 'r1', caseId: 'case-123', title: 'Informe inicial', author: { id: 'u1', firstName: 'Laura', lastName: 'Pérez', role: 'ABOGADO' }, parentReport: null }];
+       const mockEvaluation = { id: 'ce-1', caseId: 'case-123', evaluator: { id: 'u2', firstName: 'María', lastName: 'Solíz' } };
+       const mockProcesses = [{ id: 'cp-1', caseId: 'case-123', leadLawyer: { id: 'u3', firstName: 'Pedro', lastName: 'Chávez' } }];
+       const mockInspections = [{ id: 'i1', caseId: 'case-123', establishment: {}, inspector: {}, location: {}, findings: [], evidenceFiles: [] }];
+       const mockEvidences = [{ id: 'e1', caseId: 'case-123', uploader: { id: 'u4', firstName: 'Rosa', lastName: 'Espinoza', role: 'ADMINISTRADOR' } }];
+       const mockDiscrepancies = [{ id: 'd1', caseId: 'case-123' }];
+       const mockTypicity = [{ id: 't1', caseId: 'case-123' }];
+       const mockRiskScales = [{ id: 'rs1', caseId: 'case-123' }];
+       const mockClinicalTranslations = [{ id: 'ct1', caseId: 'case-123' }];
+       const mockTrauma = [{ id: 'ta1', caseId: 'case-123' }];
+       const mockEnvironmental = [{ id: 'em1', caseId: 'case-123' }];
+       const mockTimeline = [{ id: 'tl1', caseId: 'case-123' }];
+       const mockAnonymized = [{ id: 'ar1', caseId: 'case-123' }];
+
+       vi.mocked(prisma.case.findUnique).mockResolvedValue(mockCase as any);
+       vi.mocked(prisma.socialIntakeForm.findUnique).mockResolvedValue(mockSocialIntake as any);
+       vi.mocked(prisma.report.findMany).mockResolvedValue(mockReports as any);
+       vi.mocked(prisma.conciliationEvaluation.findUnique).mockResolvedValue(mockEvaluation as any);
+       vi.mocked(prisma.conciliationProcess.findMany).mockResolvedValue(mockProcesses as any);
+       vi.mocked(prisma.inspection.findMany).mockResolvedValue(mockInspections as any);
+       vi.mocked(prisma.evidence.findMany).mockResolvedValue(mockEvidences as any);
+       vi.mocked(prisma.discrepancyAnalysis.findMany).mockResolvedValue(mockDiscrepancies as any);
+       vi.mocked(prisma.penalTypicityAnalysis.findMany).mockResolvedValue(mockTypicity as any);
+       vi.mocked(prisma.riskScaleAnalysis.findMany).mockResolvedValue(mockRiskScales as any);
+       vi.mocked(prisma.clinicalTranslation.findMany).mockResolvedValue(mockClinicalTranslations as any);
+       vi.mocked(prisma.traumaAnalysis.findMany).mockResolvedValue(mockTrauma as any);
+       vi.mocked(prisma.environmentalMapping.findMany).mockResolvedValue(mockEnvironmental as any);
+       vi.mocked((prisma as any).transversalUnifiedTimeline.findMany).mockResolvedValue(mockTimeline as any);
+       vi.mocked((prisma as any).transversalAnonymizedReport.findMany).mockResolvedValue(mockAnonymized as any);
+       vi.mocked(caseAccessService.assertUserHasAccess).mockResolvedValue(undefined);
+
+       const result = await casesService.getRecord('case-123', { id: 'user-1', role: Role.ABOGADO } as any);
+
+       expect(result.case).toBeDefined();
+       expect(result.socialIntake).toBeDefined();
+       expect(result.reports).toBeDefined();
+       expect(result.conciliation).toBeDefined();
+       expect(result.inspections).toBeDefined();
+       expect(result.evidences).toBeDefined();
+       expect(result.aiAnalyses).toBeDefined();
+       expect(result.aiAnalyses.discrepancies).toHaveLength(1);
+       expect(result.aiAnalyses.penalTypicity).toHaveLength(1);
+       expect(result.aiAnalyses.riskScales).toHaveLength(1);
+       expect(result.aiAnalyses.clinicalTranslations).toHaveLength(1);
+       expect(result.aiAnalyses.trauma).toHaveLength(1);
+       expect(result.aiAnalyses.environmental).toHaveLength(1);
+       expect(result.aiAnalyses.transversalTimeline).toHaveLength(1);
+       expect(result.aiAnalyses.transversalAnonymized).toHaveLength(1);
+     });
+
+     it('should throw NotFoundException if case does not exist', async () => {
+       vi.mocked(prisma.case.findUnique).mockResolvedValue(null);
+       vi.mocked(caseAccessService.assertUserHasAccess).mockResolvedValue(undefined);
+
+       await expect(casesService.getRecord('case-999', { id: 'user-1', role: Role.ABOGADO } as any)).rejects.toThrow(NotFoundException);
+     });
+   });
 });

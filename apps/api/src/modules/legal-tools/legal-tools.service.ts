@@ -500,14 +500,36 @@ ${transcription.text}`;
       );
     }
 
-    return {
+return {
       eventType: dto.eventType,
-      dayType: 'CORRIDOS', // los offsets de DEADLINE_RULES son días corridos
+      dayType: 'CORRIDOS',
       deadlines: deadlines.map((d, i) => ({ ...d, id: savedIds[i] })),
       alertLevel: this.aggregateAlertLevel(deadlines.map((d) => d.alertLevel)),
       actionItems: this.EVENT_ACTION_ITEMS[dto.eventType] || [],
       pendingValidations,
     };
+  }
+
+  /**
+   * Obtiene análisis de discrepancias por caseId (Fase 1 - GET read-only).
+   * Ordenado por analyzedAt descendente.
+   */
+  async findDiscrepanciesByCaseId(caseId: string) {
+    return this.prisma.discrepancyAnalysis.findMany({
+      where: { caseId },
+      orderBy: { analyzedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Obtiene análisis de tipicidad penal por caseId (Fase 1 - GET read-only).
+   * Ordenado por analyzedAt descendente.
+   */
+  async findTypicalityByCaseId(caseId: string) {
+    return this.prisma.penalTypicityAnalysis.findMany({
+      where: { caseId },
+      orderBy: { analyzedAt: 'desc' },
+    });
   }
 
   private normalizeTypicality(raw: TypicalityResult): TypicalityResult {

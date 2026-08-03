@@ -170,7 +170,23 @@ export class TransversalToolsService {
 
     return anonymizedReport;
   }
-  
+
+  // ── Read methods (Fase 1) ──────────────────────────────
+
+  async findTimelineByCaseId(caseId: string) {
+    return this.prisma.transversalUnifiedTimeline.findMany({
+      where: { caseId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findAnonymizedByCaseId(caseId: string) {
+    return this.prisma.transversalAnonymizedReport.findMany({
+      where: { caseId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   private escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
   }

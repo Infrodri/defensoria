@@ -27,9 +27,9 @@ describe('PsychologicalToolsService', () => {
           provide: PrismaService,
           useValue: {
             transcription: { findUnique: vi.fn() },
-            riskScaleAnalysis: { create: vi.fn() },
-            clinicalTranslation: { create: vi.fn() },
-            traumaAnalysis: { create: vi.fn() },
+         riskScaleAnalysis: { create: vi.fn(), findMany: vi.fn() },
+             clinicalTranslation: { create: vi.fn(), findMany: vi.fn() },
+             traumaAnalysis: { create: vi.fn(), findMany: vi.fn() },
           },
         },
         {
@@ -161,10 +161,61 @@ describe('PsychologicalToolsService', () => {
         user,
       );
 
-      expect(result.indicadoresProcesados).toEqual(['Labilidad', 'Aislamiento']);
-      expect(result.hipotesisClinica).toContain('requiere confirmación');
-      expect(result.advertencia).toContain('no constituye diagnóstico');
-      expect(prisma.traumaAnalysis.create).toHaveBeenCalled();
-    });
-  });
+       expect(result.indicadoresProcesados).toEqual(['Labilidad', 'Aislamiento']);
+       expect(result.hipotesisClinica).toContain('requiere confirmación');
+       expect(result.advertencia).toContain('no constituye diagnóstico');
+       expect(prisma.traumaAnalysis.create).toHaveBeenCalled();
+     });
+   });
+
+   describe('findRiskScalesByCaseId (Fase 1)', () => {
+     it('should return risk scale analyses for a case', async () => {
+       const mockAnalyses = [
+         { id: 'rs-1', caseId: 'case-123', escalaSARA: { nivelRiesgo: 'ALTO' } },
+       ];
+       vi.spyOn(prisma.riskScaleAnalysis, 'findMany').mockResolvedValue(mockAnalyses as any);
+
+       const result = await service.findRiskScalesByCaseId('case-123');
+
+       expect(prisma.riskScaleAnalysis.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { analyzedAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+     });
+   });
+
+   describe('findClinicalTranslationsByCaseId (Fase 1)', () => {
+     it('should return clinical translations for a case', async () => {
+       const mockTranslations = [
+         { id: 'ct-1', caseId: 'case-123', forensicTranslation: 'Texto traducido' },
+       ];
+       vi.spyOn(prisma.clinicalTranslation, 'findMany').mockResolvedValue(mockTranslations as any);
+
+       const result = await service.findClinicalTranslationsByCaseId('case-123');
+
+       expect(prisma.clinicalTranslation.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { createdAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+     });
+   });
+
+   describe('findTraumaAnalysesByCaseId (Fase 1)', () => {
+     it('should return trauma analyses for a case', async () => {
+       const mockAnalyses = [
+         { id: 'ta-1', caseId: 'case-123', cronicidad: 'MODERADA' },
+       ];
+       vi.spyOn(prisma.traumaAnalysis, 'findMany').mockResolvedValue(mockAnalyses as any);
+
+       const result = await service.findTraumaAnalysesByCaseId('case-123');
+
+       expect(prisma.traumaAnalysis.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { analyzedAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+     });
+   });
 });

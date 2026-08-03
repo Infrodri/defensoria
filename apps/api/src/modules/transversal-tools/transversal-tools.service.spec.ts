@@ -18,8 +18,8 @@ describe('TransversalToolsService', () => {
           useValue: {
             case: { findUnique: vi.fn() },
             report: { findUnique: vi.fn() },
-            transversalUnifiedTimeline: { create: vi.fn() },
-            transversalAnonymizedReport: { create: vi.fn() },
+             transversalUnifiedTimeline: { create: vi.fn(), findMany: vi.fn() },
+             transversalAnonymizedReport: { create: vi.fn(), findMany: vi.fn() },
           },
         },
         {
@@ -93,11 +93,45 @@ describe('TransversalToolsService', () => {
 
       const result = await service.anonymizeReport('case-123', 'report-123', 'user-123');
 
-      expect(result).toBeDefined();
-      expect(result.anonymizedContent).toContain('[VÍCTIMA_1]');
-      expect(result.anonymizedContent).toContain('[ID_567]');
-      expect(result.anonymizedContent).toContain('[UBICACIÓN]');
-      expect(audit.logEvent).toHaveBeenCalled();
-    });
-  });
+       expect(result).toBeDefined();
+       expect(result.anonymizedContent).toContain('[VÍCTIMA_1]');
+       expect(result.anonymizedContent).toContain('[ID_567]');
+       expect(result.anonymizedContent).toContain('[UBICACIÓN]');
+       expect(audit.logEvent).toHaveBeenCalled();
+     });
+   });
+
+   describe('findTimelineByCaseId (Fase 1)', () => {
+     it('should return unified timelines for a case', async () => {
+       const mockTimelines = [
+         { id: 'tl-1', caseId: 'case-123', events: [] },
+       ];
+       vi.spyOn((prisma as any).transversalUnifiedTimeline, 'findMany').mockResolvedValue(mockTimelines as any);
+
+       const result = await service.findTimelineByCaseId('case-123');
+
+       expect((prisma as any).transversalUnifiedTimeline.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { createdAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+     });
+   });
+
+   describe('findAnonymizedByCaseId (Fase 1)', () => {
+     it('should return anonymized reports for a case', async () => {
+       const mockReports = [
+         { id: 'anon-1', caseId: 'case-123', anonymizedContent: 'Contenido anonimizado' },
+       ];
+       vi.spyOn((prisma as any).transversalAnonymizedReport, 'findMany').mockResolvedValue(mockReports as any);
+
+       const result = await service.findAnonymizedByCaseId('case-123');
+
+       expect((prisma as any).transversalAnonymizedReport.findMany).toHaveBeenCalledWith({
+         where: { caseId: 'case-123' },
+         orderBy: { createdAt: 'desc' },
+       });
+       expect(result).toHaveLength(1);
+     });
+   });
 });
