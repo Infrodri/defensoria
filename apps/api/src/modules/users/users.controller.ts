@@ -9,12 +9,20 @@ import { Role } from '@defensoria/shared';
 @ApiTags('Users')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMINISTRADOR, Role.JEFATURA)
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get('professionals/list')
+  @ApiOperation({ summary: 'Listar profesionales disponibles para asignación (accesible a todos)' })
+  async listProfessionals(
+    @Query('role') role?: string,
+  ) {
+    return this.usersService.listProfessionals(role as Role);
+  }
+
   @Get()
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
   @ApiOperation({ summary: 'Listar todos los funcionarios del sistema (Exclusivo Administrador y Jefatura) - Filtrable por rol e isActive' })
   async findAll(
     @Query('role') role?: string,
@@ -27,24 +35,28 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
   @ApiOperation({ summary: 'Obtener detalle de funcionario y casos asignados' })
   async findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Post()
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
   @ApiOperation({ summary: 'Registrar nuevo funcionario (Exclusivo Administrador y Jefatura)' })
   async create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
 
   @Patch(':id')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
   @ApiOperation({ summary: 'Actualizar funcionario (rol, distrito, estado)' })
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 
   @Post(':id/reset-password')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
   @ApiOperation({ summary: 'Restablecer contraseña de funcionario' })
   async resetPassword(@Param('id') id: string, @Body('password') password?: string) {
     return this.usersService.resetPassword(id, password);

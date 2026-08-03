@@ -23,4 +23,11 @@ export class AiAssistantController {
     const analysis = await this.aiService.analyzeRisk(narrative);
     return { analysis };
   }
+
+  @Post('chat')
+  @ApiOperation({ summary: 'Chat de coordinación interdisciplinaria usando IA local (Ollama)' })
+  async chat(@Body() body: { message: string; caseId?: string }) {
+    const response = await this.aiService.chat(body.message, body.caseId);
+    return { response };
+  }
 }

@@ -96,12 +96,14 @@ export enum AppointmentType {
 }
 
 export enum AppointmentStatus {
+  PROPUESTA = 'PROPUESTA',
   PROGRAMADA = 'PROGRAMADA',
   CONFIRMADA = 'CONFIRMADA',
   COMPLETADA = 'COMPLETADA',
   CANCELADA = 'CANCELADA',
   REPROGRAMADA = 'REPROGRAMADA',
   NO_ASISTIO = 'NO_ASISTIO',
+  RECHAZADA = 'RECHAZADA',
 }
 
 export enum NotificationType {
@@ -233,16 +235,15 @@ export const formatAppointmentType = (type?: AppointmentType | string): string =
 
 export const formatAppointmentStatus = (status?: AppointmentStatus | string): string => {
   switch (status) {
-    case AppointmentStatus.PROGRAMADA:
-      return 'Programada';
-    case AppointmentStatus.COMPLETADA:
-      return 'Completada';
-    case AppointmentStatus.CANCELADA:
-      return 'Cancelada';
-    case AppointmentStatus.REPROGRAMADA:
-      return 'Reprogramada';
-    default:
-      return status || 'N/A';
+    case AppointmentStatus.PROPUESTA:    return 'Propuesta';
+    case AppointmentStatus.PROGRAMADA:   return 'Programada';
+    case AppointmentStatus.CONFIRMADA:   return 'Confirmada';
+    case AppointmentStatus.COMPLETADA:   return 'Completada';
+    case AppointmentStatus.CANCELADA:    return 'Cancelada';
+    case AppointmentStatus.REPROGRAMADA: return 'Reprogramada';
+    case AppointmentStatus.NO_ASISTIO:   return 'No Asistió';
+    case AppointmentStatus.RECHAZADA:    return 'Rechazada';
+    default: return status || 'N/A';
   }
 };
 

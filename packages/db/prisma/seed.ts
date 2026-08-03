@@ -396,8 +396,6 @@ async function main() {
 }
 
 main()
-
-main()
   .catch((e) => {
     console.error('❌ Seed error:', e);
     process.exit(1);

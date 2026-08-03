@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { formatPhase, formatInterventionPath, formatCaseType } from '@defensoria/shared';
-import { FileText, ArrowRight, UserPlus } from 'lucide-react';
+import { FileText, ArrowRight, UserPlus, ShieldOff, AlertTriangle } from 'lucide-react';
 
 export default function CasosListPage() {
   const { user } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [selectedCase, setSelectedCase] = useState<any>(null);
 
   useEffect(() => {
     fetchApi('/cases')
@@ -18,6 +20,26 @@ export default function CasosListPage() {
       .catch(() => setCases([]))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDisableCase = async (reason: string) => {
+    if (!selectedCase) return;
+
+    try {
+      await fetchApi(`/cases/${selectedCase.id}/disable`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+
+      // Remove from local list
+      setCases(cases.filter(c => c.id !== selectedCase.id));
+      setShowDisableModal(false);
+      setSelectedCase(null);
+      
+      alert('✅ Expediente inhabilitado exitosamente. Se generó reporte para Jefatura.');
+    } catch (err: any) {
+      alert('❌ ' + (err.message || 'Error al inhabilitar expediente'));
+    }
+  };
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -123,27 +145,187 @@ export default function CasosListPage() {
                   </div>
                 </div>
 
-                <Link
-                  href={`/casos/${c.id}`}
-                  style={{
-                    backgroundColor: 'var(--bosque-profundo)',
-                    color: 'white',
-                    padding: '0.5rem 1rem',
-                    borderRadius: 'var(--radius)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    flexShrink: 0,
-                  }}
-                >
-                  Abrir Expediente <ArrowRight size={16} />
-                </Link>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {/* Botón Inhabilitar - Solo para Secretaria */}
+                  {user?.role === 'SECRETARIA' && (
+                    <button
+                      onClick={() => {
+                        setSelectedCase(c);
+                        setShowDisableModal(true);
+                      }}
+                      style={{
+                        backgroundColor: '#DC2626',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <ShieldOff size={16} /> Inhabilitar
+                    </button>
+                  )}
+
+                  <Link
+                    href={`/casos/${c.id}`}
+                    style={{
+                      backgroundColor: 'var(--bosque-profundo)',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      flexShrink: 0,
+                    }}
+                  >
+                    Abrir Expediente <ArrowRight size={16} />
+                  </Link>
+                </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de Inhabilitación */}
+      {showDisableModal && selectedCase && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              padding: '2rem',
+              borderRadius: 'var(--radius)',
+              border: '2px solid var(--border)',
+              maxWidth: '500px',
+              width: '90%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={24} color="#DC2626" />
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--bosque-profundo)', margin: 0 }}>
+                🚫 Inhabilitar Expediente
+              </h3>
+            </div>
+
+            <div style={{
+              padding: '1rem',
+              backgroundColor: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: 'var(--radius)',
+              marginBottom: '1.5rem',
+            }}>
+              <div style={{ fontWeight: 700, color: '#DC2626', marginBottom: '0.5rem' }}>
+                ADVERTENCIA: Esta acción es irreversible
+              </div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--grafito)' }}>
+                El expediente <strong>{selectedCase.caseCode}</strong> será inhabilitado permanentemente y no podrá ser editado por los profesionales. Se generará un reporte automático para revisión de Jefatura.
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const reason = formData.get('reason') as string;
+                
+                if (!reason.trim()) {
+                  alert('❌ Debe proporcionar un motivo para la inhabilitación');
+                  return;
+                }
+
+                handleDisableCase(reason);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '0.875rem', 
+                  fontWeight: 600, 
+                  marginBottom: '0.5rem',
+                  color: 'var(--bosque-profundo)' 
+                }}>
+                  Motivo de inhabilitación (Obligatorio):
+                </label>
+                <textarea
+                  name="reason"
+                  rows={4}
+                  required
+                  placeholder="Ej: Información duplicada detectada&#10;Ej: Error en la asignación del caso&#10;Ej: Solicitud de la familia&#10;Ej: Derivación a otra instancia"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.875rem',
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ fontSize: '0.75rem', color: 'var(--grafito)', marginTop: '0.5rem' }}>
+                  📊 Este motivo se registrará en el reporte para Jefatura
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDisableModal(false);
+                    setSelectedCase(null);
+                  }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border)',
+                    padding: '0.75rem 1.25rem',
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    backgroundColor: '#DC2626',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.75rem 1.25rem',
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  🚫 Confirmar Inhabilitación
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

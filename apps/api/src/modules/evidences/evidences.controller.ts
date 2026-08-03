@@ -2,6 +2,9 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
+  Patch,
+  Put,
   Param,
   Body,
   UseGuards,
@@ -9,6 +12,8 @@ import {
   UploadedFile,
   Res,
   BadRequestException,
+  ForbiddenException,
+  MethodNotAllowedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -68,13 +73,47 @@ export class EvidencesController {
   }
 
   @Get(':id/download')
-  @ApiOperation({ summary: 'Descargar archivo de evidencia desde MinIO' })
+  @ApiOperation({ summary: 'Descargar o reproducir archivo de evidencia desde MinIO' })
   async downloadFile(@Param('id') id: string, @Res() res: Response) {
     const { evidence, stream } = await this.evidencesService.getDownloadStream(id);
 
+    // Cabeceras de inmutabilidad: no permitir borrado ni sobreescritura desde cliente
     res.setHeader('Content-Type', evidence.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${evidence.fileName}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${evidence.fileName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
     stream.pipe(res);
+  }
+
+  // ─── Endpoints de mutación BLOQUEADOS explícitamente ─────────────────────────
+  // Estos métodos existen para que cualquier intento de DELETE/PATCH/PUT sobre
+  // evidencias devuelva 405 Method Not Allowed en lugar de 404, dejando trazas
+  // claras en los logs de auditoría.
+
+  @Delete(':id')
+  @ApiOperation({ summary: '[BLOQUEADO] Las evidencias son inmutables' })
+  async deleteEvidence() {
+    throw new MethodNotAllowedException(
+      'Las evidencias forman parte de la cadena de custodia y no pueden ser eliminadas. ' +
+      'Este intento ha sido registrado en el sistema de auditoría.',
+    );
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: '[BLOQUEADO] Las evidencias son inmutables' })
+  async patchEvidence() {
+    throw new MethodNotAllowedException(
+      'Las evidencias no pueden ser modificadas una vez subidas.',
+    );
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: '[BLOQUEADO] Las evidencias son inmutables' })
+  async putEvidence() {
+    throw new MethodNotAllowedException(
+      'Las evidencias no pueden ser reemplazadas una vez subidas.',
+    );
   }
 }

@@ -101,12 +101,14 @@ enum AppointmentType {
 }
 
 enum AppointmentStatus {
-  PROGRAMADA
-  CONFIRMADA
+  PROPUESTA       // creada por secretaria, espera respuesta del profesional
+  PROGRAMADA      // profesional aceptó tal cual
+  CONFIRMADA      // profesional confirmó con cambios propios
   COMPLETADA
   CANCELADA
-  REPROGRAMADA
+  REPROGRAMADA    // profesional propuso otra fecha
   NO_ASISTIO
+  RECHAZADA       // profesional no puede y no propone alternativa
 }
 
 enum NotificationType {
@@ -205,6 +207,7 @@ model User {
   createdPersons         Person[]                  @relation("CreatedPersons")
   createdCases           Case[]                    @relation("CreatedCases")
   closedCases            Case[]                    @relation("ClosedCases")
+  disabledCases          Case[]                    @relation("DisabledCases")
   createdCaseParties     CaseParty[]               @relation("CreatedCaseParties")
   assignedCaseTeam       CaseTeamHistory[]         @relation("AssignedTeam")
   performedAssignments   CaseTeamHistory[]         @relation("PerformedAssignments")
@@ -215,6 +218,7 @@ model User {
   uploadedEvidences      Evidence[]                @relation("EvidenceUploader")
   inspectionEvidenceUploaded InspectionEvidenceFile[] @relation("InspectionEvidenceUploader")
   createdAppointments    Appointment[]             @relation("CreatedAppointments")
+  assignedAppointments   Appointment[]             @relation("AssignedAppointments")
   notifications          Notification[]            @relation("UserNotifications")
   escalatedNotifications Notification[]            @relation("EscalatedNotifications")
   auditLogs              AuditLog[]
@@ -232,12 +236,20 @@ model User {
   penalTypicityAnalysisCreated PenalTypicityAnalysis[] @relation("PenalTypicityAnalysts")
   processualDeadlineCreated ProcessualDeadline[]     @relation("ProcessualDeadlineCreators")
 
+  riskScaleAnalysesCreated       RiskScaleAnalysis[]       @relation("RiskScaleAnalysts")
+  clinicalTranslationsCreated    ClinicalTranslation[]     @relation("ClinicalTranslationCreators")
+  traumaAnalysesCreated          TraumaAnalysis[]          @relation("TraumaAnalysts")
+  environmentalMappingsCreated   EnvironmentalMapping[]    @relation("EnvironmentalMappingAnalysts")
+
   transversalTimelinesCreated TransversalUnifiedTimeline[] @relation("TransversalTimelineCreators")
   transversalReportsCreated TransversalAnonymizedReport[] @relation("TransversalReportCreators")
 
   socialIntakeForms          SocialIntakeForm[]          @relation("SocialIntakeForms")
   conciliationEvaluations    ConciliationEvaluation[]    @relation("ConciliationEvaluations")
   conciliationProcesses      ConciliationProcess[]       @relation("ConciliationProcesses")
+
+  disabilityReports          DisabilityReport[]          @relation("UserDisabilityReports")
+  reviewedDisabilityReports  DisabilityReport[]          @relation("ReviewedDisabilityReports")
 
   @@map("users")
 }
@@ -319,12 +331,20 @@ model Case {
   penalTypicityAnalyses PenalTypicityAnalysis[] @relation("CasePenalTypicities")
   processualDeadlines ProcessualDeadline[] @relation("CaseProcessualDeadlines")
 
+  riskScaleAnalyses      RiskScaleAnalysis[]    @relation("CaseRiskScaleAnalyses")
+  clinicalTranslations   ClinicalTranslation[]  @relation("CaseClinicalTranslations")
+  traumaAnalyses         TraumaAnalysis[]       @relation("CaseTraumaAnalyses")
+  environmentalMappings  EnvironmentalMapping[] @relation("CaseEnvironmentalMappings")
+
   transversalTimelines TransversalUnifiedTimeline[] @relation("CaseTransversalTimelines")
   transversalReports TransversalAnonymizedReport[] @relation("CaseTransversalReports")
 
   socialIntakeForm        SocialIntakeForm?
   conciliationEvaluation  ConciliationEvaluation?
   conciliationProcesses   ConciliationProcess[]
+  
+  disabilityReports       DisabilityReport[]       @relation("CaseDisabilityReports")
+  caseChunks              CaseChunk[]              @relation("CasechunkCase")
 
   // Denunciante tercero (cuando no es el NNA mismo)
   isThirdPartyComplainant Boolean  @default(false)
@@ -334,11 +354,49 @@ model Case {
   complainantPhone        String?
   complainantAddress      String?
 
+  // Datos demográficos del NNA
+  nnaBirthDate            DateTime? @db.Date
+  nnaGender              Gender?
+  nnaCity                String?
+  nnaPhone               String?
+  nnaAddress             String?
+
+  // Campos de auditoría inmutable
+  isDisabled             Boolean   @default(false)
+  disabledAt             DateTime? @db.Timestamptz(6)
+  disabledBy             String?   @db.Uuid
+  disabledReason         String?
+  disabledReportId       String?   @db.Uuid // Link al reporte generado
+  
+  // Relaciones para auditoría
+  disabler               User?     @relation("DisabledCases", fields: [disabledBy], references: [id])
+
   @@index([currentPhase])
   @@index([riskLevel])
   @@index([isClosed])
+  @@index([isDisabled])
   @@index([currentOfficeId])
   @@map("cases")
+}
+
+model DisabilityReport {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId             String    @db.Uuid
+  caseCode           String
+  reason             String
+  disabledBy         String    @db.Uuid
+  disabledAt         DateTime  @default(now()) @db.Timestamptz(6)
+  reviewedBy         String?   @db.Uuid
+  reviewedAt         DateTime? @db.Timestamptz(6)
+  status             String    @default("PENDING") // PENDING, REVIEWED, APPROVED
+  
+  case               Case      @relation("CaseDisabilityReports", fields: [caseId], references: [id])
+  disabler           User      @relation("UserDisabilityReports", fields: [disabledBy], references: [id])
+  reviewer           User?     @relation("ReviewedDisabilityReports", fields: [reviewedBy], references: [id])
+
+  @@index([disabledAt])
+  @@index([status])
+  @@map("disability_reports")
 }
 
 model CaseParty {
@@ -484,19 +542,28 @@ model Appointment {
   title           String
   description     String?
   appointmentType AppointmentType
-  scheduledAt     DateTime          @db.Timestamptz(6)
+  scheduledAt     DateTime?         @db.Timestamptz(6)   // opcional si secretaria no define fecha
   endAt           DateTime?         @db.Timestamptz(6)
   location        String?
-  status          AppointmentStatus @default(PROGRAMADA)
-  createdBy       String            @db.Uuid
+  status          AppointmentStatus @default(PROPUESTA)  // inicia como propuesta
+  createdBy       String            @db.Uuid             // quien crea (secretaria/jefatura)
+  assignedProfessionalId String?    @db.Uuid             // profesional que atenderá
+
+  // Respuesta del profesional
+  professionalResponse  String?    // ACCEPTED | MODIFIED | REJECTED
+  professionalNotes     String?    // observaciones del profesional al aceptar/modificar
+  respondedAt           DateTime?  @db.Timestamptz(6)   // cuándo respondió
+
+  case                Case    @relation(fields: [caseId], references: [id])
+  creator             User    @relation("CreatedAppointments", fields: [createdBy], references: [id])
+  assignedProfessional User?  @relation("AssignedAppointments", fields: [assignedProfessionalId], references: [id])
+
   createdAt       DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
-
-  case            Case              @relation(fields: [caseId], references: [id])
-  creator         User              @relation("CreatedAppointments", fields: [createdBy], references: [id])
   
   questionnaires  QuestionnaireResponse[]
 
+  @@index([assignedProfessionalId])
   @@map("appointments")
 }
 
@@ -777,6 +844,25 @@ model LegalChunk {
   @@map("legal_chunks")
 }
 
+// ── RAG por expediente: chunks indexados de evidencias subidas al caso ─────────
+model CaseChunk {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId      String    @db.Uuid
+  evidenceId  String?   @db.Uuid        // evidencia de origen (si viene de una)
+  sourceType  String                    // 'audio_transcript' | 'image_description' | 'pdf_text' | 'report' | 'action_log'
+  content     String
+  metadata    Json      @default("{}")
+
+  embedding   Unsupported("vector(768)")?
+
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+
+  case        Case      @relation("CasechunkCase", fields: [caseId], references: [id])
+
+  @@index([caseId])
+  @@map("case_chunks")
+}
+
 model QuestionnaireTemplate {
   id              String                      @id @default(uuid()) @db.Uuid
   name            String
@@ -885,6 +971,9 @@ model Transcription {
   
   discrepancyAnalysesAsTarget DiscrepancyAnalysis[] @relation("DiscrepancyCurrentTranscription")
   penalTypicityAnalyses PenalTypicityAnalysis[] @relation("PenalTypicityTranscriptions")
+
+  riskScaleAnalyses      RiskScaleAnalysis[]    @relation("RiskScaleTranscriptions")
+  environmentalMappings  EnvironmentalMapping[] @relation("EnvironmentalMappingTranscriptions")
   
   @@map("transcriptions")
 }
@@ -960,6 +1049,84 @@ model ProcessualDeadline {
   @@index([caseId])
   @@index([calculatedDate])
   @@map("processual_deadlines")
+}
+
+// =====================================================
+// TOOL ANALYSES - PERSISTENCIA DE ANÁLISIS (FASE 3)
+// Patrón: input, output JSON, analyst, analyzedAt, caseId (igual a DiscrepancyAnalysis)
+// =====================================================
+
+model RiskScaleAnalysis {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId             String   @db.Uuid
+  transcriptionId    String   @db.Uuid
+  scaleResults       Json     // { sara: {nivelRiesgo, score, items[]}, nvi: {...}, evaluacionGlobal }
+  pendingValidations String[] @default([])
+  analyzedAt         DateTime @default(now()) @db.Timestamptz(6)
+  analyzedBy         String   @db.Uuid
+
+  case          Case          @relation("CaseRiskScaleAnalyses", fields: [caseId], references: [id], onDelete: Cascade)
+  transcription Transcription @relation("RiskScaleTranscriptions", fields: [transcriptionId], references: [id], onDelete: Cascade)
+  analyst       User          @relation("RiskScaleAnalysts", fields: [analyzedBy], references: [id])
+
+  @@index([caseId])
+  @@index([analyzedAt])
+  @@map("risk_scale_analyses")
+}
+
+model ClinicalTranslation {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId         String   @db.Uuid
+  originalText   String   @db.Text
+  translatedText String   @db.Text
+  terminology    Json     // Lista de términos técnicos sugeridos
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  createdBy      String   @db.Uuid
+
+  case    Case @relation("CaseClinicalTranslations", fields: [caseId], references: [id], onDelete: Cascade)
+  creator User @relation("ClinicalTranslationCreators", fields: [createdBy], references: [id])
+
+  @@index([caseId])
+  @@map("clinical_translations")
+}
+
+model TraumaAnalysis {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId           String   @db.Uuid
+  indicadores      Json     // Indicadores recibidos como input
+  patronExposicion String   @db.Text
+  cronicidad       String
+  hipotesisClinica String   @db.Text
+  recomendaciones  String[] @default([])
+  advertencia      String?
+  analyzedAt       DateTime @default(now()) @db.Timestamptz(6)
+  analyzedBy       String   @db.Uuid
+
+  case    Case @relation("CaseTraumaAnalyses", fields: [caseId], references: [id], onDelete: Cascade)
+  analyst User @relation("TraumaAnalysts", fields: [analyzedBy], references: [id])
+
+  @@index([caseId])
+  @@index([analyzedAt])
+  @@map("trauma_analyses")
+}
+
+model EnvironmentalMapping {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId           String   @db.Uuid
+  transcriptionId  String   @db.Uuid
+  factoresRiesgo   Json     // Array de { factor, descripcion, evidenciaTextual, severidad }
+  recomendaciones  Json
+  notaMetodologica String?
+  analyzedAt       DateTime @default(now()) @db.Timestamptz(6)
+  analyzedBy       String   @db.Uuid
+
+  case          Case          @relation("CaseEnvironmentalMappings", fields: [caseId], references: [id], onDelete: Cascade)
+  transcription Transcription @relation("EnvironmentalMappingTranscriptions", fields: [transcriptionId], references: [id], onDelete: Cascade)
+  analyst       User          @relation("EnvironmentalMappingAnalysts", fields: [analyzedBy], references: [id])
+
+  @@index([caseId])
+  @@index([analyzedAt])
+  @@map("environmental_mappings")
 }
 
 // =====================================================

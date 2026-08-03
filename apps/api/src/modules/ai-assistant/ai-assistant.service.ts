@@ -83,4 +83,14 @@ ${narrative}
 
     return this.queryOllama(prompt, systemPrompt);
   }
+
+  async chat(message: string, caseId?: string) {
+    const systemPrompt = `Eres el asistente de coordinación del equipo interdisciplinario de la Defensoría de la Niñez y Adolescencia de Bolivia.
+Tu tarea es responder consultas y apoyar el análisis integral de expedientes combinando perspectivas legal, psicológica y social.
+Usa lenguaje profesional y claro. No inventes datos que no estén en el contexto proporcionado.
+Termina indicando que es una respuesta generada por IA local y que la decisión final depende del equipo interdisciplinario.`;
+
+    const prompt = caseId ? `Expediente ID: ${caseId}\n\n${message}` : message;
+    return this.queryOllama(prompt, systemPrompt);
+  }
 }

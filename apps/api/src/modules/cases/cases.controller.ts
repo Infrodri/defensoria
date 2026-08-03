@@ -72,4 +72,34 @@ export class CasesController {
   ) {
     return this.casesService.massTransfer(dto, assignedByUserId);
   }
+
+  // NUEVO: Endpoints para sistema inmutable
+  @Post(':id/disable')
+  @Roles(Role.SECRETARIA, Role.JEFATURA)
+  @ApiOperation({ summary: 'Inhabilitar expediente (Genera reporte para Jefatura)' })
+  async disableCase(
+    @Param('id') caseId: string,
+    @Body() dto: { reason: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.casesService.disableCase(caseId, dto.reason, userId);
+  }
+
+  @Get('admin/disability-reports')
+  @Roles(Role.JEFATURA, Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Ver reportes de expedientes inhabilitados (Solo Jefatura y Administradores)' })
+  async getDisabilityReports(@CurrentUser() user: any) {
+    return this.casesService.getDisabilityReports(user);
+  }
+
+  @Post('admin/disability-reports/:id/review')
+  @Roles(Role.JEFATURA, Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Revisar y aprobar/rechazar reporte de inhabilitación' })
+  async reviewDisabilityReport(
+    @Param('id') reportId: string,
+    @Body() dto: { status: 'APPROVED' | 'REJECTED' },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.casesService.reviewDisabilityReport(reportId, userId, dto.status);
+  }
 }

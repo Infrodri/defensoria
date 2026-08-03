@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { Search, UserPlus, FileText, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { AudioRecorder } from '@/components/audio-recorder';
 
 export default function InicioCasoPage() {
   const router = useRouter();
+  const { user } = useAuth();
 
   // Catalogs State
   const [caseTypeCatalog, setCaseTypeCatalog] = useState<any>(null);
@@ -31,6 +33,10 @@ export default function InicioCasoPage() {
   const [nnaLastName, setNnaLastName] = useState('');
   const [nnaDocumentNumber, setNnaDocumentNumber] = useState('');
   const [nnaGender, setNnaGender] = useState('MASCULINO');
+  const [nnaBirthDate, setNnaBirthDate] = useState('');
+  const [nnaCity, setNnaCity] = useState('');
+  const [nnaPhone, setNnaPhone] = useState('');
+  const [nnaAddress, setNnaAddress] = useState('');
 
   // Case Details
   const [caseType, setCaseType] = useState('');
@@ -141,6 +147,12 @@ export default function InicioCasoPage() {
         caseType,
         intakeNarrative,
         isThirdPartyComplainant,
+        // Datos demográficos NNA
+        nnaBirthDate: nnaBirthDate || undefined,
+        nnaGender: nnaGender || undefined,
+        nnaCity: nnaCity || undefined,
+        nnaPhone: nnaPhone || undefined,
+        nnaAddress: nnaAddress || undefined,
       };
 
       // Add third party complainant fields if applicable
@@ -161,24 +173,46 @@ export default function InicioCasoPage() {
         body: JSON.stringify(casePayload),
       });
 
-      // Upload audio if recorded
-      if (recordedAudio) {
+      // Upload audio if recorded — usar fetch directo para que el browser
+      // pueda poner el Content-Type multipart/form-data con boundary correcto.
+      // fetchApi fuerza Content-Type: application/json y rompe el FormData.
+      if (recordedAudio && recordingDuration > 0) {
         try {
           const formData = new FormData();
-          formData.append('file', recordedAudio, `entrevista-inicial-${Date.now()}.webm`);
+          const ext = recordedAudio.type.includes('mp4') ? 'm4a' : 'webm';
+          formData.append('file', recordedAudio, `entrevista-inicial-${Date.now()}.${ext}`);
           formData.append('caseId', newCase.id);
-          formData.append('type', 'AUDIO');
-          formData.append('category', 'ENTREVISTA_INICIAL');
-          formData.append('description', `Grabación de entrevista inicial (${recordingDuration}s)`);
+          formData.append('isSensitive', 'false');
+          formData.append(
+            'description',
+            `Grabación de entrevista inicial (${Math.floor(recordingDuration / 60)}:${String(recordingDuration % 60).padStart(2, '0')})`,
+          );
 
-          await fetchApi('/evidences/upload', {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('dna_token') : null;
+          const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4100/api';
+
+          const uploadRes = await fetch(`${apiBase}/evidences/upload`, {
             method: 'POST',
+            headers: {
+              // NO Content-Type — el browser lo pone solo con el boundary correcto
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: formData,
           });
-        } catch (audioErr) {
+
+          if (!uploadRes.ok) {
+            const errData = await uploadRes.json().catch(() => ({}));
+            throw new Error(errData.message || `Upload error ${uploadRes.status}`);
+          }
+
+          console.log('Audio uploaded successfully as evidence');
+        } catch (audioErr: any) {
           console.warn('Audio upload failed but case was created:', audioErr);
+          // No lanzar error — el caso ya fue creado exitosamente
         }
       }
+
+      // NO crear cita automática — la secretaria asigna citas manualmente desde Agenda y Citas
 
       router.push(`/casos/${newCase.id}`);
     } catch (err: any) {
@@ -458,6 +492,54 @@ export default function InicioCasoPage() {
                   </select>
                 </div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Fecha de Nacimiento</label>
+                  <input
+                    type="date"
+                    value={nnaBirthDate}
+                    onChange={(e) => setNnaBirthDate(e.target.value)}
+                    placeholder="dd/mm/aaaa"
+                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Ciudad</label>
+                  <input
+                    type="text"
+                    value={nnaCity}
+                    onChange={(e) => setNnaCity(e.target.value)}
+                    placeholder="ej: Sucre"
+                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Teléfono de Contacto</label>
+                  <input
+                    type="tel"
+                    value={nnaPhone}
+                    onChange={(e) => setNnaPhone(e.target.value)}
+                    placeholder="ej: 71234501"
+                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Dirección</label>
+                  <input
+                    type="text"
+                    value={nnaAddress}
+                    onChange={(e) => setNnaAddress(e.target.value)}
+                    placeholder="ej: Calle Bolívar #245, Barrio San Roque"
+                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+              </div>
             </div>
           )}
 
@@ -500,12 +582,21 @@ export default function InicioCasoPage() {
             {/* Audio Recording Optional */}
             <div>
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Grabar Primera Entrevista (Opcional)</label>
+              <p style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                Si graba audio, debe confirmar la grabación para que se incluya automáticamente como evidencia del expediente.
+              </p>
               <AudioRecorder 
                 onRecordingComplete={(blob, duration) => {
                   setRecordedAudio(blob);
                   setRecordingDuration(duration);
+                  console.log('Recording completed and ready for upload:', blob.size, 'bytes');
                 }}
               />
+              {recordedAudio && (
+                <div style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'oklch(0.96 0.02 165)', borderRadius: 'var(--radius)', fontSize: '0.75rem', color: 'var(--bosque-profundo)' }}>
+                  ✅ Grabación confirmada: {(recordedAudio.size / 1024).toFixed(1)} KB · Se subirá automáticamente como evidencia
+                </div>
+              )}
             </div>
 
             {/* Denunciante / Third Party Section */}
@@ -624,18 +715,19 @@ export default function InicioCasoPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !caseType || !intakeNarrative}
                 style={{
-                  backgroundColor: 'var(--bosque-profundo)',
+                  backgroundColor: (caseType && intakeNarrative) ? 'var(--bosque-profundo)' : 'var(--border)',
                   color: 'white',
                   border: 'none',
-                  padding: '0.75rem 1.5rem',
+                  padding: '0.75rem 2rem',
                   borderRadius: 'var(--radius)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
+                  fontWeight: 700,
+                  cursor: (caseType && intakeNarrative) ? 'pointer' : 'not-allowed',
+                  opacity: (caseType && intakeNarrative) ? 1 : 0.6,
                 }}
               >
-                {submitting ? 'Generando Expediente...' : 'Abrir Expediente DNA'}
+                {submitting ? 'Creando Expediente...' : '✅ Completar y Crear Expediente'}
               </button>
             </div>
           </div>

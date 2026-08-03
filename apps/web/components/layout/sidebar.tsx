@@ -17,6 +17,7 @@ import {
   Database,
   BookOpen,
   ExternalLink,
+  ClipboardList,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,7 +36,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   // Cargos: Secretaria de Desarrollo GAM / Directora DNA Sucre
   ADMINISTRADOR: [
     { label: 'Panel General',        href: '/panel',                     icon: LayoutDashboard },
-    { label: 'Agenda y Citas',       href: '/citas',                     icon: Calendar },
+    { label: 'Agenda y Citas',       href: '/agenda',                    icon: Calendar },
     { label: 'Expedientes',          href: '/casos',                     icon: FileText },
     { label: 'Inicio de caso',      href: '/ingesta-caso',              icon: UserPlus },
     { label: 'Inspecciones',         href: '/inspecciones',              icon: ShieldCheck },
@@ -57,22 +58,22 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   // Cargos: Jefe/a de Defensorías / Coordinadora/or Distrital
   // NO tiene: Config IA, Base Conocimiento, Catálogos, Mantenimiento, Permisos
   JEFATURA: [
-    { label: 'Panel General',        href: '/panel',          icon: LayoutDashboard },
-    { label: 'Agenda y Citas',       href: '/citas',          icon: Calendar },
-    { label: 'Expedientes',          href: '/casos',          icon: FileText },
-    { label: 'Inicio de caso',      href: '/ingesta-caso',   icon: UserPlus },
-    { label: 'Inspecciones',         href: '/inspecciones',   icon: ShieldCheck },
-    { label: 'Reportes GAM',         href: '/reportes',       icon: FileText },
-    { label: 'Balanceo de Equipo',   href: '/equipo',         icon: Users },
-    { label: 'Herramientas',         href: '/herramientas',   icon: ShieldCheck },
-    { label: 'Auditoría',            href: '/auditoria',      icon: ShieldCheck },
+    { label: 'Panel General',              href: '/panel',          icon: LayoutDashboard },
+    { label: 'Agenda y Citas',             href: '/agenda',         icon: Calendar },
+    { label: 'Expedientes',                href: '/casos',          icon: FileText },
+    { label: 'Inicio de caso',             href: '/ingesta-caso',   icon: UserPlus },
+    { label: 'Inspecciones',               href: '/inspecciones',   icon: ShieldCheck },
+    { label: 'Reportes de Inhabilitación', href: '/reportes',       icon: ClipboardList },
+    { label: 'Balanceo de Equipo',         href: '/equipo',         icon: Users },
+    { label: 'Herramientas',               href: '/herramientas',   icon: ShieldCheck },
+    { label: 'Auditoría',                  href: '/auditoria',      icon: ShieldCheck },
   ],
 
   // ─── SECRETARIA ──────────────────────────────────────────────────
   // Cargos: Secretaria/o / Auxiliar Administrativo
   SECRETARIA: [
     { label: 'Panel General',   href: '/panel',        icon: LayoutDashboard },
-    { label: 'Agenda y Citas',  href: '/citas',        icon: Calendar },
+    { label: 'Agenda y Citas',  href: '/agenda',       icon: Calendar },
     { label: 'Inicio de caso', href: '/ingesta-caso', icon: UserPlus },
     { label: 'Inspecciones',    href: '/inspecciones', icon: ShieldCheck },
     { label: 'Expedientes',     href: '/casos',        icon: FileText },
@@ -81,7 +82,6 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   // ─── ABOGADO ─────────────────────────────────────────────────────
   ABOGADO: [
     { label: 'Panel General',        href: '/panel',              icon: LayoutDashboard },
-    { label: 'Agenda y Citas',       href: '/citas',              icon: Calendar },
     { label: 'Mis Casos Asignados',  href: '/casos',              icon: FileText },
     { label: 'Herramientas Legales', href: '/herramientas',       icon: ShieldCheck },
     { label: 'Inspecciones',         href: '/inspecciones',       icon: ShieldCheck },
@@ -91,7 +91,6 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   // ─── PSICOLOGO ───────────────────────────────────────────────────
   PSICOLOGO: [
     { label: 'Panel General',         href: '/panel',             icon: LayoutDashboard },
-    { label: 'Agenda y Citas',        href: '/citas',             icon: Calendar },
     { label: 'Mis Casos Asignados',   href: '/casos',             icon: FileText },
     { label: 'Herramientas Psicológicas', href: '/herramientas',  icon: BrainCircuit },
     { label: 'Indicadores de Riesgo', href: '/riesgo',            icon: ShieldCheck },
@@ -101,7 +100,6 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   // ─── SOCIAL ──────────────────────────────────────────────────────
   SOCIAL: [
     { label: 'Panel General',         href: '/panel',             icon: LayoutDashboard },
-    { label: 'Agenda y Citas',        href: '/citas',             icon: Calendar },
     { label: 'Mis Casos Asignados',   href: '/casos',             icon: FileText },
     { label: 'Herramientas Sociales', href: '/herramientas',      icon: Users },
     { label: 'Directorio Derivación', href: '/derivacion',        icon: Users },
@@ -113,7 +111,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
   // El portal completo está en /portal (ruta separada del dashboard).
   REFERENTE_TUTOR: [
     { label: 'Estado del Caso',    href: '/casos',    icon: FileText },
-    { label: 'Mis Citas',          href: '/citas',    icon: Calendar },
+    { label: 'Mis Citas',          href: '/agenda',   icon: Calendar },
     { label: 'Portal del Tutor',   href: '/portal',   icon: ExternalLink },
   ],
 };
@@ -123,7 +121,7 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
     groupLabel: 'Operación',
     items: [
       { label: 'Panel General',       href: '/panel',        icon: LayoutDashboard },
-      { label: 'Agenda y Citas',      href: '/citas',        icon: Calendar },
+      { label: 'Agenda y Citas',      href: '/agenda',       icon: Calendar },
       { label: 'Expedientes',         href: '/casos',        icon: FileText },
       { label: 'Inicio de caso',     href: '/ingesta-caso', icon: UserPlus },
       { label: 'Inspecciones',        href: '/inspecciones', icon: ShieldCheck },
@@ -134,9 +132,10 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
   {
     groupLabel: 'Gestión Institucional',
     items: [
-      { label: 'Personal & Permisos',  href: '/permisos',    icon: Users },
-      { label: 'Oficinas y Distritos', href: '/oficinas',    icon: Building2 },
-      { label: 'Auditoría Total',      href: '/auditoria',   icon: ShieldCheck },
+      { label: 'Personal & Permisos',        href: '/permisos',    icon: Users },
+      { label: 'Oficinas y Distritos',        href: '/oficinas',    icon: Building2 },
+      { label: 'Auditoría Total',             href: '/auditoria',   icon: ShieldCheck },
+      { label: 'Reportes Inhabilitaciones',   href: '/reportes',    icon: ClipboardList },
     ],
   },
   {

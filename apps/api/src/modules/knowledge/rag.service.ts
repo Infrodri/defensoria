@@ -145,4 +145,41 @@ Responde basándote SOLO en la información anterior de la base de conocimiento 
       );
     }
   }
+
+  /**
+   * Consultar a Ollama SIN contexto RAG (LLM directo).
+   * Usado por herramientas que no necesitan anclarse a la base de conocimiento,
+   * como la traducción de notas clínicas a lenguaje forense.
+   */
+  async queryOllama(systemPrompt: string, userQuery: string): Promise<string> {
+    const { endpoint, model } = await this.getOllamaConfig();
+
+    try {
+      const response = await fetch(`${endpoint}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt: userQuery,
+          system: systemPrompt,
+          stream: false,
+          options: {
+            temperature: 0.3,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error en API Ollama: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      this.logger.error(`Error consultando Ollama: ${error.message}`);
+      throw new BadRequestException(
+        'El servicio de IA local (Ollama) no está disponible. Contacte al administrador.',
+      );
+    }
+  }
 }

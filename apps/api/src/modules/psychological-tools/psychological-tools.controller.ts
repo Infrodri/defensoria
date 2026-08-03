@@ -34,9 +34,9 @@ export class PsychologicalToolsController {
   @ApiOperation({ summary: 'Pre-llenar escalas de riesgo psicológico' })
   async prefillRiskScales(
     @Body() dto: PrefillRiskScalesDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.psychologicalToolsService.prefillRiskScales(dto, userId);
+    return this.psychologicalToolsService.prefillRiskScales(dto, user);
   }
 
   @Post('clinical-translator/translate')
@@ -44,9 +44,9 @@ export class PsychologicalToolsController {
   @ApiOperation({ summary: 'Traducir notas clínicas a lenguaje forense' })
   async translateClinical(
     @Body() dto: TranslateClinicalDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.psychologicalToolsService.translateClinical(dto, userId);
+    return this.psychologicalToolsService.translateClinical(dto, user);
   }
 
   @Post('trauma/analyze')
@@ -54,8 +54,8 @@ export class PsychologicalToolsController {
   @ApiOperation({ summary: 'Análisis de trauma acumulado' })
   async analyzeTrauma(
     @Body() dto: AnalyzeTraumaDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.psychologicalToolsService.analyzeTrauma(dto, userId);
+    return this.psychologicalToolsService.analyzeTrauma(dto, user);
   }
 }

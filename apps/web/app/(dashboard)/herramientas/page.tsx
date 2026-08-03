@@ -1,373 +1,465 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { fetchApi } from '@/lib/api';
 import { getToolsByRole, groupToolsByModule, TOOL_DESCRIPTIONS, canReadTool, canWriteTool } from '@/lib/role-access';
-import { ProtectedTool } from '@/components/common/ProtectedTool';
-import { AlertCircle, Edit2, Lock } from 'lucide-react';
-import { Tooltip } from '@/components/ui/tooltip';
-import { StatusBadge } from '@/components/ui/status-badge';
+import { AlertCircle, ChevronDown, ChevronUp, FileText, BookOpen, Mic, Image as ImageIcon, Lock } from 'lucide-react';
 
-const styles = {
-  container: {
-    maxWidth: '1400px',
-    margin: '0 auto',
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+interface Case {
+  id: string;
+  caseCode: string;
+  caseType: string;
+  parties: Array<{ roleInCase: string; person: { firstName: string; lastName: string } }>;
+}
+
+interface Evidence {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  description?: string;
+  fileSize: number;
+}
+
+interface Report {
+  id: string;
+  title: string;
+  reportType: string;
+  status: string;
+  version: number;
+}
+
+// ─── Constantes de módulo ─────────────────────────────────────────────────────
+
+const MODULE_META: Record<string, { icon: string; title: string; desc: string; color: string }> = {
+  legal: {
+    icon: '⚖️',
+    title: 'Herramientas Legales',
+    desc: 'Análisis de discrepancias, tipicidad penal y plazos procesales para fundamentar acciones jurídicas.',
+    color: '#1E3A5F',
   },
-  header: {
-    marginBottom: '2rem',
-    borderBottom: '2px solid var(--salvia)',
-    paddingBottom: '1rem',
+  psychological: {
+    icon: '🧠',
+    title: 'Herramientas Psicológicas',
+    desc: 'Indicadores de trauma, escalas de riesgo y traducción clínica para evaluar el estado del NNA.',
+    color: '#4A1078',
   },
-  title: {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    color: 'var(--grafito)',
-    marginBottom: '0.5rem',
+  social: {
+    icon: '👥',
+    title: 'Herramientas Sociales',
+    desc: 'Estructura familiar, vulnerabilidad y mapeo ambiental para contextualizar el entorno del NNA.',
+    color: '#065F46',
   },
-  subtitle: {
-    fontSize: '0.95rem',
-    color: '#666',
-  },
-  modulesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-    gap: '2.5rem',
-    alignItems: 'start',
-  },
-  moduleCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-    transition: 'all 0.3s ease',
-    height: 'fit-content',
-  },
-  moduleHeader: {
-    padding: '1.5rem',
-    borderBottom: '2px solid var(--salvia)',
-    backgroundColor: '#f8fafc',
-  },
-  moduleTitle: {
-    fontSize: '1.25rem',
-    fontWeight: 'bold',
-    color: 'var(--salvia)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  moduleIcon: {
-    fontSize: '1.5rem',
-  },
-  toolsList: {
-    padding: '1.5rem',
-  },
-  toolItem: {
-    padding: '1.2rem',
-    marginBottom: '1rem',
-    backgroundColor: '#fafbfc',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0',
-    cursor: 'help',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    position: 'relative' as const,
-  },
-  toolInfo: {
-    flex: 1,
-  },
-  toolName: {
-    fontWeight: '600',
-    color: 'var(--grafito)',
-    marginBottom: '0.3rem',
-  },
-  toolDescription: {
-    fontSize: '0.85rem',
-    color: '#777',
-    lineHeight: '1.4',
-  },
-  permissionBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    fontSize: '0.75rem',
-    padding: '0.4rem 0.6rem',
-    borderRadius: '4px',
-    fontWeight: '600',
-    whiteSpace: 'nowrap',
-  },
-  readOnly: {
-    backgroundColor: '#eef',
-    color: '#0066cc',
-  },
-  readWrite: {
-    backgroundColor: '#efe',
-    color: '#006600',
-  },
-  emptyState: {
-    padding: '2rem',
-    textAlign: 'center' as const,
-    color: '#999',
-  },
-  accessDenied: {
-    backgroundColor: '#fee',
-    border: '2px solid #f99',
-    borderRadius: '10px',
-    padding: '2rem',
-    textAlign: 'center' as const,
-    color: '#c00',
-  },
-  button: {
-    padding: '0.75rem 1.5rem',
-    borderRadius: '6px',
-    border: 'none',
-    backgroundColor: 'var(--salvia)',
-    color: 'white',
-    cursor: 'pointer',
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    marginTop: '1rem',
-    transition: 'all 0.2s ease',
+  transversal: {
+    icon: '🔗',
+    title: 'Herramientas Transversales',
+    desc: 'Línea de tiempo unificada y anonimización para coordinar el trabajo interdisciplinario.',
+    color: '#7C2D12',
   },
 };
 
-interface ToolItemProps {
+// ─── Componente de tarjeta expandible por herramienta ────────────────────────
+
+interface ToolCardProps {
   toolId: string;
   canRead: boolean;
   canWrite: boolean;
 }
 
-function ToolItemComponent({ toolId, canRead, canWrite }: ToolItemProps) {
+function ToolCard({ toolId, canRead, canWrite }: ToolCardProps) {
   const tool = TOOL_DESCRIPTIONS[toolId];
-  
+  const [expanded, setExpanded] = useState(false);
+  const [cases, setCases] = useState<Case[]>([]);
+  const [selectedCaseId, setSelectedCaseId] = useState('');
+  const [evidences, setEvidences] = useState<Evidence[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loadingCases, setLoadingCases] = useState(false);
+  const [loadingCase, setLoadingCase] = useState(false);
+  const [selectedEvidences, setSelectedEvidences] = useState<string[]>([]);
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
+
   if (!tool) return null;
 
-  const tooltipContent = (
-    <div>
-      <strong>{tool.icon} {tool.title}</strong>
-      <br/>
-      <span style={{ fontSize: '13px', opacity: 0.9 }}>{tool.description}</span>
-      <br/><br/>
-      <strong>¿Cómo se usa?</strong>
-      <br/>
-      <span style={{ fontSize: '12px', whiteSpace: 'pre-line', opacity: 0.9 }}>{tool.steps}</span>
-    </div>
-  );
+  const handleExpand = async () => {
+    if (!canRead) return;
+    const next = !expanded;
+    setExpanded(next);
+    if (next && cases.length === 0) {
+      setLoadingCases(true);
+      try {
+        const data = await fetchApi('/cases');
+        setCases(data);
+      } catch {
+        setCases([]);
+      } finally {
+        setLoadingCases(false);
+      }
+    }
+  };
 
-  return (
-    <Tooltip content={tooltipContent} position="right">
-      <div
-        style={{
-          ...styles.toolItem,
-          backgroundColor: canWrite ? '#f0f9f0' : '#f5f5f5',
-          border: canWrite ? '1px solid #90ee90' : '1px solid #e0e0e0',
-          cursor: 'help',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = canWrite ? '#e8f5e8' : '#efefef';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = canWrite ? '#f0f9f0' : '#f5f5f5';
-        }}
-      >
-        <div style={styles.toolInfo}>
-          <div style={styles.toolName}>
-            {tool.icon} {tool.title}
-          </div>
-          <div style={styles.toolDescription}>{tool.description}</div>
-        </div>
-        {!canRead ? (
-          <div style={{ ...styles.permissionBadge, ...styles.readOnly }}>
-            <Lock size={12} />
-            Sin acceso
-          </div>
-        ) : canWrite ? (
-          <div style={{ ...styles.permissionBadge, ...styles.readWrite }}>
-            <Edit2 size={12} />
-            Lectura/Edición
-          </div>
-        ) : (
-          <div style={{ ...styles.permissionBadge, ...styles.readOnly }}>
-            Lectura
-          </div>
-        )}
-      </div>
-    </Tooltip>
-  );
-}
+  const handleSelectCase = async (caseId: string) => {
+    setSelectedCaseId(caseId);
+    setSelectedEvidences([]);
+    setSelectedReports([]);
+    setEvidences([]);
+    setReports([]);
+    if (!caseId) return;
 
-export default function HerramientasPage() {
-  const { user } = useAuth();
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+    setLoadingCase(true);
+    try {
+      const [evs, reps] = await Promise.all([
+        fetchApi(`/evidences/case/${caseId}`).catch(() => []),
+        fetchApi(`/reports/case/${caseId}`).catch(() => []),
+      ]);
+      setEvidences(evs);
+      setReports(reps);
+    } catch {
+      /* empty */
+    } finally {
+      setLoadingCase(false);
+    }
+  };
 
-  if (!user) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.accessDenied}>
-          <AlertCircle size={32} style={{ marginBottom: '1rem', margin: '0 auto 1rem' }} />
-          <p>Debes iniciar sesión para acceder a las herramientas.</p>
-        </div>
-      </div>
-    );
-  }
+  const toggleEvidence = (id: string) =>
+    setSelectedEvidences((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  // DEBUG: Log para verificar role
-  console.log('DEBUG Herramientas - User Role:', user.role);
-  
-  // Obtener herramientas disponibles para el rol
-  const availableTools = getToolsByRole(user.role as any);
-  console.log('DEBUG Herramientas - Available tools:', availableTools);
+  const toggleReport = (id: string) =>
+    setSelectedReports((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  if (availableTools.length === 0) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>🔧 Herramientas de Análisis</h1>
-          <p style={styles.subtitle}>Rol: {user.role}</p>
-        </div>
-        <div style={styles.accessDenied}>
-          <AlertCircle size={32} style={{ marginBottom: '1rem', margin: '0 auto 1rem' }} />
-          <p>Tu rol ({user.role}) no tiene acceso a herramientas de análisis.</p>
-          <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            Contacta con un profesional del equipo especializado.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const selectedCase = cases.find((c) => c.id === selectedCaseId);
+  const nnaPrimary = selectedCase?.parties?.find((p) => p.roleInCase === 'NNA')?.person;
 
-  // Agrupar herramientas por módulo
-  const groupedTools = groupToolsByModule(availableTools as any);
-  console.log('DEBUG Herramientas - Grouped tools:', groupedTools);
-
-  // Obtener información del módulo
-  const getModuleInfo = (module: string) => {
-    const icons: Record<string, string> = {
-      legal: '⚖️',
-      psychological: '🧠',
-      social: '👥',
-      transversal: '🔗',
-    };
-
-    const titles: Record<string, string> = {
-      legal: 'Herramientas Legales',
-      psychological: 'Herramientas Psicológicas',
-      social: 'Herramientas Sociales',
-      transversal: 'Herramientas Transversales',
-    };
-
-    return {
-      icon: icons[module] || '🔧',
-      title: titles[module] || 'Herramientas',
-    };
+  const getMimeIcon = (mime: string) => {
+    if (mime?.startsWith('audio')) return <Mic size={14} color="#6366F1" />;
+    if (mime?.startsWith('image')) return <ImageIcon size={14} color="#F59E0B" />;
+    return <FileText size={14} color="var(--bosque-profundo)" />;
   };
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <h1 style={styles.title}>🔧 Herramientas de Análisis</h1>
-        <p style={styles.subtitle}>
-          Profesional: <strong>{user.firstName} {user.lastName}</strong> • Rol: <strong>{user.role}</strong>
-        </p>
+    <div
+      style={{
+        backgroundColor: 'white',
+        borderRadius: '10px',
+        border: `1px solid ${expanded ? 'var(--salvia)' : '#e2e8f0'}`,
+        overflow: 'hidden',
+        transition: 'border-color 0.2s',
+        marginBottom: '0.75rem',
+        boxShadow: expanded ? '0 4px 16px rgba(0,0,0,0.08)' : 'none',
+      }}
+    >
+      {/* Cabecera clicable */}
+      <button
+        type="button"
+        onClick={handleExpand}
+        disabled={!canRead}
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          padding: '1.1rem 1.25rem',
+          background: 'none',
+          border: 'none',
+          cursor: canRead ? 'pointer' : 'not-allowed',
+          textAlign: 'left',
+          gap: '1rem',
+          opacity: canRead ? 1 : 0.5,
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <span style={{ fontSize: '1.1rem' }}>{tool.icon}</span>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a202c' }}>{tool.title}</span>
+            {/* Badge de permiso */}
+            <span style={{
+              fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '10px',
+              backgroundColor: canWrite ? '#dcfce7' : '#dbeafe',
+              color: canWrite ? '#166534' : '#1e40af',
+              display: 'flex', alignItems: 'center', gap: '0.2rem',
+            }}>
+              {canWrite ? '✏️ Lectura/Edición' : '👁️ Lectura'}
+            </span>
+            {!canRead && (
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '10px', backgroundColor: '#fee2e2', color: '#991b1b' }}>
+                <Lock size={10} style={{ display: 'inline', marginRight: 2 }} /> Sin acceso
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.4 }}>
+            {tool.description}
+          </div>
+        </div>
+        {canRead && (
+          expanded
+            ? <ChevronUp size={18} color="#64748b" style={{ flexShrink: 0, marginTop: '0.2rem' }} />
+            : <ChevronDown size={18} color="#64748b" style={{ flexShrink: 0, marginTop: '0.2rem' }} />
+        )}
+      </button>
+
+      {/* Panel expandido */}
+      {expanded && (
+        <div style={{ borderTop: '1px solid #e2e8f0', padding: '1.25rem', backgroundColor: '#fafbfc' }}>
+          {/* Instrucciones de uso */}
+          <div style={{
+            backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px',
+            padding: '0.875rem 1rem', marginBottom: '1.25rem', fontSize: '0.8rem',
+          }}>
+            <div style={{ fontWeight: 700, color: '#0369a1', marginBottom: '0.375rem' }}>
+              📖 ¿Cómo usar {tool.title}?
+            </div>
+            <div style={{ color: '#0c4a6e', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+              {tool.steps}
+            </div>
+          </div>
+
+          {/* Selector de expediente */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '0.8rem', color: '#374151', marginBottom: '0.4rem' }}>
+              📁 Seleccionar Expediente a Analizar
+            </label>
+            {loadingCases ? (
+              <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '0.5rem' }}>Cargando expedientes...</div>
+            ) : (
+              <select
+                value={selectedCaseId}
+                onChange={(e) => handleSelectCase(e.target.value)}
+                style={{
+                  width: '100%', padding: '0.625rem 0.875rem',
+                  border: '1px solid #d1d5db', borderRadius: '8px',
+                  fontSize: '0.875rem', backgroundColor: 'white',
+                }}
+              >
+                <option value="">— Seleccionar expediente —</option>
+                {cases.map((c) => {
+                  const nna = c.parties?.find((p) => p.roleInCase === 'NNA')?.person;
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.caseCode} {nna ? `· ${nna.firstName} ${nna.lastName}` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+          </div>
+
+          {/* Evidencias e informes del expediente seleccionado */}
+          {selectedCaseId && (
+            <>
+              {loadingCase ? (
+                <div style={{ fontSize: '0.8rem', color: '#64748b', padding: '0.5rem' }}>Cargando datos del expediente...</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                  {/* Evidencias */}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.75rem', color: '#374151', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      🔗 Evidencias del caso ({evidences.length})
+                    </div>
+                    {evidences.length === 0 ? (
+                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>Sin evidencias adjuntas</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxHeight: '160px', overflowY: 'auto' }}>
+                        {evidences.map((ev) => (
+                          <label key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', cursor: 'pointer', padding: '0.25rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedEvidences.includes(ev.id)}
+                              onChange={() => toggleEvidence(ev.id)}
+                              style={{ accentColor: 'var(--salvia)' }}
+                            />
+                            {getMimeIcon(ev.mimeType)}
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {ev.description || ev.fileName}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informes */}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.75rem', color: '#374151', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      📄 Informes del caso ({reports.length})
+                    </div>
+                    {reports.length === 0 ? (
+                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>Sin informes redactados</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxHeight: '160px', overflowY: 'auto' }}>
+                        {reports.map((rep) => (
+                          <label key={rep.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', cursor: 'pointer', padding: '0.25rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedReports.includes(rep.id)}
+                              onChange={() => toggleReport(rep.id)}
+                              style={{ accentColor: 'var(--salvia)' }}
+                            />
+                            <BookOpen size={14} color="var(--bosque-profundo)" />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {rep.title} <span style={{ opacity: 0.6 }}>(v{rep.version} · {rep.status})</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Botón de análisis */}
+              <button
+                type="button"
+                disabled={!canWrite}
+                onClick={() => {
+                  // Navegar al módulo con los parámetros seleccionados
+                  const moduleMap: Record<string, string> = {
+                    legal_discrepancies: '/herramientas/legal?tool=discrepancias',
+                    legal_typicality: '/herramientas/legal?tool=tipicidad',
+                    legal_deadlines: '/herramientas/legal?tool=plazos',
+                    psychological_indicators: '/herramientas/psicologico?tool=indicadores',
+                    psychological_scales: '/herramientas/psicologico?tool=escalas',
+                    psychological_translation: '/herramientas/psicologico?tool=traduccion',
+                    psychological_trauma: '/herramientas/psicologico?tool=trauma',
+                    social_family: '/herramientas/social?tool=familia',
+                    social_vulnerability: '/herramientas/social?tool=vulnerabilidad',
+                    social_environmental: '/herramientas/social?tool=ambiental',
+                    transversal_timeline: '/herramientas/transversal?tool=timeline',
+                    transversal_anonymize: '/herramientas/transversal?tool=anonimizar',
+                  };
+                  const params = new URLSearchParams({
+                    caseId: selectedCaseId,
+                    evidences: selectedEvidences.join(','),
+                    reports: selectedReports.join(','),
+                  });
+                  const base = moduleMap[toolId] || '/herramientas';
+                  window.location.href = `${base}&${params.toString()}`;
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: canWrite ? 'var(--bosque-profundo)' : '#9ca3af',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  cursor: canWrite ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                {canWrite
+                  ? `🚀 Abrir ${tool.title} con este Expediente`
+                  : '🔒 Solo lectura — sin permisos de edición'}
+              </button>
+
+              {!canWrite && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'center' }}>
+                  Podés ver los análisis existentes pero no crear nuevos. Contactá al profesional autorizado.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+
+export default function HerramientasPage() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return (
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '3rem 1rem', textAlign: 'center' }}>
+        <AlertCircle size={40} color="#DC2626" style={{ margin: '0 auto 1rem' }} />
+        <p>Debés iniciar sesión para acceder a las herramientas.</p>
       </div>
+    );
+  }
+
+  const availableTools = getToolsByRole(user.role as any);
+
+  if (availableTools.length === 0) {
+    return (
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '3rem 1rem' }}>
+        <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px', padding: '2rem', textAlign: 'center', color: '#991B1B' }}>
+          <AlertCircle size={40} style={{ margin: '0 auto 1rem' }} />
+          <h2 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Sin acceso a herramientas</h2>
+          <p>Tu rol ({user.role}) no tiene acceso a herramientas de análisis.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const groupedTools = groupToolsByModule(availableTools as any);
+
+  return (
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Header */}
+      <header style={{ marginBottom: '2rem', borderBottom: '2px solid var(--salvia)', paddingBottom: '1rem' }}>
+        <h1 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--bosque-profundo)', margin: 0 }}>
+          🔧 Herramientas de Análisis
+        </h1>
+        <p style={{ color: 'var(--grafito)', marginTop: '0.375rem', fontSize: '0.95rem' }}>
+          Profesional: <strong>{user.firstName} {user.lastName}</strong> · Rol: <strong>{user.role}</strong>
+        </p>
+        <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', backgroundColor: '#f0f8ff', borderLeft: '4px solid var(--salvia)', borderRadius: '6px', fontSize: '0.85rem', color: '#1e3a5f' }}>
+          💡 Hacé clic en cada herramienta para expandirla, seleccionar un expediente y elegir las evidencias o informes que querés analizar. Luego presioná el botón para abrir la herramienta con esos datos pre-cargados.
+        </div>
+      </header>
 
       {/* Módulos */}
-      <div style={styles.modulesContainer}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '2rem', alignItems: 'start' }}>
         {Object.entries(groupedTools).map(([module, tools]) => {
-          // Solo mostrar módulos con herramientas
           if (tools.length === 0) return null;
-
-          const moduleInfo = getModuleInfo(module);
+          const meta = MODULE_META[module];
 
           return (
-            <div key={module} style={styles.moduleCard}>
+            <div
+              key={module}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+              }}
+            >
               {/* Header del módulo */}
-              <div style={styles.moduleHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <Tooltip
-                    content={
-                      <div>
-                        <strong>{moduleInfo.icon} {moduleInfo.title}</strong><br/>
-                        {module === 'legal' && 'Análisis de discrepancias, tipicidad penal y plazos procesales'}
-                        {module === 'psychological' && 'Indicadores de trauma, escalas de riesgo y traducciones clínicas'}
-                        {module === 'social' && 'Mapas familiares, vulnerabilidad y factores ambientales'}
-                        {module === 'transversal' && 'Líneas de tiempo, anonimización y herramientas multidisciplinarias'}
-                      </div>
-                    }
-                    position="bottom"
-                  >
-                    <div style={{ ...styles.moduleTitle, cursor: 'help' }}>
-                      <span style={styles.moduleIcon}>{moduleInfo.icon}</span>
-                      {moduleInfo.title}
-                    </div>
-                  </Tooltip>
-                  <StatusBadge
-                    status="active"
-                    userRole={user.role as any}
-                    toolType={module as any}
-                  />
+              <div style={{
+                padding: '1.25rem 1.5rem',
+                borderBottom: '2px solid var(--salvia)',
+                backgroundColor: '#f8fafc',
+              }}>
+                <div style={{ fontSize: '1.125rem', fontWeight: 700, color: meta.color, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                  <span style={{ fontSize: '1.375rem' }}>{meta.icon}</span>
+                  {meta.title}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.375rem', lineHeight: 1.4 }}>
+                  {meta.desc}
                 </div>
               </div>
 
-              {/* Lista de herramientas */}
-              <div style={styles.toolsList}>
+              {/* Herramientas del módulo */}
+              <div style={{ padding: '1.25rem' }}>
                 {tools.map((toolId) => (
-                  <ToolItemComponent
+                  <ToolCard
                     key={toolId}
                     toolId={toolId}
                     canRead={canReadTool(user.role as any, toolId as any)}
                     canWrite={canWriteTool(user.role as any, toolId as any)}
                   />
                 ))}
-
-                {/* Botón para acceder al módulo */}
-                <button
-                  style={styles.button}
-                  onClick={() => {
-                    const moduleMap: Record<string, string> = {
-                      legal: '/herramientas/legal',
-                      psychological: '/herramientas/psicologico',
-                      social: '/herramientas/social',
-                      transversal: '/herramientas/transversal',
-                    };
-                    window.location.href = moduleMap[module] || '/herramientas';
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--salvia-oscuro)';
-                    e.currentTarget.style.opacity = '0.9';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--salvia)';
-                    e.currentTarget.style.opacity = '1';
-                  }}
-                >
-                  Acceder al Módulo →
-                </button>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Info adicional */}
-      <div
-        style={{
-          marginTop: '2rem',
-          padding: '1.5rem',
-          backgroundColor: '#f0f8ff',
-          borderRadius: '8px',
-          borderLeft: '4px solid var(--salvia)',
-          color: '#333',
-        }}
-      >
-        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: '1.6' }}>
-          <strong>💡 Información:</strong> Las herramientas te permiten realizar análisis especializados sobre casos.
-          Cada herramienta está diseñada para tu rol específico y te proporciona acceso de lectura o lectura/edición
-          según sea apropiado. Contáctanos si necesitas ayuda.
-        </p>
       </div>
     </div>
   );

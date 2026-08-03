@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
+import { EvidenceRagService } from './evidence-rag.service';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -24,9 +25,12 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 @Injectable()
 export class EvidencesService {
+  private readonly logger = new Logger(EvidencesService.name);
+
   constructor(
     private prisma: PrismaService,
     private minioService: MinioService,
+    private evidenceRag: EvidenceRagService,
   ) {}
 
   async uploadEvidence(
@@ -53,6 +57,12 @@ export class EvidencesService {
       throw new NotFoundException('Expediente no encontrado');
     }
 
+    if ((existingCase as any).isDisabled) {
+      throw new BadRequestException(
+        'No se pueden agregar evidencias a un expediente inhabilitado.',
+      );
+    }
+
     // 1. Calculate SHA-256 checksum for chain-of-custody integrity
     const fileHash = crypto.createHash('sha256').update(file.buffer).digest('hex');
 
@@ -70,7 +80,7 @@ export class EvidencesService {
     );
 
     // 4. Save metadata in Evidence table
-    return this.prisma.evidence.create({
+    const evidence = await this.prisma.evidence.create({
       data: {
         caseId,
         uploadedBy: uploadedByUserId,
@@ -83,6 +93,16 @@ export class EvidencesService {
         description: description || null,
       },
     });
+
+    // 5. Disparar pipeline RAG de forma asíncrona (fire-and-forget)
+    //    No bloqueamos la respuesta — el procesamiento ocurre en segundo plano
+    this.evidenceRag
+      .processEvidenceAsync(caseId, evidence.id, file, description)
+      .catch((err) =>
+        this.logger.warn(`[RAG] Pipeline background falló para ${evidence.id}: ${err.message}`)
+      );
+
+    return evidence;
   }
 
   async findByCase(caseId: string) {

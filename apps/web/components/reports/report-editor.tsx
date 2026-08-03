@@ -14,7 +14,19 @@ interface ReportEditorProps {
 
 export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdated }: ReportEditorProps) {
   const { user } = useAuth();
-  const [reportType, setReportType] = useState('INFORME_PSICOLOGICO');
+
+  // Tipo de informe por defecto según rol
+  const defaultReportTypeByRole: Record<string, string> = {
+    ABOGADO:   'INFORME_JURIDICO',
+    PSICOLOGO: 'INFORME_PSICOLOGICO',
+    SOCIAL:    'INFORME_SOCIAL',
+    JEFATURA:  'INFORME_PSICOSOCIAL',
+    ADMINISTRADOR: 'INFORME_PSICOSOCIAL',
+  };
+
+  const [reportType, setReportType] = useState(
+    defaultReportTypeByRole[user?.role ?? ''] || 'INFORME_JURIDICO'
+  );
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [riskAssessment, setRiskAssessment] = useState<'BAJO' | 'MEDIO' | 'ALTO'>('MEDIO');
@@ -240,6 +252,30 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   {previewReport.status === 'BORRADOR' ? 'Revise la vista previa antes de congelar e imprimir el documento.' : 'Documento emitido inmutabilizado listo para impresión u oficialización.'}
                 </p>
               </div>
+              {/* ✕ Botón cerrar siempre visible */}
+              <button
+                type="button"
+                onClick={() => setPreviewReport(null)}
+                title="Cerrar vista previa"
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '6px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '1.125rem',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  marginLeft: '1rem',
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             {/* Printable Preview Area */}
@@ -293,24 +329,44 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
 
             {/* Modal Actions Footer */}
             <div style={{ backgroundColor: 'var(--papel)', padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button
-                onClick={() => setPreviewReport(null)}
-                style={{
-                  padding: '0.625rem 1.25rem',
-                  backgroundColor: 'var(--card)',
-                  color: 'var(--grafito)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  cursor: 'pointer',
+              {/* Botón Modificar: solo visible si el informe es BORRADOR y el autor es el usuario actual */}
+              {previewReport.status === 'BORRADOR' ? (
+                <button
+                  onClick={() => setPreviewReport(null)}
+                  style={{
+                    padding: '0.625rem 1.25rem',
+                    backgroundColor: 'var(--card)',
+                    color: 'var(--grafito)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                  }}
+                >
+                  <Edit3 size={16} /> ✏️ Modificar / Volver a Editar
+                </button>
+              ) : (
+                /* Informe EMITIDO: mensaje informativo en lugar del botón de edición */
+                <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.375rem',
-                }}
-              >
-                <Edit3 size={16} /> ✏️ Modificar / Volver a Editar
-              </button>
+                  gap: '0.5rem',
+                  padding: '0.5rem 0.875rem',
+                  backgroundColor: 'oklch(0.96 0.02 165)',
+                  border: '1px solid var(--salvia)',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--bosque-profundo)',
+                }}>
+                  <Shield size={14} color="var(--salvia)" />
+                  Documento inmutabilizado — no editable
+                </div>
+              )}
 
               <button
                 onClick={handleConfirmEmitAndPrint}
@@ -330,7 +386,12 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   boxShadow: '0 4px 12px oklch(0.4 0.08 165 / 0.3)',
                 }}
               >
-                <Printer size={16} /> {isEmitting ? 'Emitiendo...' : previewReport.status === 'BORRADOR' ? '🖨️ Confirmar, Imprimir e Inmutabilizar' : '🖨️ Imprimir Documento'}
+                <Printer size={16} />
+                {isEmitting
+                  ? 'Emitiendo...'
+                  : previewReport.status === 'BORRADOR'
+                    ? '🖨️ Confirmar, Imprimir e Inmutabilizar'
+                    : '🖨️ Imprimir Documento'}
               </button>
             </div>
 
@@ -338,85 +399,95 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
         </div>
       )}
 
-      {/* Report Form */}
-      <form onSubmit={handleCreateReport} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
-          {complementaryParentId ? 'Nuevo Informe Complementario' : 'Redactar Nuevo Informe Profesional'}
-        </h3>
+      {/* Report Form - SOLO PROFESIONALES (NO SECRETARIA) */}
+      {user?.role !== 'SECRETARIA' && (
+        <form onSubmit={handleCreateReport} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
+            {complementaryParentId ? 'Nuevo Informe Complementario' : 'Redactar Nuevo Informe Profesional'}
+          </h3>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {!complementaryParentId && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {!complementaryParentId && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Informe</label>
+                <select
+                  value={reportType}
+                  onChange={(e) => setReportType(e.target.value)}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  {/* Mostrar solo los tipos correspondientes al rol */}
+                  {(user?.role === 'ABOGADO' || user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
+                    <option value="INFORME_JURIDICO">⚖️ Informe Jurídico (Área Legal)</option>
+                  )}
+                  {(user?.role === 'PSICOLOGO' || user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
+                    <option value="INFORME_PSICOLOGICO">🧠 Informe Psicológico (Área Psicología)</option>
+                  )}
+                  {(user?.role === 'SOCIAL' || user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
+                    <option value="INFORME_SOCIAL">👥 Informe Social (Trabajo Social)</option>
+                  )}
+                  {(user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
+                    <option value="INFORME_PSICOSOCIAL">🔗 Informe Psicosocial Interdisciplinario</option>
+                  )}
+                </select>
+              </div>
+            )}
+
+            {reportType === 'INFORME_PSICOLOGICO' && !complementaryParentId && (              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Evaluación de Nivel de Riesgo del NNA</label>
+                <select
+                  value={riskAssessment}
+                  onChange={(e: any) => setRiskAssessment(e.target.value)}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  <option value="BAJO">Riesgo Bajo (Situación Controlada)</option>
+                  <option value="MEDIO">Riesgo Medio (Requiere Seguimiento)</option>
+                  <option value="ALTO">Riesgo Alto (Protección Inmediata)</option>
+                </select>
+              </div>
+            )}
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Informe</label>
-              <select
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Título del Informe</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ej: Evaluación Psicológica Inicial..."
+                required
                 style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-              >
-                <option value="INFORME_PSICOLOGICO">Informe Psicológico (Área Psicología)</option>
-                <option value="INFORME_SOCIAL">Informe Social (Trabajo Social)</option>
-                <option value="INFORME_JURIDICO">Informe Jurídico (Área Legal)</option>
-                <option value="INFORME_PSICOSOCIAL">Informe Psicosocial Interdisciplinario</option>
-              </select>
+              />
             </div>
-          )}
 
-          {reportType === 'INFORME_PSICOLOGICO' && !complementaryParentId && (
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Evaluación de Nivel de Riesgo del NNA</label>
-              <select
-                value={riskAssessment}
-                onChange={(e: any) => setRiskAssessment(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-              >
-                <option value="BAJO">Riesgo Bajo (Situación Controlada)</option>
-                <option value="MEDIO">Riesgo Medio (Requiere Seguimiento)</option>
-                <option value="ALTO">Riesgo Alto (Protección Inmediata)</option>
-              </select>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Contenido y Dictamen Técnico</label>
+              <textarea
+                rows={8}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Redacte el cuerpo del informe técnico, metodología, hallazgos y recomendaciones..."
+                required
+                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+              />
             </div>
-          )}
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Título del Informe</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ej: Evaluación Psicológica Inicial..."
-              required
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-            />
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                backgroundColor: 'var(--bosque-profundo)',
+                color: 'white',
+                padding: '0.625rem',
+                borderRadius: 'var(--radius)',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {submitting ? 'Guardando...' : complementaryParentId ? '+ Crear Complementario' : '+ Guardar Borrador'}
+            </button>
           </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Contenido y Dictamen Técnico</label>
-            <textarea
-              rows={8}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Redacte el cuerpo del informe técnico, metodología, hallazgos y recomendaciones..."
-              required
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{
-              backgroundColor: 'var(--bosque-profundo)',
-              color: 'white',
-              padding: '0.625rem',
-              borderRadius: 'var(--radius)',
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {submitting ? 'Guardando...' : complementaryParentId ? '+ Crear Complementario' : '+ Guardar Borrador'}
-          </button>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

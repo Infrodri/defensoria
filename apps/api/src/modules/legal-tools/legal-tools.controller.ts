@@ -33,9 +33,9 @@ export class LegalToolsController {
   @ApiOperation({ summary: 'Analizar tipicidad penal del relato' })
   async analyzeTypicality(
     @Body() dto: AnalyzeTypicalityDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.legalToolsService.analyzeTypicality(dto, userId);
+    return this.legalToolsService.analyzeTypicality(dto, user);
   }
 
   @Post('deadlines/calculate')
@@ -43,8 +43,8 @@ export class LegalToolsController {
   @ApiOperation({ summary: 'Calcular vencimientos procesales' })
   async calculateDeadlines(
     @Body() dto: CalculateDeadlineDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.legalToolsService.calculateDeadlines(dto, userId);
+    return this.legalToolsService.calculateDeadlines(dto, user);
   }
 }

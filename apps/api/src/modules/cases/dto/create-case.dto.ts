@@ -105,4 +105,53 @@ export class CreateCaseDto {
   @IsOptional()
   @IsUUID('4', { message: 'ID del denunciado debe ser UUID válido' })
   accusedId?: string;
+
+  // ===== DATOS DEMOGRÁFICOS NNA =====
+  @ApiProperty({
+    description: 'Fecha de nacimiento del NNA (YYYY-MM-DD)',
+    example: '2014-03-14',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Fecha debe estar en formato YYYY-MM-DD' })
+  nnaBirthDate?: string;
+
+  @ApiProperty({
+    description: 'Género del NNA',
+    enum: ['MASCULINO', 'FEMENINO', 'OTRO'],
+    example: 'FEMENINO',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  nnaGender?: string;
+
+  @ApiProperty({
+    description: 'Ciudad de residencia del NNA',
+    example: 'Sucre',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  nnaCity?: string;
+
+  @ApiProperty({
+    description: 'Teléfono de contacto del NNA',
+    example: '71234501',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[\d\s\+\-\(\)]+$/, { message: 'Teléfono no válido' })
+  nnaPhone?: string;
+
+  @ApiProperty({
+    description: 'Dirección de residencia del NNA',
+    example: 'Calle Bolívar #245, Barrio San Roque',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  nnaAddress?: string;
 }

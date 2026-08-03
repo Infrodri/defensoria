@@ -21,8 +21,25 @@ export class SecurityTokenService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
+    // Secretaria y referente tutor nunca acceden a contenido clínico
+    const BLOCKED_ROLES = ['SECRETARIA', 'REFERENTE_TUTOR'];
+    if (BLOCKED_ROLES.includes(user.role)) {
+      throw new UnauthorizedException(
+        'El rol Secretaría no tiene acceso a contenido clínico sensible.',
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(passwordConfirm, user.passwordHash);
     if (!isPasswordValid) {
+      // Registrar intento fallido también
+      await this.auditService.logEvent({
+        userId: user.id,
+        userRole: user.role,
+        action: 'SECURITY_TOKEN_FAILED',
+        entityType: 'User',
+        entityId: user.id,
+        details: { reason: 'Contraseña incorrecta', role: user.role },
+      });
       throw new UnauthorizedException('Contraseña incorrecta. Re-autenticación fallida.');
     }
 
@@ -44,7 +61,7 @@ export class SecurityTokenService {
       action: 'SECURITY_TOKEN_ACTIVATE',
       entityType: 'User',
       entityId: user.id,
-      details: { scopes: ['evidence:read', 'clinical:read'], ttl: '15m' },
+      details: { scopes: ['evidence:read', 'clinical:read'], ttl: '15m', role: user.role },
     });
 
     return {

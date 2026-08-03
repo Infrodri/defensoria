@@ -73,6 +73,12 @@ export class CasesService {
           complainantRelation: dto.complainantRelation || null,
           complainantPhone: dto.complainantPhone || null,
           complainantAddress: dto.complainantAddress || null,
+          // Datos demográficos NNA
+          nnaBirthDate: dto.nnaBirthDate ? new Date(dto.nnaBirthDate) : null,
+          nnaGender: dto.nnaGender ? (dto.nnaGender as any) : null,
+          nnaCity: dto.nnaCity || null,
+          nnaPhone: dto.nnaPhone || null,
+          nnaAddress: dto.nnaAddress || null,
         },
       });
 
@@ -138,9 +144,14 @@ export class CasesService {
   }
 
   async findAll(user: { id: string; role: Role; officeId: string | null }) {
+    const whereClause: any = {
+      isDisabled: false, // NUEVO: Solo mostrar expedientes habilitados
+    };
+
     // Administrador sees all cases across all offices
     if (user.role === Role.ADMINISTRADOR) {
       return this.prisma.case.findMany({
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         include: {
           parties: {
@@ -159,8 +170,10 @@ export class CasesService {
 
     // Jefatura & Secretaria see all cases in their specific office
     if (user.role === Role.JEFATURA || user.role === Role.SECRETARIA) {
+      whereClause.currentOfficeId = user.officeId;
+      
       return this.prisma.case.findMany({
-        where: { currentOfficeId: user.officeId },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         include: {
           parties: {
@@ -178,15 +191,15 @@ export class CasesService {
     }
 
     // Professionals (Abogado, Psicologo, Social) see cases assigned to them (active only)
-    return this.prisma.case.findMany({
-      where: {
-        teamHistory: {
-          some: {
-            userId: user.id,
-            endDate: null,
-          },
-        },
+    whereClause.teamHistory = {
+      some: {
+        userId: user.id,
+        endDate: null,
       },
+    };
+
+    return this.prisma.case.findMany({
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
         parties: {
@@ -392,6 +405,131 @@ export class CasesService {
         message: 'Transferencia masiva completada',
         transferredCount: newAssignments.length,
       };
+    });
+  }
+
+  // NUEVO: Sistema de inhabilitación inmutable
+  async disableCase(caseId: string, reason: string, disabledByUserId: string) {
+    const existingCase = await this.prisma.case.findUnique({ 
+      where: { id: caseId },
+      include: { creator: true, currentOffice: true }
+    });
+    
+    if (!existingCase) {
+      throw new NotFoundException('Expediente no encontrado');
+    }
+
+    if (existingCase.isDisabled) {
+      throw new BadRequestException('El expediente ya está inhabilitado');
+    }
+
+    if (existingCase.isClosed) {
+      throw new BadRequestException('No se puede inhabilitar un expediente cerrado');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create disability report
+      const disabilityReport = await tx.disabilityReport.create({
+        data: {
+          caseId,
+          caseCode: existingCase.caseCode,
+          reason,
+          disabledBy: disabledByUserId,
+        },
+      });
+
+      // 2. Update case status
+      const disabledCase = await tx.case.update({
+        where: { id: caseId },
+        data: {
+          isDisabled: true,
+          disabledAt: new Date(),
+          disabledBy: disabledByUserId,
+          disabledReason: reason,
+          disabledReportId: disabilityReport.id,
+        },
+      });
+
+      // 3. Create audit log
+      await tx.actionLog.create({
+        data: {
+          caseId,
+          authorId: disabledByUserId,
+          actionType: 'OTRO',
+          title: '🚫 Expediente Inhabilitado por Secretaría',
+          content: `El expediente ${existingCase.caseCode} ha sido inhabilitado. Motivo: ${reason}. Esta acción genera un reporte automático para revisión de Jefatura.`,
+          isSigned: true,
+          signedAt: new Date(),
+        },
+      });
+
+      return {
+        case: disabledCase,
+        report: disabilityReport,
+        message: 'Expediente inhabilitado exitosamente. Se generó reporte automático para Jefatura.',
+      };
+    });
+  }
+
+  async getDisabilityReports(user: any) {
+    // Solo Jefatura y Administradores pueden ver reportes
+    if (user.role !== 'JEFATURA' && user.role !== 'ADMINISTRADOR') {
+      throw new BadRequestException('Sin permisos para ver reportes de inhabilitación');
+    }
+
+    const whereClause: any = {};
+    
+    // Jefatura solo ve reportes de su oficina
+    if (user.role === 'JEFATURA' && user.officeId) {
+      whereClause.case = {
+        currentOfficeId: user.officeId,
+      };
+    }
+
+    return this.prisma.disabilityReport.findMany({
+      where: whereClause,
+      include: {
+        case: {
+          select: {
+            id: true,
+            caseCode: true,
+            caseType: true,
+            currentPhase: true,
+            currentOffice: { select: { name: true, code: true } },
+            parties: {
+              where: { isPrimary: true },
+              include: { person: { select: { firstName: true, lastName: true } } },
+            },
+          },
+        },
+        disabler: {
+          select: { firstName: true, lastName: true, role: true },
+        },
+        reviewer: {
+          select: { firstName: true, lastName: true, role: true },
+        },
+      },
+      orderBy: { disabledAt: 'desc' },
+    });
+  }
+
+  async reviewDisabilityReport(reportId: string, reviewedByUserId: string, status: 'APPROVED' | 'REJECTED') {
+    const report = await this.prisma.disabilityReport.findUnique({ 
+      where: { id: reportId },
+      include: { case: true }
+    });
+    
+    if (!report) {
+      throw new NotFoundException('Reporte de inhabilitación no encontrado');
+    }
+
+    return this.prisma.disabilityReport.update({
+      where: { id: reportId },
+      data: {
+        status,
+        reviewedBy: reviewedByUserId,
+        reviewedAt: new Date(),
+      },
     });
   }
 }

@@ -47,8 +47,8 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
         setRecordedBlob(blob);
-        onRecordingComplete(blob, duration);
-
+        // Don't auto-call onRecordingComplete when stopping - only when user explicitly confirms
+        
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -106,6 +106,12 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
     }
   };
 
+  const confirmRecording = () => {
+    if (recordedBlob) {
+      onRecordingComplete(recordedBlob, duration);
+    }
+  };
+
   const discardRecording = () => {
     setRecordedBlob(null);
     setDuration(0);
@@ -140,6 +146,7 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
         <div className="flex gap-2">
           {!isRecording ? (
             <button
+              type="button"
               onClick={startRecording}
               className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
               style={{ fontWeight: 600, border: 'none', cursor: 'pointer' }}
@@ -148,6 +155,7 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
             </button>
           ) : (
             <button
+              type="button"
               onClick={stopRecording}
               className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
               style={{ fontWeight: 600, border: 'none', cursor: 'pointer' }}
@@ -165,6 +173,7 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
           </div>
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={playRecording}
               className="flex items-center gap-1 text-sm px-2 py-1 border rounded hover:bg-gray-100"
               style={{ fontWeight: 600, cursor: 'pointer', backgroundColor: 'white' }}
@@ -172,6 +181,15 @@ export function AudioRecorder({ onRecordingComplete }: AudioRecorderProps) {
               <Play size={14} /> Reproducir
             </button>
             <button
+              type="button"
+              onClick={confirmRecording}
+              className="flex items-center gap-1 text-sm px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+              style={{ fontWeight: 600, cursor: 'pointer' }}
+            >
+              ✅ Confirmar y Usar
+            </button>
+            <button
+              type="button"
               onClick={discardRecording}
               className="flex items-center gap-1 text-sm px-2 py-1 text-red-600 border border-red-200 rounded hover:bg-red-50"
               style={{ fontWeight: 600, cursor: 'pointer', backgroundColor: 'white' }}

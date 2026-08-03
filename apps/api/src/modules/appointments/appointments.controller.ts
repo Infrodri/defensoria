@@ -28,9 +28,13 @@ export class AppointmentsController {
   async findAll(
     @Query('officeId') officeId?: string,
     @Query('onlyMine') onlyMine?: string,
+    @Query('professionalId') professionalId?: string,
+    @Query('specialtyRole') specialtyRole?: string,
+    @Query('date') date?: string,
     @CurrentUser('id') userId?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.appointmentsService.findAll(officeId, userId, onlyMine === 'true');
+    return this.appointmentsService.findAll(officeId, userId, onlyMine === 'true', professionalId, specialtyRole, date, user);
   }
 
   @Patch(':id/status')
@@ -41,6 +45,32 @@ export class AppointmentsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.appointmentsService.updateStatus(id, body.status as any, body.reason);
+  }
+
+  @Patch(':id/respond')
+  @ApiOperation({
+    summary: 'Profesional responde a una propuesta de cita: ACCEPTED, MODIFIED o REJECTED',
+    description:
+      'Solo el profesional asignado puede responder. ' +
+      'ACCEPTED confirma tal cual. MODIFIED cambia fecha/título/lugar. REJECTED cancela la propuesta.',
+  })
+  async respond(
+    @Param('id') id: string,
+    @Body() body: {
+      response: 'ACCEPTED' | 'MODIFIED' | 'REJECTED';
+      scheduledAt?: string;
+      title?: string;
+      location?: string;
+      notes?: string;
+    },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.appointmentsService.respond(id, userId, body.response, {
+      scheduledAt: body.scheduledAt,
+      title: body.title,
+      location: body.location,
+      notes: body.notes,
+    });
   }
 
   @Patch(':id/reassign')

@@ -10,7 +10,25 @@ async function bootstrap() {
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
-  app.enableCors();
+  // Handle preflight requests
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Origin', req.headers.origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With, Origin');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
+  app.enableCors({
+    origin: ['http://localhost:3100', 'http://localhost:3000', 'http://localhost:4100', 'http://localhost:4200'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Origin'],
+    exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
+  });
   app.setGlobalPrefix('api');
 
   app.useGlobalPipes(

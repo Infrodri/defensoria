@@ -43,8 +43,8 @@ export class SocialToolsController {
   @ApiOperation({ summary: 'Mapear factores de riesgo ambiental' })
   async mapEnvironmental(
     @Body() dto: MapEnvironmentalDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: AccessUser,
   ) {
-    return this.socialToolsService.mapEnvironmental(dto, userId);
+    return this.socialToolsService.mapEnvironmental(dto, user);
   }
 }

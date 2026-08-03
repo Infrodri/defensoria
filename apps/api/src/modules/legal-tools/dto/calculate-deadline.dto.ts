@@ -1,7 +1,7 @@
 import { IsUUID, IsString, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-enum EventType {
+export enum EventType {
   MEDIDAS_PROTECCION = 'MEDIDAS_PROTECCION',
   AUDIENCIA = 'AUDIENCIA',
   DENUNCIA = 'DENUNCIA',

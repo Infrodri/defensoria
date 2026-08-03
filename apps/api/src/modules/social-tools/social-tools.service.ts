@@ -6,9 +6,27 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
 import { RAGService } from '../knowledge/rag.service';
+import {
+  extractJson,
+  asString,
+  asStringArray,
+  buildRagQuery,
+} from '../../common/ai/structured-json.util';
 import { GenerateFamilyMapDto } from './dto/generate-family-map.dto';
 import { CalculateVulnerabilityDto } from './dto/calculate-vulnerability.dto';
 import { MapEnvironmentalDto } from './dto/map-environmental.dto';
+
+export interface EnvironmentalFactor {
+  factor: string;
+  descripcion: string;
+  evidenciaTextual: string;
+  severidad: 'BAJO' | 'MEDIO' | 'ALTO';
+}
+
+interface EnvironmentalOutput {
+  factoresRiesgo: EnvironmentalFactor[];
+  recomendaciones: string[];
+}
 
 @Injectable()
 export class SocialToolsService {
@@ -170,44 +188,107 @@ ${transcription.text}`;
     };
   }
 
-  async mapEnvironmental(dto: MapEnvironmentalDto, userId: string) {
+  async mapEnvironmental(dto: MapEnvironmentalDto, user: AccessUser) {
+    // 1. Acceso validado con el usuario real del request (antes AccessUser falso)
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, {
-        id: userId,
-        role: 'SOCIAL',
-      } as any);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
 
-    const transcription = dto.transcriptionId
-      ? await this.prisma.transcription.findUnique({
-          where: { id: dto.transcriptionId },
-        })
-      : null;
+    const transcription = await this.prisma.transcription.findUnique({
+      where: { id: dto.transcriptionId },
+    });
 
     if (!transcription) {
-      return {
-        factoresRiesgo: {
-          hacinamiento: true,
-          consumo: false,
-          desercionEscolar: true,
-        },
-        recomendaciones: [
-          'Análisis de ejemplo — Visita domiciliaria.',
-          'Seguimiento escolar.',
-          'Para análisis real, sube una transcripción de audio.',
-        ],
-      };
+      throw new NotFoundException('Transcripción no encontrada');
     }
 
-    return {
-      factoresRiesgo: {
-        hacinamiento: true,
-        consumo: false,
-        desercionEscolar: true
+    if (!transcription.text || transcription.text.trim().length === 0) {
+      throw new NotFoundException(
+        'La transcripción no tiene contenido de texto para analizar',
+      );
+    }
+
+    // 2. RAG con query derivada del contenido REAL de la transcripción
+    //    (corrige el patrón de string fijo de generateFamilyMap)
+    const contenido = buildRagQuery(transcription.text);
+    const ragQuery = `Factores de riesgo ambientales del hogar y la comunidad, condiciones de vivienda, hacinamiento, consumo, deserción escolar: ${contenido}`;
+    const ragChunks = await this.ragService.searchSimilarChunks(ragQuery, 5);
+
+    const ragContext = this.ragService.buildRAGContext(
+      ragChunks.map((c) => ({
+        content: c.content,
+        documentTitle: c.documentTitle,
+      })),
+    );
+
+    // 3. Prompt → JSON estructurado con evidencia textual por factor
+    const systemPrompt = `Eres un trabajador social experto en intervención familiar y comunitaria y en la Ley 548 (Código Niña, Niño y Adolescente) de Bolivia.
+Tu tarea es analizar la transcripción de una entrevista y identificar factores de riesgo AMBIENTALES presentes en el relato (por ejemplo: hacinamiento, vivienda precaria, consumo de alcohol/drogas en el hogar, deserción escolar, violencia en el barrio, falta de servicios básicos, trabajo infantil, negligencia).
+Reglas:
+- Cada factor debe sustentarse con la EVIDENCIA TEXTUAL del relato (cita o paráfrasis breve).
+- Clasifica la severidad de cada factor como BAJO, MEDIO o ALTO según lo que el relato indique.
+- Tu análisis es un insumo para el informe del trabajador social; no emitas conclusiones definitivas.
+- Devuelve SOLO un objeto JSON válido (sin texto adicional) con esta forma exacta:
+{
+  "factoresRiesgo": [
+    { "factor": "nombre del factor", "descripcion": "descripción breve", "evidenciaTextual": "cita o paráfrasis del relato", "severidad": "BAJO|MEDIO|ALTO" }
+  ],
+  "recomendaciones": ["recomendación 1", "recomendación 2"]
+}
+Si el relato no menciona factores ambientales de riesgo, devuelve "factoresRiesgo": [] con recomendaciones de verificación.`;
+
+    const userQuery = `Analiza esta transcripción e identifica los factores de riesgo ambientales con su evidencia:
+
+${transcription.text}`;
+
+    const analysisText = await this.ragService.queryOllamaWithRAG(
+      userQuery,
+      systemPrompt,
+      ragContext,
+    );
+
+    // 4. Parsear JSON + normalizar (validación de severidad)
+    const fallback: EnvironmentalOutput = { factoresRiesgo: [], recomendaciones: [] };
+    const parsed = extractJson<EnvironmentalOutput>(analysisText, fallback);
+    const parseFallbackUsed = parsed === fallback;
+
+    const factoresRiesgo: EnvironmentalFactor[] = (Array.isArray(parsed.factoresRiesgo)
+      ? parsed.factoresRiesgo
+      : []
+    ).map((f: any) => ({
+      factor: asString(f?.factor),
+      descripcion: asString(f?.descripcion),
+      evidenciaTextual: asString(f?.evidenciaTextual),
+      severidad: ['BAJO', 'MEDIO', 'ALTO'].includes(f?.severidad) ? f.severidad : 'MEDIO',
+    }));
+    const recomendaciones = asStringArray(parsed.recomendaciones);
+
+    const notaMetodologica =
+      'Factores identificados por IA a partir del relato, con su evidencia textual. Insumo para la visita domiciliaria y el informe social; debe ser verificado por el trabajador social.';
+
+    // 5. Persistir el mapeo (traza: input/output/analista/fecha)
+    const saved = await this.prisma.environmentalMapping.create({
+      data: {
+        case: { connect: { id: dto.caseId } },
+        transcription: { connect: { id: dto.transcriptionId } },
+        factoresRiesgo: factoresRiesgo as any,
+        recomendaciones: recomendaciones as any,
+        notaMetodologica,
+        analyst: { connect: { id: user.id } },
       },
-      recomendaciones: ['Visita domiciliaria', 'Intervención escolar']
+    });
+
+    return {
+      id: saved.id,
+      factoresRiesgo,
+      recomendaciones,
+      notaMetodologica,
+      parseFallbackUsed,
+      analyzedAt: saved.analyzedAt.toISOString(),
+      analyzedBy: user.id,
+      ollamaAnalysis: analysisText,
     };
   }
 }
