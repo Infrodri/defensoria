@@ -246,6 +246,50 @@ analyzeLegalDiscrepancies() { }
 
 ---
 
+## 🏗️ CONSOLIDACIÓN DE RUTAS Y EXPEDIENTE DE CASO (`/casos/[id]`)
+
+### 1. **Consolidación y Racionalización de UI**
+- **Eliminación de Paneles Flotantes Duplicados**: Se retiraron los 4 paneles de herramientas flotantes que sobrecargaban la vista individual del caso (`/casos/[id]`).
+- **Separación Limpia de Vistas**:
+  - **Expediente Central (`/casos/[id]`)**: Enfocado exclusivamente en el flujo del expediente del NNA, la bitácora, la asignación de equipo y la emisión de informes oficiales.
+  - **Herramientas Especializadas (`/herramientas/legal`, `/herramientas/psicologico`, `/herramientas/social`)**: Mantienen su acceso independiente desde el menú lateral para ejecutar análisis asistidos por IA (discrepancias, escalas psicométricas, ecomapas familiares).
+
+### 2. **Componentes de Control de Flujo Integrados en el Expediente**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     PAGINA DEL CASO (/casos/[id])                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│ 📌 Tab "Resumen":                                                        │
+│ └─ CaseFlowWidget                                                      │
+│    ├─ Stepper visual de 5 fases (Derivación → Evaluación → ...)        │
+│    ├─ Bloqueadores (ej. "Falta informe de Trabajo Social y Psicología") │
+│    └─ Alerta personal con navegación al tab "Informes"                 │
+│                                                                         │
+│ 👥 Tab "Equipo":                                                        │
+│ └─ InterventionStatusPanel                                             │
+│    ├─ Progreso circular de sesiones por profesional (ej. 4/6)           │
+│    ├─ Configuración inline de plan de sesiones (POST /cases/:id/plan)  │
+│    └─ Badge "Intervención finalizada" al alcanzar 100%                 │
+│                                                                         │
+│ 📑 Tab "Informes":                                                      │
+│ └─ ReportEditor                                                        │
+│    ├─ Emisión e inmutabilidad de informes iniciales y de seguimiento   │
+│    └─ Transición automática de fase al completar informes del equipo    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 3. **Reglas de Automatización de Fases (Backend & UI)**
+1. **Asignación de Equipo (`POST /cases/:id/team`)**:
+   - `DERIVACION` → **`EVALUACION`** (Al guardar al menos un profesional activo).
+2. **Emisión de Informes Iniciales (`POST /reports`)**:
+   - `EVALUACION` → **`SEGUIMIENTO`** (Al emitir y firmar los informes iniciales de todo el equipo asignado).
+3. **Control de Intervenciones**:
+   - `SEGUIMIENTO` → Progreso de sesiones actualizado dinámicamente con cada `INFORME_SESION_SEGUIMIENTO`.
+
+---
+
 ## 📦 ARCHIVOS CREADOS/MODIFICADOS
 
 | Archivo | Cambio | Status |
