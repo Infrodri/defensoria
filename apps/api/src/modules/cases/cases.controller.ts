@@ -111,4 +111,22 @@ export class CasesController {
   async getRecord(@Param('id') id: string, @CurrentUser() user: any) {
     return this.casesService.getRecord(id, user);
   }
+
+  @Post(':id/sessions-plan')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Establecer cantidad de sesiones requeridas para la intervención del profesional en el expediente' })
+  async updateRequiredSessions(
+    @Param('id') caseId: string,
+    @Body('requiredSessions') requiredSessions: number,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.casesService.updateRequiredSessions(caseId, userId, requiredSessions);
+  }
+
+  @Get(':id/intervention-status')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Obtener estado de avance de intervenciones de cada profesional asignado en la fase de Seguimiento' })
+  async getInterventionStatus(@Param('id') caseId: string) {
+    return this.casesService.getInterventionStatus(caseId);
+  }
 }

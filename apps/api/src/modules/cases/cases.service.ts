@@ -723,4 +723,74 @@ export class CasesService {
       };
     });
   }
+
+  async updateRequiredSessions(caseId: string, userId: string, requiredSessions: number) {
+    if (requiredSessions < 1) {
+      throw new BadRequestException('El número de sesiones requeridas debe ser al menos 1');
+    }
+
+    const activeAssignment = await this.prisma.caseTeamHistory.findFirst({
+      where: {
+        caseId,
+        userId,
+        endDate: null,
+      },
+    });
+
+    if (!activeAssignment) {
+      throw new NotFoundException('No tenés una asignación activa en este expediente');
+    }
+
+    const isFinished = activeAssignment.completedSessions >= requiredSessions;
+
+    return this.prisma.caseTeamHistory.update({
+      where: { id: activeAssignment.id },
+      data: {
+        requiredSessions,
+        isInterventionFinished: isFinished,
+      },
+    });
+  }
+
+  async getInterventionStatus(caseId: string) {
+    const caseData = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: { id: true, caseCode: true, currentPhase: true, isClosed: true },
+    });
+
+    if (!caseData) {
+      throw new NotFoundException('Expediente no encontrado');
+    }
+
+    const activeTeam = await this.prisma.caseTeamHistory.findMany({
+      where: {
+        caseId,
+        endDate: null,
+      },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, role: true },
+        },
+      },
+    });
+
+    const isAllFinished = activeTeam.length > 0 && activeTeam.every((m) => m.isInterventionFinished);
+
+    return {
+      caseId: caseData.id,
+      caseCode: caseData.caseCode,
+      currentPhase: caseData.currentPhase,
+      isClosed: caseData.isClosed,
+      isAllInterventionsFinished: isAllFinished,
+      teamMembers: activeTeam.map((member) => ({
+        id: member.id,
+        userId: member.userId,
+        professionalName: `${member.user.firstName} ${member.user.lastName}`,
+        role: member.role,
+        requiredSessions: member.requiredSessions,
+        completedSessions: member.completedSessions,
+        isInterventionFinished: member.isInterventionFinished,
+      })),
+    };
+  }
 }
