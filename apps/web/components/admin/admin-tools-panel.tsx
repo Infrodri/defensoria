@@ -1,7 +1,8 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
+
 import { AlertCircle, CheckCircle, AlertTriangle, Loader, RefreshCw, CheckCheck } from 'lucide-react';
+import { fetchApi } from '../../lib/api';
 
 interface ToolHealth {
   name: string;
@@ -264,27 +265,16 @@ export function AdminToolsPanel() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/tools-admin/health', {
+      const data = await fetchApi('/tools-admin/health', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
-
-      if (!response.ok) throw new Error('Error fetching health data');
-      const data = await response.json();
       setHealth(data);
 
       // Cargar estadísticas también
-      const statusResponse = await fetch('/api/tools-admin/status', {
+      const statusData = await fetchApi('/tools-admin/status', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
-
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
+      if (statusData) {
         setStatistics(statusData.statistics);
       }
     } catch (err: any) {
@@ -299,18 +289,12 @@ export function AdminToolsPanel() {
       setApproving(true);
       setApprovalMessage(null);
 
-      const response = await fetch('/api/tools-admin/approve', {
+      const data = await fetchApi('/tools-admin/approve', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           notes: 'Approved by admin via dashboard',
         }),
       });
-
-      if (!response.ok) throw new Error('Error approving tools');
-      const data = await response.json();
 
       if (data.approved) {
         setApprovalMessage('✅ Herramientas aprobadas exitosamente');
@@ -329,15 +313,9 @@ export function AdminToolsPanel() {
       setTesting(true);
       setError(null);
 
-      const response = await fetch('/api/tools-admin/test-tools', {
+      const data = await fetchApi('/tools-admin/test-tools', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       });
-
-      if (!response.ok) throw new Error('Error running tests');
-      const data = await response.json();
       setTestResults(data);
     } catch (err: any) {
       setError(err.message || 'Error running tests');
