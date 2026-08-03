@@ -4,6 +4,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { MinioModule } from './modules/minio/minio.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SecurityTokenModule } from './modules/security-token/security-token.module';
+import { CaseAccessModule } from './common/case-access/case-access.module';
 import { PersonsModule } from './modules/persons/persons.module';
 import { CasesModule } from './modules/cases/cases.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
@@ -41,6 +42,7 @@ import { ConciliationModule } from './modules/conciliation/conciliation.module';
     }),
     PrismaModule,
     MinioModule,
+    CaseAccessModule,
     AuditModule,
     AuthModule,
     SecurityTokenModule,
