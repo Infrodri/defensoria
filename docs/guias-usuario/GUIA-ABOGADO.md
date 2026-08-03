@@ -92,11 +92,18 @@ ABOGADO evalúa conciliabilidad ← TU RESPONSABILIDAD
 
 ---
 
-## 📋 ACCESO AL SISTEMA
+## 📂 ESTRUCTURA DEL EXPEDIENTE Y FLUJO AUTOMÁTICO
 
-### **URL Principal**: `http://localhost:3100/ingreso`
-### **Credenciales**: Proporcionadas por JEFATURA
-### **Panel Principal**: `http://localhost:3100/herramientas`
+### 1. **Pestaña Resumen (`/casos/[id]`) — Control de Flujo**
+- **`CaseFlowWidget`**: Muestra el progreso del caso a través de las 5 fases (`DERIVACION` → `EVALUACION` → `SEGUIMIENTO` → `CONCILIACION / VIA_JUDICIAL` → `CIERRE`).
+- **Alerta Personal**: Si el caso está en fase `EVALUACION` y aún no emitiste tu `INFORME_JURIDICO`, el widget mostrará un aviso destacado con acceso directo a la pestaña **Informes**.
+
+### 2. **Pestaña Informes (`/casos/[id]`) — Emisión Oficial**
+- Redacción y emisión inmutable del `INFORME_JURIDICO`.
+- **Transición Automática**: Cuando todos los profesionales asignados emiten sus informes iniciales, el caso pasa automáticamente a fase **SEGUIMIENTO**.
+
+### 3. **Módulo de Herramientas Legales (`/herramientas/legal`)**
+- Herramientas especializadas de análisis asistido (discrepancias, tipicidad penal, plazos procesales). Se acceden directamente desde el menú lateral en **Herramientas → Legal**.
 
 ---
 

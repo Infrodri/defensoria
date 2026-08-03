@@ -5,12 +5,17 @@ Como **JEFATURA** (Jefe/a de Defensorías o Coordinador/a Distrital), tu trabajo
 
 ---
 
-## 📋 ACCESO AL SISTEMA
+## ⚡ AUTOMATIZACIÓN DE FASES Y SUPERVISIÓN DE CASOS
 
-### **URL Principal**: `http://localhost:3100/ingreso`
-### **Credenciales**: Proporcionadas por ADMINISTRADOR
-### **Panel Principal**: `http://localhost:3100/panel`
-### **Herramientas**: `http://localhost:3100/herramientas`
+### 1. **Asignación de Equipo y Avance a EVALUACION**
+- En la pestaña **Equipo** del caso (`/casos/[id]`), al asignar a los profesionales responsables (Abogado, Psicólogo, Trabajador Social), el sistema transiciona automáticamente el caso de `DERIVACION` a **`EVALUACION`**.
+
+### 2. **Supervisión de Informes Iniciales y Avance a SEGUIMIENTO**
+- En la pestaña **Resumen**, el widget `CaseFlowWidget` muestra en tiempo real qué profesionales ya emitieron su informe y cuáles están pendientes.
+- Cuando los 3 profesionales del equipo emiten sus informes, el backend avanza automáticamente el expediente a **`SEGUIMIENTO`**.
+
+### 3. **Monitoreo de Intervenciones (`InterventionStatusPanel`)**
+- En la pestaña **Equipo**, Jefatura puede supervisar en tiempo real el plan de sesiones configurado por Psicología y Trabajo Social, así como el porcentaje circular de avance (`sesiones completadas / requeridas`).
 
 ---
 

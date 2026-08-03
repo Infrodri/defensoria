@@ -1,4 +1,4 @@
-﻿# 📋 FLUJO COMPLETO - CASO REAL PASO A PASO
+# 📋 FLUJO COMPLETO - CASO REAL PASO A PASO
 
 ## 🎯 OBJETIVO
 Guía completa para registrar y trabajar un caso real desde la denuncia inicial hasta el cierre, utilizando todas las herramientas de la plataforma según corresponde a cada rol.
@@ -87,97 +87,87 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 2. Registrar información del denunciante
 3. **GUARDAR CASO**
 
-### **⚠️ IMPORTANTE - CUMPLIMIENTO LEGAL (Art. 25, Ordenanza 136/03):**
+### **⚠️ IMPORTANTE - ASIGNACIÓN Y AUTOMATIZACIÓN DE FASE:**
 ```
-🔴 SECRETARIA hace INGRESO BÁSICO solamente
-🟢 TRABAJADOR SOCIAL debe elaborar la FICHA SOCIAL
-📋 El caso queda en fase DERIVACION hasta completar ficha social
+🔴 SECRETARIA realiza el INGRESO BÁSICO del expediente
+🟢 JEFATURA asigna el Equipo Interdisciplinario en la pestaña "Equipo" del expediente
+📋 Al asignar al menos un profesional activo, el sistema avanza automáticamente el caso a fase "EVALUACION"
 ```
 
 ### **RESULTADO FASE 2:**
 ```
-✅ Caso creado con número único
-✅ NNA registrado en el sistema  
-✅ Fase: "DERIVACION" (pendiente de ficha social)
-✅ Documentos básicos adjuntados
-⏳ Esperando validación por TRABAJADOR SOCIAL
+✅ Caso creado con número único de expediente
+✅ NNA y partes registradas en el sistema  
+✅ Fase inicial: "DERIVACION"
+✅ Documentos de prueba o respaldos adjuntados
+⏳ Esperando asignación de equipo por JEFATURA
 ```
 
 ---
 
-## 2️⃣-B **FASE 2B: FICHA SOCIAL (OBLIGATORIA)**
-
-### **Rol**: SOCIAL (Trabajador Social)
-### **URL**: `http://localhost:3100/casos/[id]/ficha-social`
-### **Tiempo estimado**: 45-60 minutos
-### **Marco Legal**: Art. 25, Ordenanza Municipal 136/03
-
-### **PASOS DETALLADOS:**
-
-#### **Paso 2B.1: Acceder al Caso**
-1. El TRABAJADOR SOCIAL ve casos en fase DERIVACION
-2. Click en el caso recién ingresado por SECRETARIA
-3. Click en **"Completar Ficha Social"**
-
-#### **Paso 2B.2: Completar Ficha Social**
-La ficha social incluye:
-
-```
-📋 SECCIÓN 1: DATOS DE LA ENTREVISTA
-   - Fecha de entrevista
-   - Lugar de entrevista
-   - Profesional responsable (automático)
-
-📋 SECCIÓN 2: DESCRIPCIÓN DEL HECHO
-   - Descripción detallada del incidente
-   - Lugar del incidente
-   - Fecha del incidente (si se conoce)
-   - Testigos presenciales
-
-📋 SECCIÓN 3: EVALUACIÓN SOCIAL
-   - Estructura familiar (composición, relaciones)
-   - Situación socioeconómica
-   - ⚠️ ¿Existe peligro inmediato para el NNA?
-   - Nivel de peligro: BAJO/MEDIO/ALTO
-
-📋 SECCIÓN 4: OBSERVACIONES PROFESIONALES
-   - Observaciones desde la perspectiva del trabajo social
-   - Recomendaciones iniciales
-```
-
-#### **Paso 2B.3: Completar y Enviar**
-1. Revisar toda la información
-2. Click **"Completar y Enviar"**
-3. **Sistema automáticamente:**
-   - Marca la ficha como completada
-   - **Avanza el caso a fase "EVALUACION"**
-   - Registra acción en el log del caso
-   - Notifica a JEFATURA que el caso está listo
-
-### **⚠️ GARANTÍA LEGAL:**
-```
-✅ Cumple Art. 25: Trabajador Social elabora ficha social
-✅ Separación de roles: SECRETARIA (ingreso) ≠ SOCIAL (ficha profesional)
-✅ El caso NO avanza sin validación del Trabajador Social
-```
-
-### **RESULTADO FASE 2B:**
-```
-✅ Ficha social completada por profesional
-✅ Caso avanza automáticamente a fase "EVALUACION"
-✅ Caso listo para asignación de equipo interdisciplinario
-✅ Trazabilidad: Quién, cuándo, qué información validó
-```
-
----
-
-## 3️⃣ **FASE 3: DERIVACIÓN Y ASIGNACIÓN**
+## 3️⃣ **FASE 3: ASIGNACIÓN DE EQUIPO Y FASE EVALUACIÓN**
 
 ### **Rol**: JEFATURA o ADMINISTRADOR
-### **URL**: `http://localhost:3100/casos` (lista de casos)
-### **Tiempo estimado**: 10-15 minutos por caso
+### **URL**: `http://localhost:3100/casos/[id]` (Tab *Equipo*)
+### **Tiempo estimado**: 5-10 minutos por caso
 
 ### **PASOS DETALLADOS:**
+
+#### **Paso 3.1: Asignación de Profesionales**
+1. Acceder al expediente del caso y seleccionar la pestaña **"Equipo"**.
+2. Click en **"Asignar Profesionales"**.
+3. Seleccionar los profesionales del equipo interdisciplinario:
+   - **Abogado responsable** (Área Legal)
+   - **Psicólogo responsable** (Área Psicológica)  
+   - **Trabajador Social responsable** (Área Social)
+4. Guardar la asignación.
+
+#### **Paso 3.2: Transición Automática de Fase**
+1. El backend verifica la incorporación del equipo.
+2. **El estado del caso avanza automáticamente de `DERIVACION` a `EVALUACION`.**
+3. En la pestaña **"Resumen"**, el widget de línea de tiempo `CaseFlowWidget` muestra el estado actualizado y destaca las tareas pendientes por disciplina.
+
+---
+
+## 3️⃣-B **FASE 3B: INFORMES DE EVALUACIÓN Y SEGUIMIENTO AUTOMÁTICO**
+
+### **Rol**: ABOGADO, PSICÓLOGO, TRABAJADOR SOCIAL
+### **URL**: `http://localhost:3100/casos/[id]` (Tab *Informes*)
+
+#### **Paso 3B.1: Notificación de Tareas Pendientes**
+- Al ingresar al caso, cada profesional asignado ve una alerta destacada en el **`CaseFlowWidget`** (Tab *Resumen*):
+  - *"Tu informe inicial aún no fue presentado. El caso no puede avanzar a la fase de Seguimiento."*
+- Un botón directo en la alerta redirige al tab **"Informes Profesionales"**.
+
+#### **Paso 3B.2: Emisión e Inmutabilidad de Informes**
+1. Cada profesional redacta y emite su informe correspondiente:
+   - Trabajador Social: `INFORME_SOCIAL`
+   - Psicólogo: `INFORME_PSICOLOGICO`
+   - Abogado: `INFORME_JURIDICO`
+2. Al pulsar **"Emitir Informe"**, el documento queda firmado e inmutable.
+
+#### **Paso 3B.3: Transición Automática a Seguimiento**
+1. Cuando todos los profesionales activos del equipo presentan sus informes de evaluación inicial, el sistema transiciona el expediente **automáticamente de `EVALUACION` a `SEGUIMIENTO`**.
+2. Se habilita en la pestaña **"Equipo"** el panel de avance en tiempo real **`InterventionStatusPanel`**.
+
+---
+
+## 3️⃣-C **FASE 3C: PLANIFICACIÓN Y SEGUIMIENTO DE INTERVENCIONES**
+
+### **Rol**: PSICÓLOGO, TRABAJADOR SOCIAL
+### **URL**: `http://localhost:3100/casos/[id]` (Tab *Equipo*)
+
+#### **Paso 3C.1: Definición del Plan de Sesiones**
+1. En la pestaña **"Equipo"**, ubicar la tarjeta del profesional.
+2. Click en **"Definir sesiones"** (o "Actualizar sesiones").
+3. Ingresar la cantidad de sesiones planificadas (ej. 6 sesiones de terapia/acompañamiento).
+4. Guardar. El sistema registra el plan mediante `POST /cases/:id/sessions-plan`.
+
+#### **Paso 3C.2: Control del Progreso de Sesiones**
+1. Con cada informe de sesión registrado (`INFORME_SESION_SEGUIMIENTO`), el sistema incrementa las sesiones completadas.
+2. El anillo circular en **`InterventionStatusPanel`** actualiza visualmente el porcentaje de progreso (`completadas / requeridas`).
+3. Al alcanzar el 100% de sesiones planificadas, el sistema marca el badge **"Intervención finalizada"** para ese profesional.
+
 
 #### **Paso 3.1: Revisión de Caso Nuevo**
 1. Ir a **"Casos"** → Filtrar por fase **"EVALUACION"**

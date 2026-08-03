@@ -5,11 +5,24 @@ Como **PSICÓLOGO** en la Defensoría de la Niñez y Adolescencia, tu trabajo se
 
 ---
 
-## 📋 ACCESO AL SISTEMA
+## 📂 ESTRUCTURA DEL EXPEDIENTE Y SEGUIMIENTO EN TIEMPO REAL
 
-### **URL Principal**: `http://localhost:3100/ingreso`
-### **Credenciales**: Proporcionadas por JEFATURA
-### **Panel Principal**: `http://localhost:3100/herramientas`
+### 1. **Pestaña Resumen (`/casos/[id]`) — Control de Flujo**
+- **`CaseFlowWidget`**: Muestra la fase actual del caso (`DERIVACION` → `EVALUACION` → `SEGUIMIENTO` → `CONCILIACION / VIA_JUDICIAL` → `CIERRE`).
+- **Alerta Personal**: Si el caso está en fase `EVALUACION` y aún no presentaste tu `INFORME_PSICOLOGICO` o `INFORME_PSICOSOCIAL`, el widget emitirá un aviso destacado con enlace directo a la pestaña **Informes**.
+
+### 2. **Pestaña Equipo (`/casos/[id]`) — Plan y Control de Sesiones**
+- **`InterventionStatusPanel`**: 
+  - Define tu plan de acompañamiento psicológico mediante la opción **"Definir sesiones"** (ej. 6 u 8 sesiones requeridas).
+  - Anillo circular animado que grafica el porcentaje de avance (`sesiones completadas / requeridas`).
+  - Al completar el total de sesiones registradas en tus informes de seguimiento (`INFORME_SESION_SEGUIMIENTO`), el sistema marcará automáticamente la intervención como finalizada.
+
+### 3. **Pestaña Informes (`/casos/[id]`) — Emisión de Informes**
+- Emisión inmutable del `INFORME_PSICOLOGICO` o `INFORME_PSICOSOCIAL` de evaluación inicial.
+- Emisión de `INFORME_SESION_SEGUIMIENTO` tras cada sesión efectuada.
+
+### 4. **Módulo de Herramientas Psicológicas (`/herramientas/psicologico`)**
+- Herramientas especializadas de análisis clínico (indicadores de trauma, prellenado de escalas de riesgo, traductor clínico). Acceso directo desde el menú lateral en **Herramientas → Psicología**.
 
 ---
 

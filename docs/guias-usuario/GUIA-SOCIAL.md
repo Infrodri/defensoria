@@ -5,11 +5,24 @@ Como **TRABAJADOR SOCIAL** en la Defensoría de la Niñez y Adolescencia, tu tra
 
 ---
 
-## 📋 ACCESO AL SISTEMA
+## 📂 ESTRUCTURA DEL EXPEDIENTE Y SEGUIMIENTO EN TIEMPO REAL
 
-### **URL Principal**: `http://localhost:3100/ingreso`
-### **Credenciales**: Proporcionadas por JEFATURA
-### **Panel Principal**: `http://localhost:3100/herramientas`
+### 1. **Pestaña Resumen (`/casos/[id]`) — Control de Flujo**
+- **`CaseFlowWidget`**: Muestra la fase actual del caso (`DERIVACION` → `EVALUACION` → `SEGUIMIENTO` → `CONCILIACION / VIA_JUDICIAL` → `CIERRE`).
+- **Alerta Personal**: Si el caso está en fase `EVALUACION` y aún no presentaste tu `INFORME_SOCIAL`, el widget mostrará un aviso destacado con enlace directo a la pestaña **Informes**.
+
+### 2. **Pestaña Equipo (`/casos/[id]`) — Plan y Control de Intervenciones**
+- **`InterventionStatusPanel`**: 
+  - Define tu plan de acompañamiento y visitas familiares mediante la opción **"Definir sesiones"** (ej. 4 a 6 intervenciones requeridas).
+  - Anillo circular animado con el porcentaje de avance (`intervenciones completadas / requeridas`).
+  - Al completar el total de visitas/intervenciones registradas en tus informes de seguimiento (`INFORME_SESION_SEGUIMIENTO`), el sistema marcará automáticamente la intervención como finalizada.
+
+### 3. **Pestaña Informes (`/casos/[id]`) — Emisión de Informes**
+- Emisión inmutable del `INFORME_SOCIAL` de evaluación inicial.
+- Emisión de `INFORME_SESION_SEGUIMIENTO` tras cada visita o intervención efectuada.
+
+### 4. **Módulo de Herramientas Sociales (`/herramientas/social`)**
+- Herramientas especializadas de análisis familiar (generador de mapa familiar, ecomapa de redes, guía de visitas domiciliarias). Acceso directo desde el menú lateral en **Herramientas → Social**.
 
 ---
 
