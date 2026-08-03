@@ -167,12 +167,11 @@ ${transcription.text}`;
     return recs.slice(0, 3);
   }
 
-  async calculateVulnerability(dto: CalculateVulnerabilityDto, userId: string) {
+  async calculateVulnerability(dto: CalculateVulnerabilityDto, user: AccessUser) {
+    // FIX 5 (Fase 0): validar acceso con el usuario REAL (con su role real).
+    // Antes se fabricaba un rol hardcodeado ({ role: 'SOCIAL' }).
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, {
-        id: userId,
-        role: 'SOCIAL',
-      } as any);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }

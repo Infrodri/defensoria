@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
 import { CreateQuestionnnaireTemplateDto } from './dto/create-questionnaire-template.dto';
 import { CreateResponseDto } from './dto/create-response.dto';
 import { QuestionnaireCategory, QuestionType } from '@prisma/client';
@@ -86,7 +86,7 @@ export class QuestionnairesService {
   /**
    * Crear respuesta a un cuestionario (vinculada a expediente)
    */
-  async createResponse(dto: CreateResponseDto, userId: string) {
+  async createResponse(dto: CreateResponseDto, user: AccessUser) {
     // Validar que el cuestionario existe
     const template = await this.prisma.questionnaireTemplate.findUnique({
       where: { id: dto.templateId },
@@ -96,9 +96,10 @@ export class QuestionnairesService {
       throw new NotFoundException('Cuestionario no encontrado');
     }
 
-    // Validar acceso al caso
+    // FIX 5 (Fase 0): validar acceso con el usuario REAL (con su role real),
+    // sin fabricar un rol hardcodeado como antes ({ role: 'ABOGADO' }).
     try {
-      await this.caseAccessService.assertUserHasAccess(dto.caseId, { id: userId, role: 'ABOGADO' } as any);
+      await this.caseAccessService.assertUserHasAccess(dto.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
@@ -121,7 +122,7 @@ export class QuestionnairesService {
         templateId: dto.templateId,
         caseId: dto.caseId,
         appointmentId: dto.appointmentId,
-        respondentId: userId,
+        respondentId: user.id,
         notes: dto.notes,
         status: 'PENDIENTE',
         answers: {
@@ -335,7 +336,7 @@ export class QuestionnairesService {
   /**
    * Cambiar estado de respuesta a REVISADA (por supervisor)
    */
-  async markAsReviewed(responseId: string, userId: string) {
+  async markAsReviewed(responseId: string, user: AccessUser) {
     const response = await this.prisma.questionnaireResponse.findUnique({
       where: { id: responseId },
     });
@@ -344,9 +345,10 @@ export class QuestionnairesService {
       throw new NotFoundException('Respuestas no encontradas');
     }
 
-    // Validar acceso al caso
+    // FIX 5 (Fase 0): validar acceso con el usuario REAL (con su role real),
+    // sin fabricar un rol hardcodeado como antes ({ role: 'ABOGADO' }).
     try {
-      await this.caseAccessService.assertUserHasAccess(response.caseId, { id: userId, role: 'ABOGADO' } as any);
+      await this.caseAccessService.assertUserHasAccess(response.caseId, user);
     } catch (error) {
       throw new ForbiddenException('No tienes acceso a este expediente');
     }
