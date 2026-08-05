@@ -7,12 +7,13 @@ Como **JEFATURA** (Jefe/a de Defensorías o Coordinador/a Distrital), tu trabajo
 
 ## ⚡ AUTOMATIZACIÓN DE FASES Y SUPERVISIÓN DE CASOS
 
-### 1. **Asignación de Equipo y Avance a EVALUACION**
-- En la pestaña **Equipo** del caso (`/casos/[id]`), al asignar a los profesionales responsables (Abogado, Psicólogo, Trabajador Social), el sistema transiciona automáticamente el caso de `DERIVACION` a **`EVALUACION`**.
+### 1. **Asignación de Equipo**
+- En la pestaña **Equipo** del caso (`/casos/[id]`), asigna a los profesionales responsables (Abogado/a, Psicólogo/a, Trabajador/a Social).
+- La asignación **no cambia la fase del caso**: el expediente permanece en `DERIVACION` hasta que el/la Trabajador/a Social completa la **ficha social** (Art. 25, Ordenanza 136/03), que es lo que transiciona el caso a **`EVALUACION`**.
 
 ### 2. **Supervisión de Informes Iniciales y Avance a SEGUIMIENTO**
 - En la pestaña **Resumen**, el widget `CaseFlowWidget` muestra en tiempo real qué profesionales ya emitieron su informe y cuáles están pendientes.
-- Cuando los 3 profesionales del equipo emiten sus informes, el backend avanza automáticamente el expediente a **`SEGUIMIENTO`**.
+- Cuando los profesionales asignados emiten sus informes iniciales, el backend avanza automáticamente el expediente a **`SEGUIMIENTO`**.
 
 ### 3. **Monitoreo de Intervenciones (`InterventionStatusPanel`)**
 - En la pestaña **Equipo**, Jefatura puede supervisar en tiempo real el plan de sesiones configurado por Psicología y Trabajo Social, así como el porcentaje circular de avance (`sesiones completadas / requeridas`).
@@ -34,36 +35,41 @@ Como **JEFATURA** (Jefe/a de Defensorías o Coordinador/a Distrital), tu trabajo
 - Coordinación interdisciplinaria
 
 ### **3. SUPERVISIÓN DE HERRAMIENTAS**
-- Acceso completo a todas las herramientas del sistema
+- Acceso a las herramientas de todas las disciplinas (según la intención del frontend)
 - Supervisión de uso apropiado por parte del equipo
 - Validación de análisis complejos
 - Autorización de acciones especiales
 
 ---
 
-## 🔧 HERRAMIENTAS DISPONIBLES (ACCESO COMPLETO)
+## 🔧 HERRAMIENTAS DISPONIBLES (12 VISIBLES EN EL HUB)
 
-Como JEFATURA tienes acceso a **TODAS las herramientas** de los diferentes roles:
+Como JEFATURA, el frontend (`role-access.ts`) te otorga **lectura y escritura sobre las 12 herramientas visibles** del hub `/herramientas` (3 legales, 4 psicológicas, 3 sociales y 2 transversales):
 
 ### **📊 HERRAMIENTAS LEGALES** (Supervisión de trabajo de ABOGADOS)
 - ✅ Análisis de Discrepancias
-- ✅ Análisis de Tipicidad Penal  
-- ✅ Cálculo de Plazos Procesales
+- ✅ Tipicidad Penal
+- ✅ Vencimientos Procesales
 
 ### **🧠 HERRAMIENTAS PSICOLÓGICAS** (Supervisión de trabajo de PSICÓLOGOS)
-- ✅ Extracción de Indicadores de Trauma
-- ✅ Prellenado de Escalas de Riesgo
-- ✅ Traductor Clínico
-- ✅ Análisis Integral de Trauma
+- ✅ Indicadores de Trauma
+- ✅ Escalas de Riesgo
+- ✅ Traducción Clínica
+- ✅ Análisis de Trauma
 
 ### **🏠 HERRAMIENTAS SOCIALES** (Supervisión de trabajo de TRABAJADORES SOCIALES)
-- ✅ Generación de Mapa Familiar
-- ✅ Cálculo de Vulnerabilidad Social
+- ✅ Estructura Familiar
+- ✅ Evaluación Vulnerabilidad
 - ✅ Mapeo Ambiental
 
 ### **🔄 HERRAMIENTAS TRANSVERSALES** (Para coordinación general)
 - ✅ Línea de Tiempo Unificada
-- ✅ Anonimizador de Reportes
+- ✅ Reporte Anonimizado
+
+> ⚠️ **Intención del frontend vs backend**: la UI muestra JEFATURA con permisos de lectura/escritura sobre estas herramientas, pero el **backend rechaza con `403`** los análisis de disciplina (legal, psicológica y social) porque exigen el rol de esa disciplina o `ADMINISTRADOR` (vía `@Roles` en los controllers). Es una desalineación conocida entre front y back, con bugfix de autorización planificado como follow-up — ante un `403`, deriva el análisis al profesional de la especialidad.
+
+### 🗂️ MENÚ LATERAL (9 ÍTEMS)
+El sidebar de JEFATURA muestra **9 ítems**: Panel General, Agenda y Citas, Expedientes, Inicio de caso, Inspecciones, Reportes, Balanceo de Equipo, Herramientas y Auditoría. No incluye los ítems de administración del sistema (Config IA, Base de Conocimiento, Catálogos, Mantenimiento, Permisos), reservados a ADMINISTRADOR.
 
 ---
 
@@ -87,7 +93,7 @@ Como JEFATURA tienes acceso a **TODAS las herramientas** de los diferentes roles
 **Tiempo estimado**: 15-30 minutos por caso
 
 **Proceso de asignación**:
-1. Acceder a casos "PENDIENTE_ASIGNACIÓN"
+1. Acceder a casos en fase `DERIVACION`
 2. Evaluar complejidad y tipo de caso:
    - **Legal predominante** → Asignar a ABOGADO disponible
    - **Psicológico predominante** → Asignar a PSICÓLOGO disponible  
@@ -284,4 +290,4 @@ Garantizar un servicio de protección de derechos de calidad, oportuno y efectiv
 4. **Mejora continua** de procesos y resultados
 5. **Desarrollo profesional** constante del equipo
 
-**¿Dudas sobre gestión o herramientas?** Como JEFATURA tienes acceso completo a todas las funcionalidades y soporte prioritario del sistema.
+**¿Dudas sobre gestión o herramientas?** Como JEFATURA tienes acceso amplio a las herramientas del sistema y soporte prioritario. Ante un `403` en un análisis de disciplina, deriva el análisis al profesional de esa especialidad.
