@@ -256,6 +256,72 @@ export class ReportsService {
     });
   }
 
+  /**
+   * Asigna el coautor de un informe psicosocial (cierra el GAP Fase 2: coAuthorId
+   * se validaba en emit() pero ningún endpoint lo escribía).
+   *
+   * Reglas:
+   * - Solo el autor del borrador (o JEFATURA/ADMINISTRADOR) puede asignar coautor.
+   * - El informe debe estar en estado BORRADOR (no EMITIDO).
+   * - Solo aplica a la categoría INFORME_PSICOSOCIAL.
+   * - El coautor debe existir, ser distinto del autor y su rol debe ser
+   *   complementario: el conjunto {autor.role, coautor.role} debe ser
+   *   EXACTAMENTE {PSICOLOGO, SOCIAL} (misma regla que emit()).
+   */
+  async assignCoAuthor(reportId: string, coAuthorId: string, requestingUserId: string, requestingUserRole: Role) {
+    const report = await this.prisma.report.findUnique({
+      where: { id: reportId },
+      include: {
+        disciplineReportType: { select: { category: true } },
+        author: { select: { role: true } },
+      },
+    });
+    if (!report) {
+      throw new NotFoundException('Informe no encontrado');
+    }
+
+    if (
+      report.authorId !== requestingUserId &&
+      requestingUserRole !== Role.JEFATURA &&
+      requestingUserRole !== Role.ADMINISTRADOR
+    ) {
+      throw new ForbiddenException('Solo el autor del informe puede asignar el coautor');
+    }
+
+    if (report.status === ReportStatus.EMITIDO) {
+      throw new BadRequestException('El informe ya fue emitido; no se puede modificar la coautoría');
+    }
+
+    if (report.disciplineReportType?.category !== ReportCategory.INFORME_PSICOSOCIAL) {
+      throw new BadRequestException('Solo los informes psicosociales admiten coautoría');
+    }
+
+    if (report.authorId === coAuthorId) {
+      throw new BadRequestException('El coautor no puede ser la misma persona que el autor');
+    }
+
+    const coAuthor = await this.prisma.user.findUnique({
+      where: { id: coAuthorId },
+      select: { role: true },
+    });
+    if (!coAuthor) {
+      throw new NotFoundException('Usuario coautor no encontrado');
+    }
+
+    const authorRole = report.author?.role as Role | undefined;
+    const coAuthorRole = coAuthor.role as Role;
+    const roles = new Set<Role | undefined>([authorRole, coAuthorRole]);
+
+    if (roles.size !== 2 || !roles.has(Role.PSICOLOGO) || !roles.has(Role.SOCIAL)) {
+      throw new BadRequestException('La coautoría psicosocial requiere un equipo PSICOLOGO + SOCIAL');
+    }
+
+    return this.prisma.report.update({
+      where: { id: reportId },
+      data: { coAuthorId },
+    });
+  }
+
   async createComplementary(parentReportId: string, content: string, title: string, authorId: string, authorRole: Role) {
     const parent = await this.prisma.report.findUnique({
       where: { id: parentReportId },

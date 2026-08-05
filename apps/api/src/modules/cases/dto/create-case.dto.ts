@@ -29,6 +29,34 @@ export class CreateCaseDto {
   @IsNotEmpty()
   intakeNarrative: string;
 
+  // ===== BANDERAS DE SITUACIÓN ESPECIAL DE LA DENUNCIA =====
+  @ApiProperty({
+    description: 'El NNA se autodenunció (denuncia propia, sin representante)',
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  menorAutodenuncia?: boolean;
+
+  @ApiProperty({
+    description: 'La denuncia es anónima (no se identifica al denunciante)',
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  denunciaAnonima?: boolean;
+
+  @ApiProperty({
+    description: 'El caso involucra a un funcionario público (p.ej. agresor o denunciado es funcionario)',
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  involucraFuncionario?: boolean;
+
   // ===== DENUNCIANTE =====
   @ApiProperty({
     description: '¿La denuncia es presentada por un tercero? (no por el NNA mismo)',

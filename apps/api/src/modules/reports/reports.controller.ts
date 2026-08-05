@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportsService, CreateReportDto } from './reports.service';
+import { AssignCoAuthorDto } from './dto/assign-coauthor.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@defensoria/shared';
@@ -38,6 +39,17 @@ export class ReportsController {
     @CurrentUser('role') authorRole: Role,
   ) {
     return this.reportsService.createComplementary(parentReportId, content, title, authorId, authorRole);
+  }
+
+  @Patch(':id/coauthor')
+  @ApiOperation({ summary: 'Asignar coautor a un informe psicosocial en borrador (equipo PSICOLOGO + SOCIAL)' })
+  async assignCoAuthor(
+    @Param('id') id: string,
+    @Body() dto: AssignCoAuthorDto,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: Role,
+  ) {
+    return this.reportsService.assignCoAuthor(id, dto.coAuthorId, userId, userRole);
   }
 
   @Get('case/:caseId')

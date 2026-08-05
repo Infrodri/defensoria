@@ -10,6 +10,7 @@ export interface ScheduleHearingDto {
 export interface RecordResultDto {
   agreementReached: boolean;
   agreementText?: string;
+  topic?: string;
 }
 
 @Injectable()
@@ -151,6 +152,27 @@ export class ConciliationService {
       });
 
       if (data.agreementReached) {
+        // GAP Fase 2: persistir el acuerdo en ConciliationAgreement (modelo que
+        // existía sin uso). Se crea SOLO si no existe un acuerdo previo para el caso.
+        //
+        // El CIERRE oficial del expediente NO se duplica aquí: la normativa interna
+        // cierra el caso al emitir el INFORME_FINAL_CONCILIACION (reports.service.emit),
+        // que fija isClosed=true + currentPhase=CIERRE + path CONCILIACION.
+        const existingAgreement = await tx.conciliationAgreement.findUnique({
+          where: { caseId: process.caseId },
+        });
+        if (!existingAgreement) {
+          await tx.conciliationAgreement.create({
+            data: {
+              caseId: process.caseId,
+              topic: data.topic ?? 'Acuerdo de Conciliación',
+              agreementContent:
+                data.agreementText || 'Las partes alcanzaron un acuerdo en la audiencia de conciliación.',
+              isSignedByParties: false,
+            },
+          });
+        }
+
         await tx.actionLog.create({
           data: {
             caseId: process.caseId,

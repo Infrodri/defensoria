@@ -191,6 +191,42 @@ enum ProcessualAlertLevel {
   ROJO
 }
 
+enum StreetPhase {
+  ADHERENCIA
+  REHABILITACION
+  REINTEGRACION
+}
+
+enum DigitalPlatform {
+  WHATSAPP
+  TIKTOK
+  INSTAGRAM
+  FACEBOOK
+  ONLYFANS
+  TELEGRAM
+  X_TWITTER
+  OTRO
+}
+
+enum TravelType {
+  NACIONAL
+  INTERNACIONAL
+}
+
+enum TravelCompanionType {
+  AMBOS_PADRES
+  PADRE_SOLO
+  MADRE_SOLA
+  TERCERO_AUTORIZADO
+  SOLO
+}
+
+enum ProtectionMeasureType {
+  ACOGIMIENTO_CIRCUNSTANCIAL
+  INTEGRACION_RED_APOYO
+  RESTITUCION_DOMICILIARIA
+}
+
 model User {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email            String    @unique
@@ -350,6 +386,11 @@ model Case {
   disabilityReports       DisabilityReport[]       @relation("CaseDisabilityReports")
   caseChunks              CaseChunk[]              @relation("CasechunkCase")
 
+  // Banderas de situación especial de la denuncia (normativa boliviana)
+  menorAutodenuncia    Boolean @default(false)
+  denunciaAnonima      Boolean @default(false)
+  involucraFuncionario Boolean @default(false)
+
   // Denunciante tercero (cuando no es el NNA mismo)
   isThirdPartyComplainant Boolean  @default(false)
   complainantFullName     String?
@@ -374,6 +415,15 @@ model Case {
   
   // Relaciones para auditoría
   disabler               User?     @relation("DisabledCases", fields: [disabledBy], references: [id])
+
+  // Procedimientos especializados y medidas de protección
+  violenciaDigital      SpecViolenceDigital?
+  trabajoNNATS          SpecTrabajoNNATS?
+  situacionCalle        SpecSituacionCalle?
+  violenciaSexualILE    SpecViolenciaSexualILE?
+  travelPermission      TravelPermission?
+  protectionMeasures    ProtectionMeasure[]
+  conciliationAgreement ConciliationAgreement?
 
   @@index([currentPhase])
   @@index([riskLevel])
@@ -1259,4 +1309,140 @@ model ConciliationProcess {
   leadLawyer User @relation("ConciliationProcesses", fields: [leadLawyerId], references: [id])
 
   @@map("conciliation_processes")
+}
+
+// =====================================================
+// PROCEDIMIENTOS ESPECIALIZADOS Y PERMISOS DE VIAJE (FASE 1)
+// =====================================================
+
+model SpecViolenceDigital {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId             String           @unique @db.Uuid
+  urls               String[]
+  platforms          DigitalPlatform[]
+  usedDevices        String[]
+  coercionMethods    String[]
+  metadataPreserved  Json
+  requiresForensic   Boolean          @default(false)
+  phoneOperator      String?
+  phoneOwnerVerified String?
+  callRegistryExt    Json?
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("spec_violence_digital")
+}
+
+model SpecTrabajoNNATS {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId              String    @unique @db.Uuid
+  hasEscolaridadCert  Boolean   @default(false)
+  hasAptitudMedicaSUS Boolean   @default(false)
+  inspeccionRealizada Boolean   @default(false)
+  fechaInspeccion     DateTime? @db.Timestamptz(6)
+  inspectorId         String?
+  risksIdentified     String[]
+  isProhibitedWork    Boolean   @default(false)
+  hoursPerWeek        Int
+  salaryBs            Float
+  studyHoursGrant     Boolean   @default(true)
+  hasSocialSecurity   Boolean   @default(false)
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("spec_trabajo_nnats")
+}
+
+model SpecSituacionCalle {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId            String      @unique @db.Uuid
+  faseActual        StreetPhase @default(ADHERENCIA)
+  programaReferente String?
+  educadorCalleRef  String?
+  yearsOnStreet     Float?
+  survivalStrategy  String?
+  substanceAbuse    String[]
+  streetHistory     String      @db.Text
+  idFormReferencia  String?
+  idFormContraref   String?
+  notificadoITD     Boolean     @default(false)
+  fechaNotificacion DateTime?   @db.Timestamptz(6)
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("spec_situacion_calle")
+}
+
+model SpecViolenciaSexualILE {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                 String   @unique @db.Uuid
+  copiaDenunciaAdjunta   Boolean  @default(false)
+  consentimientoNNA      Boolean  @default(false)
+  atendidoDentro24h      Boolean  @default(false)
+  apersonamientoDNA      Boolean  @default(true)
+  delitoCalificado       String
+  solicitoCamaraGesell   Boolean  @default(false)
+  certificadoMedicoUnico Boolean  @default(false)
+  solicitoReserva        Boolean  @default(true)
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("spec_violencia_sexual_ile")
+}
+
+model TravelPermission {
+  id                      String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                  String?      @unique @db.Uuid
+  travelType              TravelType
+  companionType           TravelCompanionType
+  originCity              String       @default("Sucre")
+  destinationCity         String
+  departureDate           DateTime     @db.Timestamptz(6)
+  returnDate              DateTime?    @db.Timestamptz(6)
+  companionFullName       String?
+  companionIdentityNumber String?
+  companionRelation       String?
+  bothParentsPresent      Boolean      @default(true)
+  oppositionNotes         String?
+  authorizationCode       String       @unique
+  isIssued                Boolean      @default(false)
+  issuedAt                DateTime?    @db.Timestamptz(6)
+  issuedById              String?
+
+  case Case? @relation(fields: [caseId], references: [id])
+
+  @@map("travel_permissions")
+}
+
+model ProtectionMeasure {
+  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                String                @db.Uuid
+  measureType           ProtectionMeasureType
+  reason                String                @db.Text
+  receptiveCenterName   String?
+  executedAt            DateTime              @default(now()) @db.Timestamptz(6)
+  judgeNotifiedAt       DateTime?             @db.Timestamptz(6)
+  judgeNotificationCode String?
+  isWithinLegalDeadline Boolean               @default(true)
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("protection_measures")
+}
+
+model ConciliationAgreement {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId             String    @unique @db.Uuid
+  topic              String
+  agreedAmountBs     Float?
+  agreementContent   String    @db.Text
+  isSignedByParties  Boolean   @default(false)
+  submittedToCourtAt DateTime? @db.Timestamptz(6)
+  courtApprovedAt    DateTime? @db.Timestamptz(6)
+  homologationCode   String?
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("conciliation_agreements")
 }

@@ -34,6 +34,13 @@ import { SocialToolsModule } from './modules/social-tools/social-tools.module';
 import { TransversalToolsModule } from './modules/transversal-tools/transversal-tools.module';
 import { SocialIntakeModule } from './modules/social-intake/social-intake.module';
 import { ConciliationModule } from './modules/conciliation/conciliation.module';
+import { SpecViolenceDigitalModule } from './modules/spec-violence-digital/spec-violence-digital.module';
+import { SpecTrabajoNNATSModule } from './modules/spec-trabajo-nnats/spec-trabajo-nnats.module';
+import { SpecSituacionCalleModule } from './modules/spec-situacion-calle/spec-situacion-calle.module';
+import { SpecViolenciaSexualILEModule } from './modules/spec-violencia-sexual-ile/spec-violencia-sexual-ile.module';
+import { TravelPermissionsModule } from './modules/travel-permissions/travel-permissions.module';
+import { ProtectionMeasuresModule } from './modules/protection-measures/protection-measures.module';
+import { ConciliationAgreementsModule } from './modules/conciliation-agreements/conciliation-agreements.module';
 
 @Module({
   imports: [
@@ -74,6 +81,13 @@ import { ConciliationModule } from './modules/conciliation/conciliation.module';
     TransversalToolsModule,
     SocialIntakeModule,
     ConciliationModule,
+    SpecViolenceDigitalModule,
+    SpecTrabajoNNATSModule,
+    SpecSituacionCalleModule,
+    SpecViolenciaSexualILEModule,
+    TravelPermissionsModule,
+    ProtectionMeasuresModule,
+    ConciliationAgreementsModule,
   ],
   controllers: [],
   providers: [],

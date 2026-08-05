@@ -384,4 +384,107 @@ describe('ReportsService Integration Tests', () => {
       });
     });
   });
+  describe('assignCoAuthor (GAP Fase 2: escritura de coAuthorId)', () => {
+    const psicosocialReport = {
+      id: 'report-psicosocial',
+      caseId: 'case-1',
+      authorId: 'author-1',
+      status: ReportStatus.BORRADOR,
+      disciplineReportType: { category: ReportCategory.INFORME_PSICOSOCIAL },
+      author: { role: Role.PSICOLOGO },
+    };
+
+    it('debería asignar el coautor cuando el autor lo solicita sobre un borrador psicosocial', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue(psicosocialReport as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'author-2', role: Role.SOCIAL } as any);
+      vi.mocked(prisma.report.update).mockResolvedValue({
+        id: 'report-psicosocial',
+        coAuthorId: 'author-2',
+      } as any);
+
+      const result = await reportsService.assignCoAuthor('report-psicosocial', 'author-2', 'author-1', Role.PSICOLOGO);
+
+      expect(prisma.report.update).toHaveBeenCalledWith({
+        where: { id: 'report-psicosocial' },
+        data: { coAuthorId: 'author-2' },
+      });
+      expect(result.coAuthorId).toBe('author-2');
+    });
+
+    it('debería permitir que JEFATURA asigne coautor aunque no sea el autor', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue(psicosocialReport as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'author-2', role: Role.SOCIAL } as any);
+      vi.mocked(prisma.report.update).mockResolvedValue({ id: 'report-psicosocial', coAuthorId: 'author-2' } as any);
+
+      await reportsService.assignCoAuthor('report-psicosocial', 'author-2', 'jefatura-1', Role.JEFATURA);
+
+      expect(prisma.report.update).toHaveBeenCalledWith({
+        where: { id: 'report-psicosocial' },
+        data: { coAuthorId: 'author-2' },
+      });
+    });
+
+    it('debería rechazar si el solicitante no es el autor ni JEFATURA/ADMINISTRADOR', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue(psicosocialReport as any);
+
+      await expect(reportsService.assignCoAuthor('report-psicosocial', 'author-2', 'other-1', Role.SOCIAL))
+        .rejects.toThrow(ForbiddenException);
+    });
+
+    it('debería rechazar si el informe ya está EMITIDO', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        ...psicosocialReport,
+        status: ReportStatus.EMITIDO,
+      } as any);
+
+      await expect(reportsService.assignCoAuthor('report-psicosocial', 'author-2', 'author-1', Role.PSICOLOGO))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('debería rechazar si la categoría no es INFORME_PSICOSOCIAL', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        ...psicosocialReport,
+        disciplineReportType: { category: ReportCategory.INFORME_SOCIAL },
+      } as any);
+
+      await expect(reportsService.assignCoAuthor('report-social', 'author-2', 'author-1', Role.PSICOLOGO))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('debería rechazar si el coautor tiene el mismo rol que el autor (no complementario)', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue(psicosocialReport as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'author-2', role: Role.PSICOLOGO } as any);
+
+      await expect(reportsService.assignCoAuthor('report-psicosocial', 'author-2', 'author-1', Role.PSICOLOGO))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('debería rechazar si el coautor es la misma persona que el autor', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue(psicosocialReport as any);
+
+      await expect(reportsService.assignCoAuthor('report-psicosocial', 'author-1', 'author-1', Role.PSICOLOGO))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('debería rechazar si el usuario coautor no existe', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue(psicosocialReport as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+
+      await expect(reportsService.assignCoAuthor('report-psicosocial', 'ghost-1', 'author-1', Role.PSICOLOGO))
+        .rejects.toThrow(NotFoundException);
+    });
+
+    it('debería aceptar autor SOCIAL con coautor PSICOLOGO (complementario invertido)', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        ...psicosocialReport,
+        author: { role: Role.SOCIAL },
+      } as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'author-2', role: Role.PSICOLOGO } as any);
+      vi.mocked(prisma.report.update).mockResolvedValue({ id: 'report-psicosocial', coAuthorId: 'author-2' } as any);
+
+      const result = await reportsService.assignCoAuthor('report-psicosocial', 'author-2', 'author-1', Role.SOCIAL);
+
+      expect(result.coAuthorId).toBe('author-2');
+    });
+  });
 });
