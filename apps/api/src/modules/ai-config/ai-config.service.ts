@@ -6,6 +6,8 @@ export interface AiConfigDto {
   embeddingModel: string;
   whisperEndpoint: string;
   whisperModel: string;
+  ocrEndpoint: string;
+  ocrModel: string;
 }
 
 @Injectable()
@@ -27,6 +29,8 @@ export class AiConfigService {
       embeddingModel: map.get('AI_MODEL_EMBEDDING') || 'nomic-embed-text',
       whisperEndpoint: map.get('AI_WHISPER_ENDPOINT') || 'http://localhost:8000/v1/audio/transcriptions',
       whisperModel: map.get('AI_WHISPER_MODEL') || 'whisper-1',
+      ocrEndpoint: map.get('AI_OCR_ENDPOINT') || 'http://localhost:8000/v1/vision',
+      ocrModel: map.get('AI_OCR_MODEL') || 'qwen2.5-vl:7b',
     };
   }
 
@@ -36,6 +40,8 @@ export class AiConfigService {
       { key: 'AI_MODEL_EMBEDDING', value: dto.embeddingModel },
       { key: 'AI_WHISPER_ENDPOINT', value: dto.whisperEndpoint },
       { key: 'AI_WHISPER_MODEL', value: dto.whisperModel },
+      { key: 'AI_OCR_ENDPOINT', value: dto.ocrEndpoint },
+      { key: 'AI_OCR_MODEL', value: dto.ocrModel },
     ];
 
     for (const item of updates) {
@@ -64,5 +70,47 @@ export class AiConfigService {
       this.logger.warn('No se pudo conectar con Ollama local');
       return [];
     }
+  }
+
+  async getHealth() {
+    const results = {
+      whisper: 'unknown' as 'ok' | 'degraded' | 'unknown',
+      ocr: 'unknown' as 'ok' | 'degraded' | 'unknown',
+      ollama: 'unknown' as 'ok' | 'degraded' | 'unknown',
+    };
+
+    // Check Whisper
+    try {
+      const whisperRes = await fetch(this.getWhisperUrl() + '/health', { signal: AbortSignal.timeout(3000) });
+      results.whisper = whisperRes.ok ? 'ok' : 'degraded';
+    } catch {
+      results.whisper = 'degraded';
+    }
+
+    // Check OCR
+    try {
+      const ocrRes = await fetch(this.getOcrUrl() + '/health', { signal: AbortSignal.timeout(3000) });
+      results.ocr = ocrRes.ok ? 'ok' : 'degraded';
+    } catch {
+      results.ocr = 'degraded';
+    }
+
+    // Check Ollama
+    try {
+      const ollamaRes = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+      results.ollama = ollamaRes.ok ? 'ok' : 'degraded';
+    } catch {
+      results.ollama = 'degraded';
+    }
+
+    return results;
+  }
+
+  private getWhisperUrl(): string {
+    return 'http://localhost:8000';
+  }
+
+  private getOcrUrl(): string {
+    return 'http://localhost:8000';
   }
 }

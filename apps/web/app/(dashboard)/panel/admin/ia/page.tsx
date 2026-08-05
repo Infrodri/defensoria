@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { AccesoRestringido } from '@/components/common/acceso-restringido';
-import { BrainCircuit, Save, RefreshCw, Cpu, Volume2, Image as ImageIcon, Shield } from 'lucide-react';
+import { BrainCircuit, Save, RefreshCw, Cpu, Volume2, Image as ImageIcon, Shield, Activity } from 'lucide-react';
 export default function AiConfigPage() {
   const { user } = useAuth();
   if (user?.role !== 'ADMINISTRADOR') {
@@ -19,6 +19,7 @@ export default function AiConfigPage() {
   const [whisperModel, setWhisperModel] = useState('whisper-1');
   const [ocrEndpoint, setOcrEndpoint] = useState('http://localhost:8000/v1/vision');
   const [ocrModel, setOcrModel] = useState('qwen2.5-vl:7b');
+  const [serviceHealth, setServiceHealth] = useState<Record<string, 'ok' | 'degraded' | 'unknown'>>({});
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -33,6 +34,15 @@ export default function AiConfigPage() {
       setAvailableModels(['qwen2.5:7b', 'nomic-embed-text']);
     } finally {
       setLoadingModels(false);
+    }
+  };
+
+  const fetchServiceHealth = async () => {
+    try {
+      const health = await fetchApi<Record<string, string>>('/ai-config/health');
+      setServiceHealth(health);
+    } catch {
+      setServiceHealth({ whisper: 'degraded', ocr: 'degraded', ollama: 'degraded' });
     }
   };
 
@@ -53,6 +63,7 @@ export default function AiConfigPage() {
   useEffect(() => {
     loadSettings();
     fetchOllamaModels();
+    fetchServiceHealth();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -105,6 +116,74 @@ export default function AiConfigPage() {
           {message.text}
         </div>
       )}
+
+      {/* Service Health */}
+      <section style={{
+        backgroundColor: 'var(--card)',
+        padding: '1rem 1.5rem',
+        borderRadius: 'var(--radius)',
+        border: '1px solid var(--border)',
+        marginBottom: '1.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Activity size={18} color={serviceHealth.whisper === 'ok' ? 'var(--salvia)' : serviceHealth.whisper === 'degraded' ? 'var(--tierra-calida)' : 'var(--grafito)'} />
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Whisper</span>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '0.125rem 0.5rem',
+            borderRadius: '9999px',
+            backgroundColor: serviceHealth.whisper === 'ok' ? 'oklch(0.92 0.08 140)' : serviceHealth.whisper === 'degraded' ? 'oklch(0.92 0.08 30)' : 'oklch(0.92 0.05 60)',
+            color: serviceHealth.whisper === 'ok' ? 'oklch(0.3 0.1 140)' : serviceHealth.whisper === 'degraded' ? 'oklch(0.3 0.1 30)' : 'oklch(0.3 0.1 60)',
+          }}>
+            {serviceHealth.whisper === 'ok' ? 'Activo' : serviceHealth.whisper === 'degraded' ? 'Degradado' : 'Sin datos'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Activity size={18} color={serviceHealth.ocr === 'ok' ? 'var(--salvia)' : serviceHealth.ocr === 'degraded' ? 'var(--tierra-calida)' : 'var(--grafito)'} />
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>OCR / Visión</span>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '0.125rem 0.5rem',
+            borderRadius: '9999px',
+            backgroundColor: serviceHealth.ocr === 'ok' ? 'oklch(0.92 0.08 140)' : serviceHealth.ocr === 'degraded' ? 'oklch(0.92 0.08 30)' : 'oklch(0.92 0.05 60)',
+            color: serviceHealth.ocr === 'ok' ? 'oklch(0.3 0.1 140)' : serviceHealth.ocr === 'degraded' ? 'oklch(0.3 0.1 30)' : 'oklch(0.3 0.1 60)',
+          }}>
+            {serviceHealth.ocr === 'ok' ? 'Activo' : serviceHealth.ocr === 'degraded' ? 'Degradado' : 'Sin datos'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Activity size={18} color={serviceHealth.ollama === 'ok' ? 'var(--salvia)' : serviceHealth.ollama === 'degraded' ? 'var(--tierra-calida)' : 'var(--grafito)'} />
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Ollama</span>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '0.125rem 0.5rem',
+            borderRadius: '9999px',
+            backgroundColor: serviceHealth.ollama === 'ok' ? 'oklch(0.92 0.08 140)' : serviceHealth.ollama === 'degraded' ? 'oklch(0.92 0.08 30)' : 'oklch(0.92 0.05 60)',
+            color: serviceHealth.ollama === 'ok' ? 'oklch(0.3 0.1 140)' : serviceHealth.ollama === 'degraded' ? 'oklch(0.3 0.1 30)' : 'oklch(0.3 0.1 60)',
+          }}>
+            {serviceHealth.ollama === 'ok' ? 'Activo' : serviceHealth.ollama === 'degraded' ? 'Degradado' : 'Sin datos'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={fetchServiceHealth}
+          style={{
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: 'var(--salvia)',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            marginLeft: 'auto',
+          }}
+        >
+          <RefreshCw size={12} /> Refrescar
+        </button>
+      </section>
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* LLM Card */}

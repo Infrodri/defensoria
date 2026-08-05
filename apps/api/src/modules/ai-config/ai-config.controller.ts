@@ -31,4 +31,10 @@ export class AiConfigController {
   getModels() {
     return this.configService.getLocalModels();
   }
+
+  @Get('health')
+  @ApiOperation({ summary: 'Verificar estado de los servicios de IA' })
+  getHealth() {
+    return this.configService.getHealth();
+  }
 }

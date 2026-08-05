@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Upload, File, Lock, X, Play, FileText, Image as ImageIcon, Music, Video, Shield } from 'lucide-react';
+import { Upload, File, Lock, X, Play, FileText, Image as ImageIcon, Music, Video, Shield, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { SecurityTokenModal } from '../security/security-token-modal';
+import { fetchApi } from '@/lib/api';
 
 interface EvidenceGalleryProps {
   caseId: string;
@@ -11,7 +12,7 @@ interface EvidenceGalleryProps {
   canUpload?: boolean; // solo profesionales asignados
 }
 
-// ─── Utilidades de tipo de archivo ────────────────────────────────────────────
+// ─── Utilidades de tipo de archivo ────────────────────────────────────
 
 function getMimeCategory(mimeType: string): 'audio' | 'video' | 'image' | 'document' {
   if (!mimeType) return 'document';
@@ -35,7 +36,162 @@ function getCategoryLabel(mimeType: string) {
   return { audio: '🎙️ Audio', video: '🎥 Video', image: '🖼️ Imagen', document: '📄 Documento' }[cat];
 }
 
-// ─── Modal Visor Flotante ──────────────────────────────────────────────────────
+// ─── Botón de Transcripción / OCR ─────────────────────────────────────
+
+interface TranscriptionButtonProps {
+  evidence: any;
+  transcriptionState: { loading: boolean; result: string | null; error: string | null; expanded: boolean } | undefined;
+  onTranscribe: (evidence: any) => void;
+  onToggle: (evidenceId: string) => void;
+}
+
+function TranscriptionButton({ evidence, transcriptionState, onTranscribe, onToggle }: TranscriptionButtonProps) {
+  const cat = getMimeCategory(evidence.mimeType);
+  const isAudioVideo = cat === 'audio' || cat === 'video';
+  const isImageDoc = cat === 'image' || cat === 'document';
+  if (!isAudioVideo && !isImageDoc) return null;
+
+  const ts = transcriptionState;
+  const isLoading = ts?.loading ?? false;
+  const hasResult = ts?.result != null;
+  const hasError = ts?.error != null;
+
+  return (
+    <button
+      onClick={() => {
+        if (hasResult || hasError) {
+          onToggle(evidence.id);
+        } else if (!isLoading) {
+          onTranscribe(evidence);
+        }
+      }}
+      disabled={isLoading}
+      style={{
+        backgroundColor: isLoading ? 'var(--border)' : 'var(--tierra-calida)',
+        color: 'white',
+        padding: '0.5rem 1rem',
+        borderRadius: 'var(--radius)',
+        fontSize: '0.8rem',
+        fontWeight: 700,
+        border: 'none',
+        cursor: isLoading ? 'wait' : 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.375rem',
+        flexShrink: 0,
+      }}
+    >
+      {isLoading ? (
+        <>
+          <Loader2 size={14} className="animate-spin" />
+          Procesando...
+        </>
+      ) : hasResult ? (
+        <>
+          <CheckCircle2 size={14} />
+          {isAudioVideo ? 'Transcripción' : 'OCR / Visión'}
+        </>
+      ) : hasError ? (
+        <>
+          <AlertCircle size={14} />
+          Reintentar
+        </>
+      ) : (
+        <>
+          {isAudioVideo ? <Music size={14} /> : <ImageIcon size={14} />}
+          {isAudioVideo ? 'Transcribir' : 'OCR / Visión'}
+        </>
+      )}
+    </button>
+  );
+}
+
+// ─── Panel de Resultado de Transcripción / OCR ────────────────────────
+
+interface TranscriptionPanelProps {
+  evidence: any;
+  transcriptionState: { loading: boolean; result: string | null; error: string | null; expanded: boolean } | undefined;
+  onToggle: (evidenceId: string) => void;
+}
+
+function TranscriptionPanel({ evidence, transcriptionState, onToggle }: TranscriptionPanelProps) {
+  const cat = getMimeCategory(evidence.mimeType);
+  const isAudioVideo = cat === 'audio' || cat === 'video';
+  const isImageDoc = cat === 'image' || cat === 'document';
+  if (!isAudioVideo && !isImageDoc) return null;
+
+  const ts = transcriptionState;
+  if (!ts) return null;
+
+  return (
+    <div
+      style={{
+        maxHeight: ts.expanded ? '500px' : '0',
+        overflow: 'hidden',
+        transition: 'max-height 0.3s ease',
+        backgroundColor: 'var(--papel)',
+        borderRadius: 'var(--radius)',
+        border: '1px solid var(--border)',
+        marginTop: '0.5rem',
+      }}
+    >
+      <button
+        onClick={() => onToggle(evidence.id)}
+        style={{
+          backgroundColor: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '0.5rem 0.75rem',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          color: 'var(--bosque-profundo)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          width: '100%',
+        }}
+      >
+        {ts.expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {isAudioVideo ? 'Texto transcrito' : 'Texto extraído (OCR/Visión)'}
+      </button>
+      {ts.expanded && (
+        <div style={{ padding: '0 0.75rem 0.75rem' }}>
+          {ts.loading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem 0', color: 'var(--grafito)' }}>
+              <Loader2 size={16} className="animate-spin" />
+              Procesando archivo... Esto puede tardar unos segundos.
+            </div>
+          )}
+          {ts.error && (
+            <div style={{ padding: '0.75rem', backgroundColor: 'oklch(0.95 0.05 28)', borderRadius: 'var(--radius)', color: 'var(--riesgo-alto)', fontSize: '0.8125rem' }}>
+              ❌ {ts.error}
+            </div>
+          )}
+          {ts.result && (
+            <pre style={{
+              fontSize: '0.8125rem',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              backgroundColor: 'var(--card)',
+              padding: '0.75rem',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              maxHeight: '300px',
+              overflow: 'auto',
+              margin: 0,
+              color: 'var(--grafito)',
+            }}>
+              {ts.result}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Modal Visor Flotante ──────────────────────────────────────────────
 
 interface ViewerModalProps {
   evidence: any;
@@ -205,7 +361,7 @@ function ViewerModal({ evidence, streamUrl, onClose }: ViewerModalProps) {
   );
 }
 
-// ─── Componente Principal ──────────────────────────────────────────────────────
+// ─── Componente Principal ──────────────────────────────────────────────
 
 export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUpload = true }: EvidenceGalleryProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -222,6 +378,9 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
   // Token de seguridad para evidencias sensibles
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [pendingViewEvidence, setPendingViewEvidence] = useState<any | null>(null);
+
+  // Transcripción / OCR por evidencia
+  const [transcriptionState, setTranscriptionState] = useState<Record<string, { loading: boolean; result: string | null; error: string | null; expanded: boolean }>>({});
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4100/api';
 
@@ -267,6 +426,41 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
       openViewer(pendingViewEvidence);
       setPendingViewEvidence(null);
     }
+  };
+
+  // ── Transcripción / OCR ──────────────────────────────────
+  const handleTranscribe = async (evidence: any) => {
+    const evidenceId = evidence.id;
+    setTranscriptionState((prev) => ({
+      ...prev,
+      [evidenceId]: { loading: true, result: null, error: null, expanded: true },
+    }));
+    try {
+      const res = await fetchApi('/knowledge/transcribe', {
+        method: 'POST',
+        body: JSON.stringify({ caseId, evidenceId }),
+      });
+      const text = res?.text || res?.transcription?.text || '';
+      setTranscriptionState((prev) => ({
+        ...prev,
+        [evidenceId]: { loading: false, result: text, error: null, expanded: true },
+      }));
+    } catch (err: any) {
+      const friendlyMessage = err?.status === 400
+        ? 'El servicio de transcripción (Whisper) no está disponible. Verificá que el contenedor Docker de Whisper esté corriendo en localhost:8000.'
+        : err?.message || 'Error al procesar';
+      setTranscriptionState((prev) => ({
+        ...prev,
+        [evidenceId]: { loading: false, result: null, error: friendlyMessage, expanded: true },
+      }));
+    }
+  };
+
+  const toggleTranscriptionPanel = (evidenceId: string) => {
+    setTranscriptionState((prev) => ({
+      ...prev,
+      [evidenceId]: { ...prev[evidenceId], expanded: !prev[evidenceId]?.expanded },
+    }));
   };
 
   // Subir evidencia (solo append, nunca reemplaza ni borra)
@@ -389,74 +583,94 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
                       'var(--salvia)'
                     }`,
                     display: 'flex',
+                    flexDirection: 'column',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '1rem',
+                    alignItems: 'stretch',
+                    gap: '0.5rem',
                   }}
                 >
-                  {/* Info */}
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {getFileIcon(item.mimeType)}
-                      <span style={{ fontWeight: 700, color: 'var(--bosque-profundo)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.fileName}
-                      </span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--grafito)', opacity: 0.7, flexShrink: 0 }}>
-                        {getCategoryLabel(item.mimeType)}
-                      </span>
-                      {item.isSensitive && (
-                        <span style={{
-                          fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '12px',
-                          backgroundColor: 'var(--tierra-calida)', color: 'white',
-                          fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
-                          flexShrink: 0,
-                        }}>
-                          <Lock size={10} /> SENSIBLE
+                  {/* Fila: Info + Botones */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
+                    {/* Info */}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {getFileIcon(item.mimeType)}
+                        <span style={{ fontWeight: 700, color: 'var(--bosque-profundo)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.fileName}
                         </span>
-                      )}
+                        <span style={{ fontSize: '0.7rem', color: 'var(--grafito)', opacity: 0.7, flexShrink: 0 }}>
+                          {getCategoryLabel(item.mimeType)}
+                        </span>
+                        {item.isSensitive && (
+                          <span style={{
+                            fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '12px',
+                            backgroundColor: 'var(--tierra-calida)', color: 'white',
+                            fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                            flexShrink: 0,
+                          }}>
+                            <Lock size={10} /> SENSIBLE
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '0.75rem', opacity: 0.65, marginTop: '0.3rem' }}>
+                        {(item.fileSize / (1024 * 1024)).toFixed(2)} MB
+                        {' · '}Subido por {item.uploader?.firstName} {item.uploader?.lastName}
+                        {item.description && (
+                          <span> · <em>{item.description}</em></span>
+                        )}
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.65rem', fontFamily: 'monospace', color: 'var(--salvia)',
+                        marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        SHA-256: {item.fileHash}
+                      </div>
                     </div>
 
-                    <div style={{ fontSize: '0.75rem', opacity: 0.65, marginTop: '0.3rem' }}>
-                      {(item.fileSize / (1024 * 1024)).toFixed(2)} MB
-                      {' · '}Subido por {item.uploader?.firstName} {item.uploader?.lastName}
-                      {item.description && (
-                        <span> · <em>{item.description}</em></span>
-                      )}
-                    </div>
+                    {/* Botones */}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      {/* Botón VER — sin borrar */}
+                      <button
+                        onClick={() => handleView(item)}
+                        style={{
+                          backgroundColor: 'var(--bosque-profundo)',
+                          color: 'white',
+                          padding: '0.5rem 1rem',
+                          borderRadius: 'var(--radius)',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.375rem',
+                        }}
+                      >
+                        <Play size={14} />
+                        {getMimeCategory(item.mimeType) === 'audio' ? 'Escuchar' :
+                         getMimeCategory(item.mimeType) === 'video' ? 'Reproducir' :
+                         getMimeCategory(item.mimeType) === 'image' ? 'Ver imagen' :
+                         'Ver / Descargar'}
+                      </button>
 
-                    <div style={{
-                      fontSize: '0.65rem', fontFamily: 'monospace', color: 'var(--salvia)',
-                      marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      SHA-256: {item.fileHash}
+                      {/* Botón Transcribir / OCR */}
+                      <TranscriptionButton
+                        evidence={item}
+                        transcriptionState={transcriptionState[item.id]}
+                        onTranscribe={handleTranscribe}
+                        onToggle={toggleTranscriptionPanel}
+                      />
                     </div>
                   </div>
 
-                  {/* Botón VER — sin borrar */}
-                  <button
-                    onClick={() => handleView(item)}
-                    style={{
-                      backgroundColor: 'var(--bosque-profundo)',
-                      color: 'white',
-                      padding: '0.5rem 1rem',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.375rem',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Play size={14} />
-                    {getMimeCategory(item.mimeType) === 'audio' ? 'Escuchar' :
-                     getMimeCategory(item.mimeType) === 'video' ? 'Reproducir' :
-                     getMimeCategory(item.mimeType) === 'image' ? 'Ver imagen' :
-                     'Ver / Descargar'}
-                  </button>
-                  {/* NO hay botón de borrar — inmutabilidad legal */}
+                  {/* Panel expandible de resultado */}
+                  <TranscriptionPanel
+                    evidence={item}
+                    transcriptionState={transcriptionState[item.id]}
+                    onToggle={toggleTranscriptionPanel}
+                  />
                 </div>
               ))}
             </div>
