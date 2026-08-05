@@ -53,13 +53,13 @@
 |------------|---------|---------|
 | **Análisis de Discrepancias** | Abogado | Detectar inconsistencias en testimonios |
 | **Tipicidad Penal** | Abogado | Clasificar posibles delitos |
-| **Plazos Procesales** | Abogado | Calcular vencimientos legales |
+| **Vencimientos Procesales** | Abogado | Calcular vencimientos legales |
 | **Indicadores de Trauma** | Psicólogo | Detectar signos de trauma psicológico |
 | **Escalas de Riesgo** | Psicólogo | Evaluar nivel de riesgo del NNA |
 | **Estructura Familiar** | Social | Visualizar estructura y dinámicas familiares |
 | **Evaluación Vulnerabilidad** | Social | Evaluar factores de riesgo social |
-| **Timeline Unificada** | Transversal | Cronología integrada del caso |
-| **Anonimización** | Transversal | Preparar reportes sin datos sensibles |
+| **Línea de Tiempo Unificada** | Transversal | Cronología integrada del caso |
+| **Reporte Anonimizado** | Transversal | Preparar reportes sin datos sensibles |
 
 ## 🎓 CURVA DE APRENDIZAJE
 
