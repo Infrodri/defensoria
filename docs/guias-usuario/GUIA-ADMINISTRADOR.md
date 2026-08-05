@@ -31,6 +31,20 @@ O: Sidebar → Sistema → "Verificar Herramientas"
 - 🟡 **DEGRADED**: Funciona pero con limitaciones
 - 🔴 **ERROR**: No disponible, requiere atención
 
+## 🧰 INVENTARIO DE HERRAMIENTAS (12 VISIBLES)
+
+El hub está en **`/herramientas`** y muestra **12 herramientas visibles** para los roles profesionales (hay un 13.º `toolId`, Transcripción de Audio/Video, que no aparece en el hub):
+
+- **Legales (3)**: Análisis de Discrepancias · Tipicidad Penal · Vencimientos Procesales
+- **Psicológicas (4)**: Indicadores de Trauma · Escalas de Riesgo · Traducción Clínica · Análisis de Trauma
+- **Sociales (3)**: Estructura Familiar · Evaluación Vulnerabilidad · Mapeo Ambiental
+- **Transversales (2)**: Línea de Tiempo Unificada · Reporte Anonimizado
+
+## 🤖 PANELES DE INTELIGENCIA ARTIFICIAL
+
+- **Configuración IA** (`/panel/admin/ia`): configuración de los modelos de IA local (Ollama/Whisper), el modelo de lenguaje del Copiloto Jurídico y el modelo de visión para análisis de evidencias (default `gemma4-tasks:latest`). Exclusivo de ADMINISTRADOR.
+- **Procesos IA** (`/panel/admin/ia-procesos`): monitoreo de las tareas de IA (en proceso, en cola, completadas) y reencolado de tareas fallidas.
+
 ## 🧪 RUTINA DE VERIFICACIÓN DIARIA
 
 ### Paso 1: Check Matutino (5 min)
@@ -64,7 +78,7 @@ Revisar números:
 **Objetivo**: Crear transcripciones de ejemplo para que profesionales puedan probar
 
 ```
-1. Ir a: /tools-demo
+1. Ir a: /herramientas
 2. Seleccionar un caso de prueba
 3. Click "📁 Subir Entrevista"
 4. Subir audio real o generado:
@@ -73,7 +87,7 @@ Revisar números:
    - Contenido: Simulación de entrevista con NNA
    - Ejemplo: "Mi nombre es Ana, tengo 12 años. El incidente ocurrió el lunes pasado cuando..."
 5. Esperar transcripción completa ✅
-6. Verificar que se generan análisis en las 4 herramientas
+6. Verificar que los análisis de las herramientas del caso quedan disponibles
 ```
 
 **Audios de ejemplo recomendados**:
