@@ -6,7 +6,7 @@ Eres el **primer contacto** en el sistema. Tu trabajo es registrar correctamente
 ---
 
 ## ⚡ ACCESO RÁPIDO
-- **URL Principal**: `http://localhost:3100/ingreso`
+- **URL Principal**: `http://localhost:3100/ingesta-caso`
 - **Tu menú**: Solo verás "Inicio de caso" y funciones básicas
 - **Tiempo promedio por caso**: 15-30 minutos
 
@@ -21,7 +21,7 @@ Asegúrate de tener:
 ✅ Edad o fecha de nacimiento
 ✅ Dirección actual donde vive
 ✅ Descripción clara de lo que pasó
-✅ Datos de quien hace la denuncia
+✅ Datos de quien hace la denuncia (solo si es un tercero — el denunciante es OPCIONAL)
 ✅ ¿Es urgente? (riesgo inmediato SÍ/NO)
 ```
 
@@ -29,7 +29,7 @@ Asegúrate de tener:
 
 ### **PASO 1: BUSCAR SI LA PERSONA YA EXISTE**
 
-1. **Entra a**: `http://localhost:3100/ingreso`
+1. **Entra a**: `http://localhost:3100/ingesta-caso`
 2. **Click en**: "Buscar Persona Existente"
 3. **Busca por**:
    - Nombre completo
@@ -84,20 +84,19 @@ Asegúrate de tener:
 
 ```
 🏷️ CLASIFICACIÓN:
-   Tipo de caso: 
-   ◉ VIOLENCIA FÍSICA
-   ◉ VIOLENCIA SEXUAL  
-   ◉ VIOLENCIA PSICOLÓGICA
-   ◉ NEGLIGENCIA/ABANDONO
-   ◉ TRABAJO INFANTIL
-   ◉ CONFLICTO FAMILIAR
-   ◉ OTRO (especificar)
+   Tipo de caso (catálogo CASE_TYPES — 7 valores):
+   ◉ DENUNCIA_VULNERACION (Denuncia por Vulneración)
+   ◉ CONSUMO_SUSTANCIAS (Consumo de Sustancias)
+   ◉ VENTA_ALCOHOL (Venta de Alcohol a Menores)
+   ◉ DERECHO_EDUCACION (Vulneración al Derecho a la Educación)
+   ◉ EXTRAVIO (Extravío / Desaparición)
+   ◉ NNA_INFRACTOR (NNA en Conflicto con la Ley)
+   ◉ FISCALIZACION (Fiscalización / Inspección)
    
-🔥 URGENCIA:
+🔥 PRIORIDAD:
+   ◉ NORMAL (seguimiento regular)
    ◉ URGENTE (riesgo inmediato - menos de 24h)
-   ◉ ALTA (requiere atención en 48h)
-   ◉ MEDIA (requiere atención en 1 semana)
-   ◉ BAJA (seguimiento regular)
+   ◉ CRITICA (riesgo vital inminente - intervención inmediata)
    
 📍 UBICACIÓN:
    Oficina responsable: [Tu oficina]
@@ -121,10 +120,12 @@ Asegúrate de tener:
 
 ---
 
-### **PASO 4: DATOS DEL DENUNCIANTE**
+### **PASO 4: DATOS DEL DENUNCIANTE (OPCIONAL)**
+
+> ℹ️ El denunciante es **OPCIONAL**: si el NNA presenta su propia denuncia, no hace falta registrar a un tercero. En la pantalla de ingesta, marca la casilla **"¿La denuncia es presentada por un tercero (no por el NNA)?"** para habilitar este formulario.
 
 ```
-👤 PERSONA QUE DENUNCIA:
+👤 PERSONA QUE DENUNCIA (solo si es tercero):
    Nombre completo: [Nombres y apellidos]
    Relación con NNA: [Madre/Padre/Familiar/Vecino/Institución/Otro]
    Teléfono: [Número principal]
@@ -184,7 +185,7 @@ Asegúrate de tener:
 ✅ Tipo de caso seleccionado apropiadamente  
 ✅ Urgencia evaluada correctamente
 ✅ Descripción de hechos clara y detallada
-✅ Datos del denunciante completos
+✅ Datos del denunciante completos (si es un tercero)
 ✅ Documentos adjuntados (si los hay)
 ✅ Teléfonos de contacto verificados
 ```
@@ -203,9 +204,9 @@ Asegúrate de tener:
 ### **QUÉ PASA AUTOMÁTICAMENTE:**
 ```
 ✅ Sistema asigna número de expediente único
-✅ Estado del caso: "PENDIENTE_ASIGNACIÓN"
-✅ Notificación automática a Jefatura
-✅ Caso aparece en lista de casos nuevos
+✅ Estado del caso: "DERIVACION" (primera fase del expediente)
+✅ NO se agenda cita automáticamente: las citas se gestionan manualmente desde "Agenda y Citas"
+✅ El caso queda disponible para que Jefatura asigne el equipo profesional
 ```
 
 ### **QUÉ DEBES ENTREGAR AL DENUNCIANTE:**
