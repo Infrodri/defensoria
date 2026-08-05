@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReportType, ReportStatus, RiskLevel, Role } from '@defensoria/shared';
+import { ReportCategory, ReportStatus, RiskLevel, Role } from '@defensoria/shared';
 
 export interface CreateReportDto {
   caseId: string;
-  reportType: ReportType;
+  disciplineReportTypeId: string;
   title: string;
   content: string;
   riskAssessment?: RiskLevel;
@@ -14,28 +14,28 @@ export interface CreateReportDto {
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
-  private checkReportRolePermission(reportType: ReportType, userRole: Role) {
+  private checkReportRolePermission(category: ReportCategory, userRole: Role) {
     if (userRole === Role.JEFATURA || userRole === Role.ADMINISTRADOR) return; // Jefatura / Admin can manage all
 
-    if (reportType === ReportType.INFORME_PSICOLOGICO && userRole !== Role.PSICOLOGO) {
+    if (category === ReportCategory.INFORME_PSICOLOGICO && userRole !== Role.PSICOLOGO) {
       throw new ForbiddenException('Solo el área de Psicología puede redactar informes psicológicos');
     }
 
-    if (reportType === ReportType.INFORME_SOCIAL && userRole !== Role.SOCIAL) {
+    if (category === ReportCategory.INFORME_SOCIAL && userRole !== Role.SOCIAL) {
       throw new ForbiddenException('Solo el área de Trabajo Social puede redactar informes sociales');
     }
 
-    if (reportType === ReportType.INFORME_JURIDICO && userRole !== Role.ABOGADO) {
+    if (category === ReportCategory.INFORME_JURIDICO && userRole !== Role.ABOGADO) {
       throw new ForbiddenException('Solo el área Legal (Abogado/a) puede redactar informes jurídicos');
     }
 
-    if (reportType === ReportType.INFORME_SESION_SEGUIMIENTO) {
+    if (category === ReportCategory.INFORME_SESION_SEGUIMIENTO) {
       if (userRole !== Role.PSICOLOGO && userRole !== Role.SOCIAL && userRole !== Role.ABOGADO) {
         throw new ForbiddenException('Solo los profesionales intervinientes pueden redactar informes de sesión de seguimiento');
       }
     }
 
-    if (reportType === ReportType.INFORME_FINAL_CONCILIACION) {
+    if (category === ReportCategory.INFORME_FINAL_CONCILIACION) {
       if (userRole !== Role.PSICOLOGO && userRole !== Role.SOCIAL && userRole !== Role.ABOGADO) {
         throw new ForbiddenException('Solo los profesionales del equipo pueden emitir el informe final de conciliación');
       }
@@ -43,7 +43,16 @@ export class ReportsService {
   }
 
   async create(dto: CreateReportDto, authorId: string, authorRole: Role) {
-    this.checkReportRolePermission(dto.reportType, authorRole);
+    const reportType = await this.prisma.disciplineReportType.findUnique({
+      where: { id: dto.disciplineReportTypeId },
+      select: { category: true },
+    });
+
+    if (!reportType) {
+      throw new BadRequestException('Tipo de informe (disciplineReportTypeId) inválido');
+    }
+
+    this.checkReportRolePermission(reportType.category as ReportCategory, authorRole);
 
     const existingCase = await this.prisma.case.findUnique({ where: { id: dto.caseId } });
     if (!existingCase) {
@@ -65,7 +74,7 @@ export class ReportsService {
       data: {
         caseId: dto.caseId,
         authorId,
-        reportType: dto.reportType,
+        disciplineReportTypeId: dto.disciplineReportTypeId,
         title: dto.title,
         content: dto.content,
         riskAssessment: dto.riskAssessment || null,
@@ -78,7 +87,14 @@ export class ReportsService {
   }
 
   async emit(id: string, authorId: string) {
-    const report = await this.prisma.report.findUnique({ where: { id } });
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+      include: {
+        disciplineReportType: { select: { category: true } },
+        author: { select: { role: true } },
+        coAuthor: { select: { role: true } },
+      },
+    });
     if (!report) {
       throw new NotFoundException('Informe no encontrado');
     }
@@ -89,6 +105,22 @@ export class ReportsService {
 
     if (report.status === ReportStatus.EMITIDO) {
       throw new BadRequestException('Este informe ya ha sido emitido previamente y está congelado');
+    }
+
+    // Tarea B: un INFORME_PSICOSOCIAL exige coautor de la disciplina complementaria.
+    // El conjunto {author.role, coAuthor.role} debe ser EXACTAMENTE {PSICOLOGO, SOCIAL}.
+    if (report.disciplineReportType?.category === ReportCategory.INFORME_PSICOSOCIAL) {
+      if (!report.coAuthorId) {
+        throw new BadRequestException('Informe psicosocial requiere coautor de la disciplina complementaria');
+      }
+
+      const authorRole = report.author?.role as Role | undefined;
+      const coAuthorRole = report.coAuthor?.role as Role | undefined;
+      const roles = new Set<Role | undefined>([authorRole, coAuthorRole]);
+
+      if (roles.size !== 2 || !roles.has(Role.PSICOLOGO) || !roles.has(Role.SOCIAL)) {
+        throw new BadRequestException('Informe psicosocial requiere un equipo PSICOLOGO + SOCIAL (autor y coautor)');
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -102,7 +134,7 @@ export class ReportsService {
       });
 
       // 2. If Psychology report evaluated risk, update Case riskLevel automatically!
-      if (report.reportType === ReportType.INFORME_PSICOLOGICO && report.riskAssessment) {
+      if (report.disciplineReportType?.category === ReportCategory.INFORME_PSICOLOGICO && report.riskAssessment) {
         await tx.case.update({
           where: { id: report.caseId },
           data: {
@@ -112,7 +144,7 @@ export class ReportsService {
       }
 
       // 3. Handle Session Tracking (INFORME_SESION_SEGUIMIENTO)
-      if (report.reportType === ReportType.INFORME_SESION_SEGUIMIENTO) {
+      if (report.disciplineReportType?.category === ReportCategory.INFORME_SESION_SEGUIMIENTO) {
         const activeAssignment = await tx.caseTeamHistory.findFirst({
           where: {
             caseId: report.caseId,
@@ -135,7 +167,7 @@ export class ReportsService {
       }
 
       // 4. Handle Conciliation Closure (INFORME_FINAL_CONCILIACION)
-      if (report.reportType === ReportType.INFORME_FINAL_CONCILIACION) {
+      if (report.disciplineReportType?.category === ReportCategory.INFORME_FINAL_CONCILIACION) {
         await tx.case.update({
           where: { id: report.caseId },
           data: {
@@ -180,13 +212,15 @@ export class ReportsService {
             where: {
               caseId: report.caseId,
               status: ReportStatus.EMITIDO,
-              reportType: {
-                in: [
-                  ReportType.INFORME_SOCIAL,
-                  ReportType.INFORME_PSICOLOGICO,
-                  ReportType.INFORME_JURIDICO,
-                  ReportType.INFORME_PSICOSOCIAL,
-                ],
+              disciplineReportType: {
+                category: {
+                  in: [
+                    ReportCategory.INFORME_SOCIAL,
+                    ReportCategory.INFORME_PSICOLOGICO,
+                    ReportCategory.INFORME_JURIDICO,
+                    ReportCategory.INFORME_PSICOSOCIAL,
+                  ],
+                },
               },
             },
             select: { authorId: true, authorRoleSnapshot: true },
@@ -223,7 +257,10 @@ export class ReportsService {
   }
 
   async createComplementary(parentReportId: string, content: string, title: string, authorId: string, authorRole: Role) {
-    const parent = await this.prisma.report.findUnique({ where: { id: parentReportId } });
+    const parent = await this.prisma.report.findUnique({
+      where: { id: parentReportId },
+      include: { disciplineReportType: { select: { category: true } } },
+    });
     if (!parent) {
       throw new NotFoundException('Informe original no encontrado');
     }
@@ -232,7 +269,7 @@ export class ReportsService {
       throw new BadRequestException('Solo se pueden crear informes complementarios sobre informes ya EMITIDOS');
     }
 
-    this.checkReportRolePermission(parent.reportType as unknown as ReportType, authorRole);
+    this.checkReportRolePermission(parent.disciplineReportType.category as ReportCategory, authorRole);
 
     // FIX 3 (Fase 0): mismo snapshot de rol/disciplina vigentes que en create,
     // para que ningún Report se persista sin estos campos.
@@ -248,7 +285,7 @@ export class ReportsService {
       data: {
         caseId: parent.caseId,
         authorId,
-        reportType: parent.reportType,
+        disciplineReportTypeId: parent.disciplineReportTypeId,
         version: parent.version + 1,
         parentReportId: parent.id,
         title: title || `Complementario v${parent.version + 1} - ${parent.title}`,
@@ -265,7 +302,9 @@ export class ReportsService {
       where: { caseId },
       include: {
         author: { select: { id: true, firstName: true, lastName: true, role: true } },
+        coAuthor: { select: { id: true, firstName: true, lastName: true, role: true } },
         parentReport: { select: { id: true, title: true, version: true } },
+        disciplineReportType: { select: { id: true, code: true, name: true, category: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -275,7 +314,7 @@ export class ReportsService {
       return reports.map((report) => ({
         id: report.id,
         caseId: report.caseId,
-        reportType: report.reportType,
+        disciplineReportType: report.disciplineReportType,
         status: report.status,
         version: report.version,
         title: report.title,
@@ -295,7 +334,9 @@ export class ReportsService {
       where: { caseId },
       include: {
         author: { select: { id: true, firstName: true, lastName: true, role: true } },
+        coAuthor: { select: { id: true, firstName: true, lastName: true, role: true } },
         parentReport: { select: { id: true, title: true, version: true } },
+        disciplineReportType: { select: { id: true, code: true, name: true, category: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

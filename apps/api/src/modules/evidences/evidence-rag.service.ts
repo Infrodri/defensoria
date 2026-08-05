@@ -292,10 +292,10 @@ Sé objetivo y profesional, como un perito forense.`,
   /**
    * Indexar el contenido de un informe profesional al emitirlo.
    */
-  async indexReport(caseId: string, reportId: string, content: string, reportType: string) {
+  async indexReport(caseId: string, reportId: string, content: string, category: string) {
     await this.indexChunk(caseId, null, 'report', content, {
       reportId,
-      reportType,
+      category,
       source: 'professional_report',
     });
   }

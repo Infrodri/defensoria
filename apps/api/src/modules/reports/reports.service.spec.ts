@@ -3,7 +3,36 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReportsService } from './reports.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { Role, ReportType, ReportStatus, RiskLevel } from '@defensoria/shared';
+import { Role, ReportCategory, ReportStatus, RiskLevel } from '@defensoria/shared';
+
+// Mapeo de disciplineReportTypeId -> category usado por el mock de prisma.
+const DRT_CATEGORY: Record<string, ReportCategory> = {
+  'drt-psicologico': ReportCategory.INFORME_PSICOLOGICO,
+  'drt-juridico': ReportCategory.INFORME_JURIDICO,
+  'drt-social': ReportCategory.INFORME_SOCIAL,
+  'drt-psicosocial': ReportCategory.INFORME_PSICOSOCIAL,
+  'drt-final-conciliacion': ReportCategory.INFORME_FINAL_CONCILIACION,
+};
+
+const mockEmitTx = (overrides: Record<string, unknown> = {}) => ({
+  report: {
+    update: vi.fn().mockResolvedValue({ id: 'report-1', status: ReportStatus.EMITIDO, emittedAt: new Date() }),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  case: {
+    update: vi.fn(),
+    findUnique: vi.fn().mockResolvedValue({ id: 'case-1', currentPhase: 'EVALUACION' }),
+  },
+  caseTeamHistory: {
+    findMany: vi.fn().mockResolvedValue([]),
+    findFirst: vi.fn().mockResolvedValue(null),
+    update: vi.fn(),
+  },
+  actionLog: {
+    create: vi.fn(),
+  },
+  ...overrides,
+});
 
 describe('ReportsService Integration Tests', () => {
   let reportsService: ReportsService;
@@ -11,6 +40,11 @@ describe('ReportsService Integration Tests', () => {
 
   beforeEach(async () => {
     const prismaMock = {
+      disciplineReportType: {
+        findUnique: vi.fn().mockImplementation(({ where }: { where: { id: string } }) => {
+          return DRT_CATEGORY[where.id] ? { category: DRT_CATEGORY[where.id] } : null;
+        }),
+      },
       case: {
         findUnique: vi.fn().mockResolvedValue({ id: 'case-1', riskLevel: null }),
         update: vi.fn(),
@@ -20,7 +54,7 @@ describe('ReportsService Integration Tests', () => {
           id: 'report-1',
           caseId: 'case-1',
           authorId: 'author-1',
-          reportType: ReportType.INFORME_PSICOLOGICO,
+          disciplineReportTypeId: 'drt-psicologico',
           title: 'Test',
           content: 'Content',
           status: ReportStatus.BORRADOR,
@@ -32,11 +66,14 @@ describe('ReportsService Integration Tests', () => {
           id: 'report-1',
           caseId: 'case-1',
           authorId: 'author-1',
-          reportType: ReportType.INFORME_PSICOLOGICO,
           status: ReportStatus.BORRADOR,
           riskAssessment: RiskLevel.ALTO,
+          disciplineReportType: { category: ReportCategory.INFORME_PSICOLOGICO },
+          author: { role: Role.PSICOLOGO },
+          coAuthor: null,
         }),
         update: vi.fn().mockResolvedValue({ id: 'report-1', status: ReportStatus.EMITIDO, emittedAt: new Date() }),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       user: {
         findUnique: vi.fn().mockResolvedValue({
@@ -67,7 +104,7 @@ describe('ReportsService Integration Tests', () => {
     it('debería escribir authorRoleSnapshot y authorDisciplineSnapshot con los valores VIGENTES del autor', async () => {
       const dto = {
         caseId: 'case-1',
-        reportType: ReportType.INFORME_PSICOLOGICO,
+        disciplineReportTypeId: 'drt-psicologico',
         title: 'Informe Psicológico',
         content: 'Contenido del informe',
       };
@@ -81,6 +118,7 @@ describe('ReportsService Integration Tests', () => {
 
       expect(prisma.report.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
+          disciplineReportTypeId: 'drt-psicologico',
           authorRoleSnapshot: Role.PSICOLOGO,
           authorDisciplineSnapshot: 'PSICOLOGICA',
         }),
@@ -93,7 +131,7 @@ describe('ReportsService Integration Tests', () => {
     it('debería validar que solo PSICOLOGO puede crear INFORME_PSICOLOGICO', async () => {
       const dto = {
         caseId: 'case-1',
-        reportType: ReportType.INFORME_PSICOLOGICO,
+        disciplineReportTypeId: 'drt-psicologico',
         title: 'Informe',
         content: 'Contenido',
       };
@@ -105,7 +143,7 @@ describe('ReportsService Integration Tests', () => {
     it('debería validar que solo ABOGADO puede crear INFORME_JURIDICO', async () => {
       const dto = {
         caseId: 'case-1',
-        reportType: ReportType.INFORME_JURIDICO,
+        disciplineReportTypeId: 'drt-juridico',
         title: 'Informe',
         content: 'Contenido',
       };
@@ -117,24 +155,7 @@ describe('ReportsService Integration Tests', () => {
 
   describe('emit (congelado de informe)', () => {
     it('debería emitir solo si el autor es el original', async () => {
-      const mockTx = {
-        report: {
-          update: vi.fn().mockResolvedValue({ id: 'report-1', status: ReportStatus.EMITIDO, emittedAt: new Date() }),
-          findMany: vi.fn().mockResolvedValue([]),
-        },
-        case: {
-          update: vi.fn(),
-          findUnique: vi.fn().mockResolvedValue({ id: 'case-1', currentPhase: 'EVALUACION' }),
-        },
-        caseTeamHistory: {
-          findMany: vi.fn().mockResolvedValue([]),
-          findFirst: vi.fn().mockResolvedValue(null),
-          update: vi.fn(),
-        },
-        actionLog: {
-          create: vi.fn(),
-        },
-      };
+      const mockTx = mockEmitTx();
       vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx as any));
 
       await reportsService.emit('report-1', 'author-1');
@@ -171,21 +192,19 @@ describe('ReportsService Integration Tests', () => {
         id: 'report-1',
         caseId: 'case-123',
         authorId: 'user-psych',
-        reportType: ReportType.INFORME_PSICOLOGICO,
         status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_PSICOLOGICO },
+        author: { role: Role.PSICOLOGO },
+        coAuthor: null,
       } as any);
 
-      const mockTx = {
+      const mockTx = mockEmitTx({
         report: {
           update: vi.fn().mockResolvedValue({ id: 'report-1', status: ReportStatus.EMITIDO, emittedAt: new Date() }),
           findMany: vi.fn().mockResolvedValue([
             { authorId: 'user-psych', authorRoleSnapshot: Role.PSICOLOGO },
             { authorId: 'user-social', authorRoleSnapshot: Role.SOCIAL },
           ]),
-        },
-        case: {
-          update: vi.fn(),
-          findUnique: vi.fn().mockResolvedValue({ id: 'case-123', currentPhase: 'EVALUACION' }),
         },
         caseTeamHistory: {
           findMany: vi.fn().mockResolvedValue([
@@ -195,10 +214,7 @@ describe('ReportsService Integration Tests', () => {
           findFirst: vi.fn().mockResolvedValue(null),
           update: vi.fn(),
         },
-        actionLog: {
-          create: vi.fn(),
-        },
-      };
+      });
       vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx as any));
 
       await reportsService.emit('report-1', 'user-psych');
@@ -219,28 +235,18 @@ describe('ReportsService Integration Tests', () => {
         id: 'report-conciliation',
         caseId: 'case-123',
         authorId: 'user-lawyer',
-        reportType: ReportType.INFORME_FINAL_CONCILIACION,
         status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_FINAL_CONCILIACION },
+        author: { role: Role.ABOGADO },
+        coAuthor: null,
       } as any);
 
-      const mockTx = {
-        report: {
-          update: vi.fn().mockResolvedValue({ id: 'report-conciliation', status: ReportStatus.EMITIDO }),
-          findMany: vi.fn().mockResolvedValue([]),
-        },
+      const mockTx = mockEmitTx({
         case: {
           update: vi.fn(),
           findUnique: vi.fn().mockResolvedValue({ id: 'case-123', currentPhase: 'SEGUIMIENTO' }),
         },
-        caseTeamHistory: {
-          findMany: vi.fn().mockResolvedValue([]),
-          findFirst: vi.fn().mockResolvedValue(null),
-          update: vi.fn(),
-        },
-        actionLog: {
-          create: vi.fn(),
-        },
-      };
+      });
       vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx as any));
 
       await reportsService.emit('report-conciliation', 'user-lawyer');
@@ -253,6 +259,128 @@ describe('ReportsService Integration Tests', () => {
           currentPhase: 'CIERRE',
           currentInterventionPath: 'CONCILIACION',
         }),
+      });
+    });
+  });
+
+  describe('emit — validación de coautoría en INFORME_PSICOSOCIAL (Tarea B)', () => {
+    it('debería rechazar la emisión de un INFORME_PSICOSOCIAL sin coautor', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        id: 'report-psicosocial',
+        caseId: 'case-1',
+        authorId: 'author-1',
+        status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_PSICOSOCIAL },
+        author: { role: Role.PSICOLOGO },
+        coAuthor: null,
+        coAuthorId: null,
+      } as any);
+
+      await expect(reportsService.emit('report-psicosocial', 'author-1'))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('debería rechazar la emisión de un INFORME_PSICOSOCIAL cuyo coautor tiene el mismo rol que el autor', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        id: 'report-psicosocial',
+        caseId: 'case-1',
+        authorId: 'author-1',
+        status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_PSICOSOCIAL },
+        author: { role: Role.PSICOLOGO },
+        coAuthor: { role: Role.PSICOLOGO },
+        coAuthorId: 'author-2',
+      } as any);
+
+      await expect(reportsService.emit('report-psicosocial', 'author-1'))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('debería aceptar la emisión de un INFORME_PSICOSOCIAL con autor PSICOLOGO y coautor SOCIAL', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        id: 'report-psicosocial',
+        caseId: 'case-1',
+        authorId: 'author-1',
+        status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_PSICOSOCIAL },
+        author: { role: Role.PSICOLOGO },
+        coAuthor: { role: Role.SOCIAL },
+        coAuthorId: 'author-2',
+      } as any);
+
+      const mockTx = mockEmitTx();
+      vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx as any));
+
+      await reportsService.emit('report-psicosocial', 'author-1');
+
+      expect(mockTx.report.update).toHaveBeenCalledWith({
+        where: { id: 'report-psicosocial' },
+        data: { status: ReportStatus.EMITIDO, emittedAt: expect.any(Date) },
+      });
+    });
+
+    it('debería aceptar la emisión de un INFORME_PSICOSOCIAL con autor SOCIAL y coautor PSICOLOGO (invertido)', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        id: 'report-psicosocial',
+        caseId: 'case-1',
+        authorId: 'author-1',
+        status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_PSICOSOCIAL },
+        author: { role: Role.SOCIAL },
+        coAuthor: { role: Role.PSICOLOGO },
+        coAuthorId: 'author-2',
+      } as any);
+
+      const mockTx = mockEmitTx();
+      vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx as any));
+
+      await reportsService.emit('report-psicosocial', 'author-1');
+
+      expect(mockTx.report.update).toHaveBeenCalledWith({
+        where: { id: 'report-psicosocial' },
+        data: { status: ReportStatus.EMITIDO, emittedAt: expect.any(Date) },
+      });
+    });
+
+    it('debería permitir CREAR un INFORME_PSICOSOCIAL en borrador sin coautor (la validación es solo de emisión)', async () => {
+      const dto = {
+        caseId: 'case-1',
+        disciplineReportTypeId: 'drt-psicosocial',
+        title: 'Informe Psicosocial',
+        content: 'Contenido',
+      };
+
+      const result = await reportsService.create(dto, 'author-1', Role.PSICOLOGO);
+
+      expect(prisma.report.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          disciplineReportTypeId: 'drt-psicosocial',
+          status: ReportStatus.BORRADOR,
+        }),
+      }));
+      expect(result.status).toBe(ReportStatus.BORRADOR);
+    });
+
+    it('debería aceptar la emisión de un informe de otra categoría sin coautor', async () => {
+      vi.mocked(prisma.report.findUnique).mockResolvedValue({
+        id: 'report-social',
+        caseId: 'case-1',
+        authorId: 'author-1',
+        status: ReportStatus.BORRADOR,
+        disciplineReportType: { category: ReportCategory.INFORME_SOCIAL },
+        author: { role: Role.SOCIAL },
+        coAuthor: null,
+        coAuthorId: null,
+      } as any);
+
+      const mockTx = mockEmitTx();
+      vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx as any));
+
+      await reportsService.emit('report-social', 'author-1');
+
+      expect(mockTx.report.update).toHaveBeenCalledWith({
+        where: { id: 'report-social' },
+        data: { status: ReportStatus.EMITIDO, emittedAt: expect.any(Date) },
       });
     });
   });

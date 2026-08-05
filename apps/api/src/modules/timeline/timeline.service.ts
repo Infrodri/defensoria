@@ -21,7 +21,7 @@ export class TimelineService {
       include: {
         actionLogs: { include: { author: true } },
         appointments: { include: { creator: true } },
-        reports: { include: { author: true } },
+        reports: { include: { author: true, disciplineReportType: { select: { category: true, name: true } } } },
         evidences: { include: { uploader: true } },
       }
     });
@@ -73,7 +73,7 @@ export class TimelineService {
         id: `rep_${report.id}`,
         type: 'REPORT',
         title: `Informe ${report.status === 'EMITIDO' ? 'Emitido' : 'Borrador'}: ${report.title}`,
-        description: `Tipo: ${report.reportType} (v${report.version})`,
+        description: `Tipo: ${report.disciplineReportType?.category ?? report.disciplineReportType?.name ?? 'Informe'} (v${report.version})`,
         date: report.status === 'EMITIDO' ? (report.emittedAt || report.updatedAt) : report.createdAt,
         metadata: { status: report.status, riskAssessment: report.riskAssessment },
         user: report.author ? { firstName: report.author.firstName, lastName: report.author.lastName, role: report.author.role } : undefined,

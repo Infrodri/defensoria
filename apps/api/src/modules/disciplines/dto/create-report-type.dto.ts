@@ -1,10 +1,31 @@
-import { IsString, IsOptional, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsObject, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ReportCategory } from '@prisma/client';
 
 export class CreateReportTypeDto {
   @ApiProperty({ description: 'Código único del tipo de informe (ej. INFORME_PSICOSOCIAL)' })
   @IsString()
   code: string;
+
+  @ApiProperty({ description: 'Categoría del informe (ReportCategory)', enum: [
+    'INFORME_JURIDICO',
+    'INFORME_PSICOLOGICO',
+    'INFORME_SOCIAL',
+    'INFORME_PSICOSOCIAL',
+    'INFORME_SESION_SEGUIMIENTO',
+    'INFORME_FINAL_CONCILIACION',
+    'INFORME_COMPLEMENTARIO',
+  ] })
+  @IsEnum([
+    'INFORME_JURIDICO',
+    'INFORME_PSICOLOGICO',
+    'INFORME_SOCIAL',
+    'INFORME_PSICOSOCIAL',
+    'INFORME_SESION_SEGUIMIENTO',
+    'INFORME_FINAL_CONCILIACION',
+    'INFORME_COMPLEMENTARIO',
+  ])
+  category: ReportCategory;
 
   @ApiProperty({ description: 'Nombre legible (ej. Informe Psicosocial Integral)' })
   @IsString()
