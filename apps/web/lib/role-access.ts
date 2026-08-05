@@ -17,7 +17,8 @@ export type ToolId =
   | 'social_vulnerability'
   | 'social_environmental'
   | 'transversal_timeline'
-  | 'transversal_anonymize';
+  | 'transversal_anonymize'
+  | 'transversal_transcription';
 
 /**
  * Matriz de permisos: quién puede LEER y EDITAR cada herramienta
@@ -75,6 +76,10 @@ export const TOOL_PERMISSIONS: Record<ToolId, { read: UserRole[]; write: UserRol
     write: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'JEFATURA', 'ADMINISTRADOR'],
   },
   transversal_anonymize: {
+    read: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'JEFATURA', 'ADMINISTRADOR'],
+    write: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'JEFATURA', 'ADMINISTRADOR'],
+  },
+  transversal_transcription: {
     read: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'JEFATURA', 'ADMINISTRADOR'],
     write: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'JEFATURA', 'ADMINISTRADOR'],
   },
@@ -192,6 +197,12 @@ export const TOOL_DESCRIPTIONS: Record<string, { title: string; description: str
     description: 'Anonimiza datos sensibles en reportes',
     icon: '🔒',
     steps: '1. Selecciona el reporte o documento a anonimizar\n2. El sistema detecta datos identificables\n3. Aplica técnicas de anonimización segura\n4. Descarga el documento listo para compartir',
+  },
+  transversal_transcription: {
+    title: 'Transcripción de Audio/Video',
+    description: 'Convierte grabaciones de audio/video a texto usando Whisper AI',
+    icon: '🎙️',
+    steps: '1. Selecciona el caso y la evidencia de audio/video\n2. El sistema envía el archivo a Whisper para transcribir\n3. Espera a que se complete (estado: PENDIENTE → COMPLETADA)\n4. Ve el resultado en "Ver Transcripción" en la galería de evidencias',
   },
 };
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { formatPhase, formatInterventionPath, formatCaseType } from '@defensoria/shared';
-import { FileText, ArrowRight, UserPlus, ShieldOff, AlertTriangle } from 'lucide-react';
+import { FileText, ArrowRight, UserPlus, ShieldOff, AlertTriangle, Trash2 } from 'lucide-react';
 
 export default function CasosListPage() {
   const { user } = useAuth();
@@ -13,6 +13,8 @@ export default function CasosListPage() {
   const [loading, setLoading] = useState(true);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [selectedCase, setSelectedCase] = useState<any>(null);
+  const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
+  const [hardConfirm, setHardConfirm] = useState('');
 
   useEffect(() => {
     fetchApi('/cases')
@@ -38,6 +40,32 @@ export default function CasosListPage() {
       alert('✅ Expediente inhabilitado exitosamente. Se generó reporte para Jefatura.');
     } catch (err: any) {
       alert('❌ ' + (err.message || 'Error al inhabilitar expediente'));
+    }
+  };
+
+  const handleHardDelete = async () => {
+    if (!selectedCase) return;
+    if (hardConfirm !== selectedCase.caseCode) {
+      alert(`❌ Confirmación incorrecta. Escribí exactamente el caseCode "${selectedCase.caseCode}" del expediente.`);
+      return;
+    }
+    if (!confirm(`¿Borrar de raíz "${selectedCase.caseCode}"? Esta acción es IRREVERSIBLE y eliminará todo su información.`)) return;
+
+    try {
+      await fetchApi(`/cases/${selectedCase.id}/hard-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ confirm: hardConfirm }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      // Quitar de la lista local y cerrar modal
+      setCases(cases.filter(c => c.id !== selectedCase.id));
+      setShowHardDeleteModal(false);
+      setSelectedCase(null);
+      setHardConfirm('');
+      alert('✅ Expediente borrado de raíz. Toda su información asociada fue eliminada de forma definitiva.');
+    } catch (err: any) {
+      alert('❌ ' + (err.message || 'Error al borrar el expediente'));
     }
   };
 
@@ -169,6 +197,33 @@ export default function CasosListPage() {
                       }}
                     >
                       <ShieldOff size={16} /> Inhabilitar
+                    </button>
+                  )}
+
+                  {user?.role === 'ADMINISTRADOR' && (
+                    <button
+                      onClick={() => {
+                        setSelectedCase(c);
+                        setShowHardDeleteModal(true);
+                        setHardConfirm('');
+                      }}
+                      style={{
+                        backgroundColor: '#7f1d1d',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        flexShrink: 0,
+                      }}
+                      title="Borrar expediente de raíz (destructivo e irreversible)"
+                    >
+                      <Trash2 size={16} /> Borrar de raíz
                     </button>
                   )}
 
@@ -322,6 +377,125 @@ export default function CasosListPage() {
                   }}
                 >
                   🚫 Confirmar Inhabilitación
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Modal Borrar expediente de raíz (solo Admin, doble confirmación) ═══ */}
+      {showHardDeleteModal && selectedCase && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              padding: '2rem',
+              borderRadius: 'var(--radius)',
+              border: '2px solid var(--border)',
+              maxWidth: '500px',
+              width: '90%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={24} color="#ef4444" />
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--bosque-profundo)', margin: 0 }}>
+                🗑 Borrar expediente de raíz
+              </h3>
+            </div>
+
+            <div style={{
+              padding: '1rem',
+              backgroundColor: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: 'var(--radius)',
+              marginBottom: '1.5rem',
+            }}>
+              <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '0.5rem' }}>
+                ADVERTENCIA: Esta acción es IRREVERSIBLE
+              </div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--grafito)', lineHeight: 1.5 }}>
+                El expediente <strong>{selectedCase.caseCode}</strong> será <strong>borrado físicamente de la base de datos</strong> junto con TODA su información asociada: evidencias, transcripciones, análisis de IA, reportes, conciliaciones e inspecciones. La operación no genera reporte de Jefatura y no se puede deshacer.
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleHardDelete();
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  marginBottom: '0.5rem',
+                  color: 'var(--bosque-profundo)'
+                }}>
+                  Confirmación (escribí exactamente el caseCode: "{selectedCase.caseCode}"):
+                </label>
+                <input
+                  type="text"
+                  value={hardConfirm}
+                  onChange={(e) => setHardConfirm(e.target.value)}
+                  placeholder={selectedCase.caseCode}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.75rem',
+                    border: '2px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.95rem',
+                    fontFamily: 'mono',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowHardDeleteModal(false); setSelectedCase(null); setHardConfirm(''); }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border)',
+                    padding: '0.75rem 1.25rem',
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    backgroundColor: '#7f1d1d',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.75rem 1.25rem',
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  🗑 Borrar definitivamente
                 </button>
               </div>
             </form>

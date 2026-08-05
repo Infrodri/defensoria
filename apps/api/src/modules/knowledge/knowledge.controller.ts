@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Get, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Get, Patch, Param, Delete, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { KnowledgeService } from './knowledge.service';
 import { TranscriptionService } from './transcription.service';
+import { AiTaskLockService } from '../ai-task-lock/ai-task-lock.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -18,6 +19,7 @@ export class KnowledgeController {
   constructor(
     private readonly knowledgeService: KnowledgeService,
     private readonly transcriptionService: TranscriptionService,
+    private readonly aiTaskLock: AiTaskLockService,
   ) {}
 
   @Post('ingest')
@@ -163,10 +165,14 @@ export class KnowledgeController {
     if (!file) throw new BadRequestException('Se requiere un archivo de audio');
     if (!caseId) throw new BadRequestException('Se requiere caseId');
 
-    // Validar que el archivo es audio
-    const audioMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/webm'];
-    if (!audioMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(`Tipo de audio no soportado: ${file.mimetype}`);
+    // Validar que el archivo es audio o video (Whisper acepta ambos)
+    const mediaMimeTypes = [
+      'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/m4a', 'audio/x-m4a',
+      'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/webm', 'audio/x-aiff',
+      'video/mp4', 'video/x-m4v', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo',
+    ];
+    if (!mediaMimeTypes.includes(file.mimetype) && file.mimetype !== 'application/octet-stream') {
+      throw new BadRequestException(`Tipo de audio/video no soportado: ${file.mimetype}`);
     }
 
     try {
@@ -179,6 +185,68 @@ export class KnowledgeController {
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Error al transcribir el audio');
     }
+  }
+
+  @Post('analyze-image')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Analizar imagen existente (descripción + OCR) e indexarla en el RAG del expediente' })
+  async analyzeImage(
+    @Body('evidenceId') evidenceId: string,
+    @CurrentUser() user?: any,
+  ) {
+    if (!evidenceId) throw new BadRequestException('Se requiere evidenceId');
+
+    try {
+      return await this.transcriptionService.analyzeImageByEvidenceId(
+        evidenceId,
+        user?.id,
+      );
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al analizar la imagen');
+    }
+  }
+
+  @Post('queue-case')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Encolar todas las evidencias de un caso para procesamiento IA (una a la vez)' })
+  async queueCase(
+    @Body('caseId') caseId: string,
+    @CurrentUser() user?: any,
+  ) {
+    if (!caseId) throw new BadRequestException('Se requiere caseId');
+    return this.transcriptionService.enqueueCaseEvidences(caseId, user?.id);
+  }
+
+  @Get('ai-status')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Estado del procesamiento de IA (una petición a la vez)' })
+  aiStatus() {
+    return this.aiTaskLock.getStatus();
+  }
+
+  @Get('ai-tasks')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Listado de trabajos de IA encolados/recientes con posición en la cola' })
+  async getAiTasks() {
+    const [worker, tasks] = await Promise.all([
+      this.aiTaskLock.getStatus(),
+      this.transcriptionService.listAiTasks(),
+    ]);
+    return { worker, tasks };
+  }
+
+  @Post('ai-tasks/:id/retry')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
+  @ApiOperation({ summary: 'Reencolar una tarea de IA fallida (o pendiente) para re-procesar' })
+  async retryTask(@Param('id') id: string) {
+    return this.transcriptionService.retryTask(id);
+  }
+
+  @Post('ai-tasks/:id/cancel')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
+  @ApiOperation({ summary: 'Cancelar una tarea de IA que aún está en cola (PENDIENTE)' })
+  async cancelTask(@Param('id') id: string) {
+    return this.transcriptionService.cancelTask(id);
   }
 
   @Post('search-transcriptions')
@@ -196,5 +264,34 @@ export class KnowledgeController {
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Error al buscar en transcripciones');
     }
+  }
+
+  @Get('transcription/evidence/:evidenceId')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Obtener transcripción completada por ID de evidencia' })
+  async getTranscriptionByEvidenceId(@Param('evidenceId') evidenceId: string) {
+    const transcription = await this.transcriptionService.getTranscriptionStatusByEvidenceId(evidenceId);
+    if (!transcription || transcription.status !== 'COMPLETADA') {
+      throw new NotFoundException('No se encontró transcripción completada para esta evidencia');
+    }
+    return transcription;
+  }
+
+  @Get('transcription/status/:evidenceId')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Obtener estado de transcripción por ID de evidencia' })
+  async getTranscriptionStatus(@Param('evidenceId') evidenceId: string) {
+    const transcription = await this.transcriptionService.getTranscriptionStatusByEvidenceId(evidenceId);
+    if (!transcription) {
+      return { status: 'NO_INICIADA', evidenceId };
+    }
+    return {
+      id: transcription.id,
+      status: transcription.status,
+      language: transcription.language,
+      confidence: transcription.confidence,
+      createdAt: transcription.createdAt,
+      hasText: !!transcription.text && transcription.text.length > 0,
+    };
   }
 }

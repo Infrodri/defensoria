@@ -1,9 +1,12 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportsService, CreateReportDto } from './reports.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@defensoria/shared';
+import { AccessUser } from '../../common/case-access/case-access.service';
 
 @ApiTags('Reports')
 @Controller('reports')
@@ -47,5 +50,25 @@ export class ReportsController {
     @CurrentUser('role') userRole: Role,
   ) {
     return this.reportsService.findByCaseForRole(caseId, userRole);
+  }
+
+  @Post('generate-draft')
+  @ApiOperation({ summary: 'Generar borrador de informe asistido por IA local (Ollama)' })
+  async generateDraft(
+    @Body('caseId') caseId: string,
+    @Body('reportType') reportType: any,
+    @CurrentUser('role') userRole: Role,
+  ) {
+    return this.reportsService.generateDraft(caseId, reportType, userRole);
+  }
+
+  @Get('filtrar')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
+  @ApiOperation({ summary: 'Filtrar expedientes por CI/Nombre/Apellido del NNA + stats + profesionales' })
+  async filtrar(
+    @Query() query: any,
+    @CurrentUser() user: AccessUser,
+  ) {
+    return this.reportsService.filtrarExpedientes(query, user);
   }
 }

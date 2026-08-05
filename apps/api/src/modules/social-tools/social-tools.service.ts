@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
@@ -50,7 +51,9 @@ export class SocialToolsService {
       : null;
 
     if (!transcription) {
-      return this.generateExampleFamilyMap(dto.caseId);
+      throw new BadRequestException(
+        'No se encontraron transcripciones de entrevistas para generar la estructura familiar. Subí un audio de entrevista primero.',
+      );
     }
 
     // Buscar documentos sobre estructura familiar

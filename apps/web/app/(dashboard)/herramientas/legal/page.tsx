@@ -64,10 +64,6 @@ function LegalToolsContent() {
     if (!caseId) { setError('No hay expediente seleccionado.'); return; }
 
     // Per-tool validations
-    if (activeTool === 'tipicidad' && !transcriptionId.trim()) {
-      setError('Tipicidad requiere un ID de transcripción. Ingresalo en el campo correspondiente.');
-      return;
-    }
     if (activeTool === 'plazos' && !eventDate) {
       setError('Plazos procesales requiere la fecha del evento.');
       return;
@@ -86,12 +82,14 @@ function LegalToolsContent() {
           body: JSON.stringify(body),
         });
       } else if (activeTool === 'tipicidad') {
+        const body: Record<string, any> = {
+          caseId,
+          caseTypeCode: caseTypeCode.trim() || caseData?.caseType || 'GENERAL',
+        };
+        if (transcriptionId.trim()) body.transcriptionId = transcriptionId.trim();
         res = await fetchApi('/legal-tools/typicality/analyze', {
           method: 'POST',
-          body: JSON.stringify({
-            transcriptionId: transcriptionId.trim(),
-            caseTypeCode: caseTypeCode.trim() || caseData?.caseType || 'GENERAL',
-          }),
+          body: JSON.stringify(body),
         });
       } else if (activeTool === 'plazos') {
         res = await fetchApi('/legal-tools/deadlines/calculate', {
@@ -264,42 +262,24 @@ function ToolFields({
     );
   }
 
-  // discrepancias & tipicidad both use transcriptionId
+  // discrepancias & tipicidad both use automatic case evidence now
   return (
     <div style={{ backgroundColor: 'var(--card)', padding: '1.25rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
       <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
         Parámetros — {TOOL_DEFS[activeTool].label}
       </h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-        <div>
-          <label style={labelStyle}>
-            ID de transcripción {activeTool === 'tipicidad' ? '*' : '(opcional)'}
-          </label>
-          <input
-            type="text"
-            value={transcriptionId}
-            onChange={(e) => setTranscriptionId(e.target.value)}
-            placeholder={activeTool === 'tipicidad' ? 'Requerido para tipicidad' : 'Dejar vacío para usar la última disponible'}
-            style={inputStyle}
-          />
-          {activeTool === 'discrepancias' && (
-            <p style={{ fontSize: '0.7rem', color: 'var(--grafito)', opacity: 0.65, marginTop: '0.25rem', margin: '0.25rem 0 0' }}>
-              Si no completás este campo, se usa la transcripción más reciente del expediente.
-            </p>
-          )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+        <div style={{ color: 'var(--salvia)' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
         </div>
-        {activeTool === 'tipicidad' && (
-          <div>
-            <label style={labelStyle}>Tipo de caso (opcional)</label>
-            <input
-              type="text"
-              value={caseTypeCode}
-              onChange={(e) => setCaseTypeCode(e.target.value)}
-              placeholder="Ej: VIOLENCIA_FAMILIAR — se autodetecta si se deja vacío"
-              style={inputStyle}
-            />
-          </div>
-        )}
+        <div>
+          <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--grafito)', margin: 0 }}>
+            Análisis Automático
+          </p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.8, margin: '0.25rem 0 0' }}>
+            El sistema analizará automáticamente las transcripciones y evidencias asociadas a este expediente. No necesitás configurar parámetros manuales.
+          </p>
+        </div>
       </div>
     </div>
   );

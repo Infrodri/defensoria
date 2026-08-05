@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Res,
+  Req,
   BadRequestException,
   ForbiddenException,
   MethodNotAllowedException,
@@ -21,6 +22,7 @@ import { Response } from 'express';
 import { EvidencesService } from './evidences.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CaseAccessGuard } from '../../common/case-access/case-access.guard';
+import { CaseAccessService } from '../../common/case-access/case-access.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Evidences')
@@ -28,7 +30,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class EvidencesController {
-  constructor(private readonly evidencesService: EvidencesService) {}
+  constructor(
+    private readonly evidencesService: EvidencesService,
+    private readonly caseAccessService: CaseAccessService,
+  ) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -75,10 +80,14 @@ export class EvidencesController {
   }
 
   @Get(':id/download')
-  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Descargar o reproducir archivo de evidencia desde MinIO' })
-  async downloadFile(@Param('id') id: string, @Res() res: Response) {
+  async downloadFile(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
+    const user = req.user;
     const { evidence, stream } = await this.evidencesService.getDownloadStream(id);
+
+    // Validar acceso al caso al que pertenece la evidencia
+    // El :id en esta ruta es el ID de la evidencia, no del caso — resolvemos el caseId desde la evidencia
+    await this.caseAccessService.assertUserHasAccess(evidence.caseId, user);
 
     // Cabeceras de inmutabilidad: no permitir borrado ni sobreescritura desde cliente
     res.setHeader('Content-Type', evidence.mimeType);

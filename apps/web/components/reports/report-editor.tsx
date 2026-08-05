@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye } from 'lucide-react';
+import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ReportEditorProps {
@@ -31,6 +31,25 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
   const [content, setContent] = useState('');
   const [riskAssessment, setRiskAssessment] = useState<'BAJO' | 'MEDIO' | 'ALTO'>('MEDIO');
   const [submitting, setSubmitting] = useState(false);
+  const [generatingDraft, setGeneratingDraft] = useState(false);
+
+  const handleGenerateDraft = async () => {
+    setGeneratingDraft(true);
+    try {
+      const res = await fetchApi('/reports/generate-draft', {
+        method: 'POST',
+        body: JSON.stringify({ caseId, reportType }),
+      });
+      if (res.title) setTitle(res.title);
+      if (res.content) setContent(res.content);
+      if (res.riskAssessment) setRiskAssessment(res.riskAssessment);
+      toast.success('Borrador de informe redactado por IA local (Ollama) cargado');
+    } catch (err: any) {
+      toast.error('No se pudo generar el borrador con IA', { description: err.message });
+    } finally {
+      setGeneratingDraft(false);
+    }
+  };
 
   // Complementary report modal
   const [complementaryParentId, setComplementaryParentId] = useState<string | null>(null);
@@ -402,9 +421,34 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
       {/* Report Form - SOLO PROFESIONALES (NO SECRETARIA) */}
       {user?.role !== 'SECRETARIA' && (
         <form onSubmit={handleCreateReport} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
-            {complementaryParentId ? 'Nuevo Informe Complementario' : 'Redactar Nuevo Informe Profesional'}
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', margin: 0 }}>
+              {complementaryParentId ? 'Nuevo Informe Complementario' : 'Redactar Nuevo Informe Profesional'}
+            </h3>
+            {!complementaryParentId && (
+              <button
+                type="button"
+                onClick={handleGenerateDraft}
+                disabled={generatingDraft}
+                style={{
+                  backgroundColor: 'oklch(0.96 0.03 65)',
+                  border: '1px solid var(--tierra-calida)',
+                  color: 'var(--bosque-profundo)',
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: generatingDraft ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                }}
+              >
+                <Sparkles size={14} color="var(--tierra-calida)" />
+                {generatingDraft ? 'Asistente IA pensando...' : '✨ Generar Borrador con IA (Ollama)'}
+              </button>
+            )}
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {!complementaryParentId && (

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Upload, File, Lock, X, Play, FileText, Image as ImageIcon, Music, Video, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, File, Lock, X, Play, FileText, Image as ImageIcon, Music, Video, Shield, FileText as TranscriptionIcon } from 'lucide-react';
 import { SecurityTokenModal } from '../security/security-token-modal';
+import { fetchApi } from '@/lib/api';
 
 interface EvidenceGalleryProps {
   caseId: string;
@@ -205,6 +206,126 @@ function ViewerModal({ evidence, streamUrl, onClose }: ViewerModalProps) {
   );
 }
 
+// ─── Modal Transcripción ──────────────────────────────────────────────────────
+interface TranscriptionModalProps {
+  transcriptionText: string;
+  evidenceName: string;
+  onClose: () => void;
+  isImage?: boolean;
+}
+
+function TranscriptionModal({ transcriptionText, evidenceName, onClose, isImage = false }: TranscriptionModalProps) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 2000,
+        padding: '1.5rem',
+      }}
+    >
+      <div style={{
+        backgroundColor: 'var(--card)',
+        borderRadius: 'var(--radius)',
+        border: '2px solid var(--border)',
+        width: '100%',
+        maxWidth: '800px',
+        maxHeight: '80vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '1.25rem 1.5rem',
+          borderBottom: '1px solid var(--border)',
+          backgroundColor: 'var(--bosque-profundo)',
+          color: 'white',
+          gap: '1rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            <TranscriptionIcon size={20} color="var(--tierra-calida)" />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {isImage ? 'Descripción y OCR:' : 'Transcripción:'} {evidenceName}
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: '0.125rem' }}>
+                Contenido extraído automáticamente
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              border: 'none', cursor: 'pointer',
+              borderRadius: '6px', padding: '0.375rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <X size={20} color="white" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem' }}>
+          <div style={{
+            backgroundColor: 'var(--papel)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '1.5rem',
+            fontSize: '0.9rem',
+            lineHeight: 1.6,
+            color: 'var(--bosque-profundo)',
+            whiteSpace: 'pre-wrap',
+            fontFamily: 'inherit',
+          }}>
+            {transcriptionText || 'No hay transcripción disponible.'}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '0.75rem 1.5rem',
+          borderTop: '1px solid var(--border)',
+          backgroundColor: 'var(--papel)',
+          fontSize: '0.75rem',
+          color: 'var(--grafito)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span>{isImage ? 'Generado con IA de visión (Ollama)' : 'Generado con Whisper (ASR)'}</span>
+          <button
+            onClick={() => navigator.clipboard.writeText(transcriptionText)}
+            style={{
+              backgroundColor: 'var(--bosque-profundo)',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: 'var(--radius)',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+            }}
+          >
+            <FileText size={14} /> Copiar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente Principal ──────────────────────────────────────────────────────
 
 export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUpload = true }: EvidenceGalleryProps) {
@@ -223,14 +344,216 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [pendingViewEvidence, setPendingViewEvidence] = useState<any | null>(null);
 
+  // Transcripción
+  const [transcriptionText, setTranscriptionText] = useState<string>('');
+  const [transcriptionEvidenceName, setTranscriptionEvidenceName] = useState<string>('');
+  const [transcriptionEvidenceIsImage, setTranscriptionEvidenceIsImage] = useState<boolean>(false);
+  const [transcriptionLoading, setTranscriptionLoading] = useState(false);
+  const [transcriptionStatuses, setTranscriptionStatuses] = useState<Record<string, { status: string; hasText: boolean }>>({});
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4100/api';
 
   const getStreamUrl = (evidenceId: string) =>
     `${API_URL}/evidences/${evidenceId}/download`;
 
+  // Cargar estados de transcripción/análisis para evidencias de audio/video/imagen
+  const loadTranscriptionStatuses = async () => {
+    const audioVideoEvidences = evidences.filter((e: any) => {
+      const cat = getMimeCategory(e.mimeType);
+      return cat === 'audio' || cat === 'video' || cat === 'image';
+    });
+    if (audioVideoEvidences.length === 0) return;
+
+    const token = localStorage.getItem('dna_token');
+    try {
+      const statuses: Record<string, { status: string; hasText: boolean }> = {};
+      await Promise.all(
+        audioVideoEvidences.map(async (evidence: any) => {
+          try {
+            const res = await fetch(`${API_URL}/knowledge/transcription/status/${evidence.id}`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (res.ok) {
+              const data = await res.json();
+              statuses[evidence.id] = { status: data.status, hasText: data.hasText };
+            } else {
+              statuses[evidence.id] = { status: 'NO_INICIADA', hasText: false };
+            }
+          } catch {
+            statuses[evidence.id] = { status: 'ERROR', hasText: false };
+          }
+        })
+      );
+      setTranscriptionStatuses(statuses);
+    } catch {
+      // Silencioso
+    }
+  };
+
+  // Cargar al montar y cuando cambien evidencias
+  useEffect(() => {
+    loadTranscriptionStatuses();
+  }, [evidences]);
+
+  // Auto-encolar evidencias del caso al abrir (IA trabaja una por una en segundo plano)
+  useEffect(() => {
+    if (!caseId) return;
+    const token = localStorage.getItem('dna_token');
+    fetch(`${API_URL}/knowledge/queue-case`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ caseId }),
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && (data.enqueued > 0 || data.queue?.length > 0)) {
+          // Refrescar estados después de encolar (muestra PENDIENTE/posición)
+          setTimeout(loadTranscriptionStatuses, 400);
+        }
+      })
+      .catch(() => { /* silencioso: la cola es best-effort */ });
+  }, [caseId]);
+
+  // Obtener transcripción/análisis; si no está hecho, iniciarlo
+  const handleViewTranscription = async (evidence: any) => {
+    setTranscriptionLoading(true);
+    try {
+      const token = localStorage.getItem('dna_token');
+      const cat = getMimeCategory(evidence.mimeType);
+      const isImage = cat === 'image';
+
+      // 0. Si ya hay otra tarea de IA en curso, avisar y no disparar otra
+      const aiStatusRes = await fetch(`${API_URL}/knowledge/ai-status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => null);
+      if (aiStatusRes && aiStatusRes.ok) {
+        const aiStatus = await aiStatusRes.json();
+        if (aiStatus.busy) {
+          alert(`Hay otra petición de IA en curso (${aiStatus.task || 'procesamiento'}). Esperá a que termine para no saturar el equipo.`);
+          return;
+        }
+      }
+
+      // 1. Verificar estado actual
+      const statusRes = await fetch(`${API_URL}/knowledge/transcription/status/${evidence.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const statusData = statusRes.ok ? await statusRes.json() : { status: 'NO_INICIADA' };
+
+      // 2. Ya analizado/transcrito → mostrar el texto
+      if (statusData.status === 'COMPLETADA' && statusData.hasText) {
+        const textRes = await fetch(`${API_URL}/knowledge/transcription/evidence/${evidence.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!textRes.ok) throw new Error('No se pudo cargar el texto');
+        const data = await textRes.json();
+        setTranscriptionText(data.text || '');
+        setTranscriptionEvidenceName(evidence.fileName);
+        setTranscriptionEvidenceIsImage(isImage);
+        return;
+      }
+
+      // 3. En cola o procesando → avisar y esperar (la IA trabaja uno por uno)
+      if (statusData.status === 'PENDIENTE' || statusData.status === 'PROCESSING') {
+        alert('Esta evidencia está en la cola de procesamiento de IA. Se procesa una por una en segundo plano; volvé a intentar en unos minutos.');
+        return;
+      }
+
+      // 4. Falló antes → confirmar reintento
+      if (statusData.status === 'ERROR') {
+        if (!window.confirm('El análisis anterior falló. ¿Desea intentar nuevamente?')) return;
+      }
+
+      if (statusData.status !== 'NO_INICIADA' && statusData.status !== 'ERROR') {
+        alert('No hay información de análisis para esta evidencia.');
+        return;
+      }
+
+      // 5. No iniciado → INICIAR marcando PENDIENTE en la UI
+      setTranscriptionStatuses((prev) => ({ ...prev, [evidence.id]: { status: 'PENDIENTE', hasText: false } }));
+
+      let data: any;
+      if (isImage) {
+        // Imagen: el backend recupera el binario desde MinIO y llama al modelo de visión
+        const analyzeRes = await fetch(`${API_URL}/knowledge/analyze-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ evidenceId: evidence.id }),
+        });
+        if (!analyzeRes.ok) {
+          const err = await analyzeRes.json().catch(() => ({}));
+          setTranscriptionStatuses((prev) => ({ ...prev, [evidence.id]: { status: 'ERROR', hasText: false } }));
+          alert(err.message || 'No se pudo iniciar el análisis de la imagen. Verifique que el servicio de visión esté disponible.');
+          return;
+        }
+        data = await analyzeRes.json();
+      } else {
+        // Audio/video: descargar el archivo y reenviarlo a Whisper
+        const fileRes = await fetch(`${API_URL}/evidences/${evidence.id}/download`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!fileRes.ok) throw new Error('No se pudo cargar el archivo');
+        const blob = await fileRes.blob();
+        const formData = new FormData();
+        formData.append('caseId', caseId);
+        formData.append('evidenceId', evidence.id);
+        formData.append('file', blob, evidence.fileName);
+
+        const transcribeRes = await fetch(`${API_URL}/knowledge/transcribe`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        if (!transcribeRes.ok) {
+          const err = await transcribeRes.json().catch(() => ({}));
+          setTranscriptionStatuses((prev) => ({ ...prev, [evidence.id]: { status: 'ERROR', hasText: false } }));
+          alert(err.message || 'No se pudo iniciar la transcripción. Verifique que el servicio esté disponible.');
+          return;
+        }
+        data = await transcribeRes.json();
+      }
+
+      // 6. Refrescar estado real desde el servidor
+      const statusRes2 = await fetch(`${API_URL}/knowledge/transcription/status/${evidence.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => null);
+      if (statusRes2 && statusRes2.ok) {
+        const sd = await statusRes2.json();
+        setTranscriptionStatuses((prev) => ({ ...prev, [evidence.id]: { status: sd.status, hasText: sd.hasText } }));
+        if (sd.status === 'COMPLETADA' && (data.text || sd.text)) {
+          setTranscriptionText(data.text || sd.text || '');
+          setTranscriptionEvidenceName(evidence.fileName);
+          setTranscriptionEvidenceIsImage(isImage);
+        }
+      } else {
+        setTranscriptionStatuses((prev) => ({ ...prev, [evidence.id]: { status: data.status || 'COMPLETADA', hasText: !!data.text } }));
+        if (data.text) {
+          setTranscriptionText(data.text);
+          setTranscriptionEvidenceName(evidence.fileName);
+          setTranscriptionEvidenceIsImage(isImage);
+        }
+      }
+    } catch (err) {
+      alert('❌ No se pudo iniciar el análisis.');
+    } finally {
+      setTranscriptionLoading(false);
+    }
+  };
+
   // Abrir visor (con chequeo de evidencia sensible)
+  // En entornos de prueba (dev / flag TEST) se deshabilita el gateo del token:
+  // el usuario ve la imagen sensible directamente sin re-confirmar contraseña.
   const handleView = (evidence: any) => {
-    if (evidence.isSensitive) {
+    const securityTokenDisabled =
+      process.env.NEXT_PUBLIC_DISABLE_SECURITY_TOKEN === 'true' || process.env.NODE_ENV !== 'production';
+
+    if (!securityTokenDisabled && evidence.isSensitive) {
       const secToken = localStorage.getItem('dna_security_token');
       if (!secToken) {
         setPendingViewEvidence(evidence);
@@ -332,6 +655,16 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
         onSuccess={handleSecurityTokenSuccess}
       />
 
+      {/* ─── Modal transcripción ─── */}
+      {transcriptionText && (
+        <TranscriptionModal
+          transcriptionText={transcriptionText}
+          evidenceName={transcriptionEvidenceName}
+          isImage={transcriptionEvidenceIsImage}
+          onClose={() => { setTranscriptionText(''); setTranscriptionEvidenceName(''); setTranscriptionEvidenceIsImage(false); }}
+        />
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: canUpload ? '2fr 1fr' : '1fr', gap: '1.5rem' }}>
 
         {/* ─── Lista de evidencias (SOLO LECTURA) ─── */}
@@ -404,6 +737,36 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
                       <span style={{ fontSize: '0.7rem', color: 'var(--grafito)', opacity: 0.7, flexShrink: 0 }}>
                         {getCategoryLabel(item.mimeType)}
                       </span>
+                      {/* Badge estado transcripción/análisis (audio, video, imagen) */}
+                      {(() => {
+                        const cat = getMimeCategory(item.mimeType);
+                        if (cat !== 'audio' && cat !== 'video' && cat !== 'image') return null;
+                        const ts = transcriptionStatuses[item.id];
+                        if (!ts) return <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '10px', backgroundColor: 'var(--border)', color: 'var(--grafito)', fontWeight: 600 }}>⏳ Cargando...</span>;
+                        const isCompleted = ts.status === 'COMPLETADA' && ts.hasText;
+                        const isProcessing = ts.status === 'PROCESSING';
+                        const isPending = ts.status === 'PENDIENTE';
+                        const isError = ts.status === 'ERROR';
+                        const isNotStarted = ts.status === 'NO_INICIADA';
+                        const label = cat === 'image'
+                          ? (isCompleted ? 'Analizado' : isProcessing ? 'Procesando...' : isPending ? 'En cola' : isError ? 'Error' : 'Sin analizar')
+                          : (isCompleted ? 'Transcrito' : isProcessing ? 'Procesando...' : isPending ? 'En cola' : isError ? 'Error' : 'Sin transcribir');
+                        return (
+                          <span style={{
+                            fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '10px',
+                            backgroundColor: isCompleted ? 'oklch(0.96 0.02 165)' : (isProcessing || isPending) ? 'oklch(0.95 0.04 65)' : isError ? 'oklch(0.95 0.05 28)' : 'var(--border)',
+                            color: isCompleted ? 'var(--salvia)' : (isProcessing || isPending) ? 'var(--tierra-calida)' : isError ? 'var(--riesgo-alto)' : 'var(--grafito)',
+                            fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                          }}>
+                            {isCompleted && <span>✅</span>}
+                            {isProcessing && <span>⚙️</span>}
+                            {isPending && <span>⏳</span>}
+                            {isError && <span>❌</span>}
+                            {isNotStarted && <span>○</span>}
+                            {label}
+                          </span>
+                        );
+                      })()}
                       {item.isSensitive && (
                         <span style={{
                           fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '12px',
@@ -433,29 +796,66 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
                   </div>
 
                   {/* Botón VER — sin borrar */}
-                  <button
-                    onClick={() => handleView(item)}
-                    style={{
-                      backgroundColor: 'var(--bosque-profundo)',
-                      color: 'white',
-                      padding: '0.5rem 1rem',
-                      borderRadius: 'var(--radius)',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.375rem',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Play size={14} />
-                    {getMimeCategory(item.mimeType) === 'audio' ? 'Escuchar' :
-                     getMimeCategory(item.mimeType) === 'video' ? 'Reproducir' :
-                     getMimeCategory(item.mimeType) === 'image' ? 'Ver imagen' :
-                     'Ver / Descargar'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleView(item)}
+                      style={{
+                        backgroundColor: 'var(--bosque-profundo)',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                      }}
+                    >
+                      <Play size={14} />
+                      {getMimeCategory(item.mimeType) === 'audio' ? 'Escuchar' :
+                       getMimeCategory(item.mimeType) === 'video' ? 'Reproducir' :
+                       getMimeCategory(item.mimeType) === 'image' ? 'Ver imagen' :
+                       'Ver / Descargar'}
+                    </button>
+                    {/* Botón VER TRANSCRIPCIÓN/ANÁLISIS — audio, video e imagen */}
+                    {(() => {
+                      const cat = getMimeCategory(item.mimeType);
+                      if (cat !== 'audio' && cat !== 'video' && cat !== 'image') return null;
+                      const isImage = cat === 'image';
+                      return (
+                        <button
+                          onClick={() => handleViewTranscription(item)}
+                          disabled={transcriptionLoading}
+                          style={{
+                            backgroundColor: 'var(--tierra-calida)',
+                            color: 'white',
+                            padding: '0.5rem 1rem',
+                            borderRadius: 'var(--radius)',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: transcriptionLoading ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            opacity: transcriptionLoading ? 0.7 : 1,
+                          }}
+                        >
+                          <TranscriptionIcon size={14} />
+                          {transcriptionLoading
+                            ? 'Procesando...'
+                            : (() => {
+                                const ts = transcriptionStatuses[item.id];
+                                if (ts && ts.status === 'NO_INICIADA') return isImage ? 'Analizar imagen' : 'Transcribir';
+                                if (ts && ts.status === 'ERROR') return 'Reintentar';
+                                return isImage ? 'Ver Descripción' : 'Ver Transcripción';
+                              })()}
+                        </button>
+                      );
+                    })()}
+                  </div>
                   {/* NO hay botón de borrar — inmutabilidad legal */}
                 </div>
               ))}

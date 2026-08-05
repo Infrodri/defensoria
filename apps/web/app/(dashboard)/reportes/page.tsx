@@ -3,123 +3,200 @@
 import React, { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { FileText, AlertTriangle, Clock, CheckCircle, XCircle, User, Calendar, Building2, Eye } from 'lucide-react';
+import {
+  Search,
+  FileText,
+  AlertTriangle,
+  Users,
+  BarChart3,
+  Filter,
+  Download,
+  RefreshCw,
+  XCircle,
+  CheckCircle,
+} from 'lucide-react';
 
-interface DisabilityReport {
+interface CasoResultado {
   id: string;
   caseCode: string;
-  reason: string;
-  disabledAt: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  case: {
+  caseType: string;
+  currentPhase: string;
+  riskLevel: string | null;
+  isClosed: boolean;
+  createdAt: string;
+  nna: {
     id: string;
-    caseCode: string;
-    caseType: string;
-    currentPhase: string;
-    currentOffice: { name: string; code: string };
-    parties: Array<{
-      person: { firstName: string; lastName: string; };
-    }>;
-  };
-  disabler: {
     firstName: string;
     lastName: string;
-    role: string;
+    birthDate: string | null;
+    gender: string;
+    documentNumber: string | null;
+  } | null;
+}
+
+interface Estadisticas {
+  totalCasos: number;
+  porTipificacion: Record<string, number>;
+  porGenero: Record<string, number>;
+  porRangoEdad: Record<string, number>;
+}
+
+interface Profesional {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  officeId: string | null;
+  stats: {
+    totalAsignados: number;
+    enCurso: number;
+    cerrados: number;
+    rechazados: number;
   };
-  reviewer?: {
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
-  reviewedAt?: string;
+}
+
+interface FiltrarResponse {
+  casos: CasoResultado[];
+  estadisticas: Estadisticas;
+  profesionales: Profesional[];
+}
+
+interface AnalyticsData {
+  totalCases: number;
+  byInterventionPath: Array<{ name: string; count: number }>;
+  byRiskLevel: Array<{ name: string; count: number }>;
+  byCaseType: Array<{ name: string; count: number }>;
+  byPhase: Array<{ name: string; count: number }>;
 }
 
 export default function ReportesPage() {
   const { user } = useAuth();
-  const [reports, setReports] = useState<DisabilityReport[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'buscar' | 'profesionales'>('dashboard');
+  const [loading, setLoading] = useState(false);
+
+  // Dashboard data
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+
+  // Buscar data
+  const [searchCi, setSearchCi] = useState('');
+  const [searchNombre, setSearchNombre] = useState('');
+  const [searchApellido, setSearchApellido] = useState('');
+  const [searchRol, setSearchRol] = useState('');
+  const [resultados, setResultados] = useState<CasoResultado[]>([]);
+  const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null);
+  const [loadingResultados, setLoadingResultados] = useState(false);
+
+  // Profesionales data
+  const [profesionales, setProfesionales] = useState<Profesional[]>([]);
+  const [loadingProfesionales, setLoadingProfesionales] = useState(false);
 
   useEffect(() => {
-    const loadReports = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchApi('/cases/admin/disability-reports');
-        setReports(data);
-      } catch (err) {
-        console.error('Error loading disability reports:', err);
-        setReports([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (activeTab === 'dashboard') {
+      loadAnalytics();
+    } else if (activeTab === 'profesionales') {
+      loadProfesionales();
+    }
+  }, [activeTab]);
 
-    loadReports();
-  }, []);
-
-  const handleReview = async (reportId: string, status: 'APPROVED' | 'REJECTED') => {
+  const loadAnalytics = async () => {
+    setLoading(true);
     try {
-      await fetchApi(`/cases/admin/disability-reports/${reportId}/review`, {
-        method: 'POST',
-        body: JSON.stringify({ status }),
-      });
-
-      // Update local state
-      setReports(reports.map(report => 
-        report.id === reportId 
-          ? { ...report, status, reviewedAt: new Date().toISOString() }
-          : report
-      ));
-
-      alert(`✅ Reporte ${status === 'APPROVED' ? 'aprobado' : 'rechazado'} exitosamente`);
-    } catch (err: any) {
-      alert('❌ ' + (err.message || 'Error al revisar reporte'));
+      const data = await fetchApi<AnalyticsData>('/cases/analytics');
+      setAnalytics(data);
+    } catch (err) {
+      console.error('Error loading analytics:', err);
+      setAnalytics(null);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleBuscar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingResultados(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchCi) params.set('ci', searchCi);
+      if (searchNombre) params.set('nombre', searchNombre);
+      if (searchApellido) params.set('apellido', searchApellido);
+      if (searchRol) params.set('rol', searchRol);
+
+      const data = await fetchApi<FiltrarResponse>(`/reports/filtrar?${params.toString()}`);
+      setResultados(data.casos || []);
+      setEstadisticas(data.estadisticas || null);
+    } catch (err) {
+      console.error('Error searching:', err);
+      setResultados([]);
+      setEstadisticas(null);
+    } finally {
+      setLoadingResultados(false);
+    }
+  };
+
+  const loadProfesionales = async () => {
+    setLoadingProfesionales(true);
+    try {
+      const data = await fetchApi<FiltrarResponse>('/reports/filtrar');
+      setProfesionales(data.profesionales || []);
+    } catch (err) {
+      console.error('Error loading profesionales:', err);
+      setProfesionales([]);
+    } finally {
+      setLoadingProfesionales(false);
+    }
+  };
+
+  const exportCSV = () => {
+    if (!estadisticas) return;
+    const csv = [
+      ['Concepto', 'Valor'],
+      ['Total Casos', estadisticas.totalCasos],
+      ...Object.entries(estadisticas.porTipificacion).map(([k, v]) => [`Tipificación: ${k}`, v]),
+      ...Object.entries(estadisticas.porGenero).map(([k, v]) => [`Género: ${k}`, v]),
+      ...Object.entries(estadisticas.porRangoEdad).map(([k, v]) => [`Edad: ${k}`, v]),
+    ]
+      .map((row) => row.join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'reporte-estadisticas.csv');
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('es-ES', {
+    return new Date(dateString).toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getRiskColor = (risk: string | null) => {
     const colors = {
-      PENDING: '#F59E0B',
-      APPROVED: '#059669',
-      REJECTED: '#DC2626',
+      ALTO: '#DC2626',
+      MEDIO: '#F59E0B',
+      BAJO: '#059669',
+      null: '#6B7280',
     };
-    return colors[status as keyof typeof colors] || '#6B7280';
+    return colors[risk as keyof typeof colors] || '#6B7280';
   };
 
-  const getStatusIcon = (status: string) => {
-    const icons = {
-      PENDING: <Clock size={16} />,
-      APPROVED: <CheckCircle size={16} />,
-      REJECTED: <XCircle size={16} />,
-    };
-    return icons[status as keyof typeof icons] || <AlertTriangle size={16} />;
-  };
-
-  const getStatusLabel = (status: string) => {
+  const getPhaseLabel = (phase: string) => {
     const labels = {
-      PENDING: 'Pendiente de Revisión',
-      APPROVED: 'Aprobado',
-      REJECTED: 'Rechazado',
+      DERIVACION: 'Derivación',
+      EVALUACION: 'Evaluación',
+      SEGUIMIENTO: 'Seguimiento',
+      JUDICIALIZACION: 'Judicialización',
+      CIERRE: 'Cierre',
     };
-    return labels[status as keyof typeof labels] || status;
+    return labels[phase as keyof typeof labels] || phase;
   };
 
-  const filteredReports = filter === 'ALL' 
-    ? reports 
-    : reports.filter(report => report.status === filter);
-
-  // Solo Jefatura y Administradores pueden ver reportes
-  if (user?.role !== 'JEFATURA' && user?.role !== 'ADMINISTRADOR') {
+  if (user?.role !== 'ADMINISTRADOR' && user?.role !== 'JEFATURA') {
     return (
       <div style={{ padding: '3rem', textAlign: 'center' }}>
         <AlertTriangle size={64} color="#DC2626" style={{ margin: '0 auto 1.5rem' }} />
@@ -127,7 +204,7 @@ export default function ReportesPage() {
           🚫 Acceso Restringido
         </h2>
         <p style={{ color: '#6B7280', fontSize: '1rem' }}>
-          Esta vista está disponible solo para <strong>Jefatura y Administradores</strong>.
+          Esta vista está disponible solo para <strong>Administrador y Jefatura</strong>.
         </p>
       </div>
     );
@@ -136,353 +213,348 @@ export default function ReportesPage() {
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
       <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ 
-          fontSize: '2rem', 
-          fontWeight: 800, 
-          color: 'var(--bosque-profundo)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.75rem' 
-        }}>
-          <FileText size={36} color="var(--tierra-calida)" />
-          Reportes de Expedientes Inhabilitados
+        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
+          📊 Reportes y Estadísticas
         </h1>
-        <p style={{ color: 'var(--grafito)', opacity: 0.8, marginTop: '0.5rem', fontSize: '1rem' }}>
-          Sistema de auditoría y revisión de inhabilitaciones realizadas por Secretaría
+        <p style={{ color: 'var(--grafito)', opacity: 0.8 }}>
+          Monitoreo integral de expedientes, carga profesional y análisis de datos de la Defensoría de la Niñez.
         </p>
       </header>
 
-      {/* Filtros */}
-      <div style={{
-        backgroundColor: 'var(--card)',
-        padding: '1.5rem',
-        borderRadius: 'var(--radius)',
-        border: '1px solid var(--border)',
-        marginBottom: '2rem',
-        display: 'flex',
-        gap: '1rem',
-        alignItems: 'center',
-      }}>
-        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--bosque-profundo)' }}>
-          Filtrar por estado:
-        </div>
-        
-        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilter(status as any)}
-            style={{
-              backgroundColor: filter === status ? 'var(--bosque-profundo)' : 'transparent',
-              color: filter === status ? 'white' : 'var(--grafito)',
-              border: '1px solid var(--border)',
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius)',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-            }}
-          >
-            {status === 'ALL' && '📊'}
-            {status === 'PENDING' && '⏳'}
-            {status === 'APPROVED' && '✅'}
-            {status === 'REJECTED' && '❌'}
-            {status === 'ALL' ? 'Todos' : getStatusLabel(status)}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)' }}>
+        {[
+          { id: 'dashboard', label: 'Tablero General', icon: BarChart3 },
+          { id: 'buscar', label: 'Buscar por CI / Nombre', icon: Search },
+          { id: 'profesionales', label: 'Carga por Profesional', icon: Users },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                borderBottom: isActive ? '3px solid var(--bosque-profundo)' : '3px solid transparent',
+                backgroundColor: isActive ? 'oklch(0.95 0.02 175)' : 'transparent',
+                fontSize: '0.875rem',
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? 'var(--bosque-profundo)' : 'var(--grafito)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <Icon size={16} /> {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Estadísticas rápidas */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '2rem',
-      }}>
-        <div style={{
-          backgroundColor: 'var(--card)',
-          padding: '1.25rem',
-          borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>
-            {reports.length}
-          </div>
-          <div style={{ fontSize: '0.875rem', color: 'var(--grafito)', fontWeight: 600 }}>
-            📊 Total Reportes
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--card)',
-          padding: '1.25rem',
-          borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#F59E0B' }}>
-            {reports.filter(r => r.status === 'PENDING').length}
-          </div>
-          <div style={{ fontSize: '0.875rem', color: 'var(--grafito)', fontWeight: 600 }}>
-            ⏳ Pendientes
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--card)',
-          padding: '1.25rem',
-          borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#059669' }}>
-            {reports.filter(r => r.status === 'APPROVED').length}
-          </div>
-          <div style={{ fontSize: '0.875rem', color: 'var(--grafito)', fontWeight: 600 }}>
-            ✅ Aprobados
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--card)',
-          padding: '1.25rem',
-          borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)',
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#DC2626' }}>
-            {reports.filter(r => r.status === 'REJECTED').length}
-          </div>
-          <div style={{ fontSize: '0.875rem', color: 'var(--grafito)', fontWeight: 600 }}>
-            ❌ Rechazados
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de Reportes */}
-      <div style={{
-        backgroundColor: 'var(--card)',
-        padding: '2rem',
-        borderRadius: 'var(--radius)',
-        border: '1px solid var(--border)',
-      }}>
-        <h2 style={{ 
-          fontSize: '1.25rem', 
-          fontWeight: 700, 
-          marginBottom: '1.5rem', 
-          color: 'var(--bosque-profundo)' 
-        }}>
-          📋 Lista de Reportes {filter !== 'ALL' && `- ${getStatusLabel(filter)}`}
-        </h2>
-
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--grafito)' }}>
-            <Clock size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-            <p>Cargando reportes de inhabilitación...</p>
-          </div>
-        ) : filteredReports.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--grafito)' }}>
-            <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
-            <p>No hay reportes {filter !== 'ALL' ? `con estado ${getStatusLabel(filter).toLowerCase()}` : 'de inhabilitación'}</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {filteredReports.map((report) => (
-              <div
-                key={report.id}
-                style={{
-                  padding: '1.5rem',
-                  backgroundColor: 'var(--papel)',
-                  border: '2px solid var(--border)',
-                  borderLeft: `6px solid ${getStatusColor(report.status)}`,
-                  borderRadius: 'var(--radius)',
-                }}
-              >
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '1.5rem', alignItems: 'start' }}>
-                  <div>
-                    {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                      <h3 style={{ 
-                        fontSize: '1.125rem', 
-                        fontWeight: 700, 
-                        color: 'var(--bosque-profundo)', 
-                        margin: 0 
-                      }}>
-                        📁 {report.case.caseCode}
-                      </h3>
-                      
-                      <span
-                        style={{
-                          padding: '0.375rem 0.875rem',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          backgroundColor: getStatusColor(report.status),
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                        }}
-                      >
-                        {getStatusIcon(report.status)}
-                        {getStatusLabel(report.status)}
-                      </span>
+      {/* --- Tablero General --- */}
+      {activeTab === 'dashboard' && (
+        <div>
+          {loading ? (
+            <p style={{ opacity: 0.6 }}>Cargando estadísticas...</p>
+          ) : analytics ? (
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                  <FileText size={28} color="var(--bosque-profundo)" style={{ margin: '0 auto 0.5rem' }} />
+                  <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>{analytics.totalCases}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.7, fontWeight: 600 }}>Total Expedientes</div>
+                </div>
+                {analytics.byRiskLevel && (
+                  <>
+                    <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                      <AlertTriangle size={28} color={getRiskColor('ALTO')} style={{ margin: '0 auto 0.5rem' }} />
+                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: getRiskColor('ALTO') }}>
+                        {analytics.byRiskLevel.find((r) => r.name === 'ALTO')?.count || 0}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.7, fontWeight: 600 }}>Riesgo Alto</div>
                     </div>
-
-                    {/* Información del caso */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '1rem',
-                      fontSize: '0.875rem',
-                      color: 'var(--grafito)',
-                      marginBottom: '1rem',
-                    }}>
-                      <div>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <strong style={{ color: 'var(--bosque-profundo)' }}>👤 NNA:</strong>
-                          <span style={{ marginLeft: '0.5rem' }}>
-                            {report.case.parties[0] ? 
-                              `${report.case.parties[0].person.firstName} ${report.case.parties[0].person.lastName}` : 
-                              'Sin información'
-                            }
-                          </span>
-                        </div>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <strong style={{ color: 'var(--bosque-profundo)' }}>🏢 Oficina:</strong>
-                          <span style={{ marginLeft: '0.5rem' }}>
-                            {report.case.currentOffice.name}
-                          </span>
-                        </div>
+                    <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                      <AlertTriangle size={28} color={getRiskColor('MEDIO')} style={{ margin: '0 auto 0.5rem' }} />
+                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: getRiskColor('MEDIO') }}>
+                        {analytics.byRiskLevel.find((r) => r.name === 'MEDIO')?.count || 0}
                       </div>
-
-                      <div>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <strong style={{ color: 'var(--bosque-profundo)' }}>⏰ Inhabilitado:</strong>
-                          <span style={{ marginLeft: '0.5rem' }}>
-                            {formatDate(report.disabledAt)}
-                          </span>
-                        </div>
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <strong style={{ color: 'var(--bosque-profundo)' }}>👨‍💼 Por:</strong>
-                          <span style={{ marginLeft: '0.5rem' }}>
-                            {report.disabler.firstName} {report.disabler.lastName} ({report.disabler.role})
-                          </span>
-                        </div>
-                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.7, fontWeight: 600 }}>Riesgo Medio</div>
                     </div>
+                  </>
+                )}
+              </div>
 
-                    {/* Motivo */}
-                    <div style={{
-                      padding: '1rem',
-                      backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                      border: '1px solid rgba(59, 130, 246, 0.1)',
-                      borderRadius: 'var(--radius)',
-                      marginBottom: '1rem',
-                    }}>
-                      <div style={{ 
-                        fontSize: '0.75rem', 
-                        fontWeight: 600, 
-                        color: 'var(--bosque-profundo)', 
-                        marginBottom: '0.25rem' 
-                      }}>
-                        MOTIVO DE INHABILITACIÓN:
+              <div style={{ display: 'grid', gap: '1.5rem' }}>
+                {/* Distribución por fase */}
+                <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>Expedientes por Fase</h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                    {analytics.byPhase?.map((p) => (
+                      <div key={p.name} style={{ padding: '1rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>{p.count}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--grafito)', fontWeight: 600 }}>{getPhaseLabel(p.name)}</div>
                       </div>
-                      <div style={{ fontStyle: 'italic', color: 'var(--grafito)' }}>
-                        {report.reason}
-                      </div>
-                    </div>
-
-                    {/* Información de revisión */}
-                    {report.reviewer && (
-                      <div style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--grafito)',
-                        padding: '0.5rem',
-                        backgroundColor: 'var(--papel)',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                      }}>
-                        ✅ Revisado por {report.reviewer.firstName} {report.reviewer.lastName} 
-                        el {formatDate(report.reviewedAt!)}
-                      </div>
-                    )}
+                    ))}
                   </div>
+                </div>
 
-                  {/* Botón Ver Expediente */}
-                  <button
-                    onClick={() => window.open(`/casos/${report.case.id}`, '_blank')}
-                    style={{
-                      backgroundColor: 'var(--bosque-profundo)',
-                      color: 'white',
-                      padding: '0.75rem 1rem',
-                      borderRadius: 'var(--radius)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                    }}
-                  >
-                    <Eye size={16} />
-                    Ver Expediente
-                  </button>
+                {/* Distribución por ruta de intervención */}
+                <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>Expedientes por Ruta de Intervención</h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {analytics.byInterventionPath?.map((p) => (
+                      <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
+                        <span style={{ color: 'var(--grafito)' }}>{p.name === 'GESTION_ADMINISTRATIVA' ? 'Gestión Administrativa' : p.name === 'CONCILIACION' ? 'Conciliación' : p.name === 'VIA_JUDICIAL' ? 'Vía Judicial' : p.name}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--bosque-profundo)' }}>{p.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                  {/* Botones de Revisión */}
-                  {report.status === 'PENDING' && (user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <button
-                        onClick={() => handleReview(report.id, 'APPROVED')}
-                        style={{
-                          backgroundColor: '#059669',
-                          color: 'white',
-                          padding: '0.5rem 1rem',
-                          borderRadius: 'var(--radius)',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.375rem',
-                        }}
-                      >
-                        <CheckCircle size={14} />
-                        Aprobar
-                      </button>
-                      
-                      <button
-                        onClick={() => handleReview(report.id, 'REJECTED')}
-                        style={{
-                          backgroundColor: '#DC2626',
-                          color: 'white',
-                          padding: '0.5rem 1rem',
-                          borderRadius: 'var(--radius)',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.375rem',
-                        }}
-                      >
-                        <XCircle size={14} />
-                        Rechazar
-                      </button>
-                    </div>
-                  )}
+                {/* Tipificaciones */}
+                <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>Tipificaciones (Tipo de Caso)</h2>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                        <th style={{ padding: '0.5rem', fontWeight: 700 }}>Tipo</th>
+                        <th style={{ padding: '0.5rem', fontWeight: 700, textAlign: 'right' }}>Casos</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.byCaseType?.map((t) => (
+                        <tr key={t.name} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '0.5rem' }}>{t.name}</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 700 }}>{t.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <BarChart3 size={48} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
+              <p>No se pudieron cargar las estadísticas.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- Buscar por CI / Nombre --- */}
+      {activeTab === 'buscar' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Search Form */}
+          <form onSubmit={handleBuscar} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>Buscar Expedientes por Persona</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>CI / Número de Documento</label>
+                <input
+                  type="text"
+                  value={searchCi}
+                  onChange={(e) => setSearchCi(e.target.value)}
+                  placeholder="Ej: 5487321 Sc"
+                  style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', backgroundColor: 'var(--papel)', fontSize: '0.875rem', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Nombre</label>
+                <input
+                  type="text"
+                  value={searchNombre}
+                  onChange={(e) => setSearchNombre(e.target.value)}
+                  placeholder="Ej: María Fernanda"
+                  style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', backgroundColor: 'var(--papel)', fontSize: '0.875rem', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Apellido</label>
+                <input
+                  type="text"
+                  value={searchApellido}
+                  onChange={(e) => setSearchApellido(e.target.value)}
+                  placeholder="Ej: Quispe"
+                  style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', backgroundColor: 'var(--papel)', fontSize: '0.875rem', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Rol Profesional</label>
+                <select
+                  value={searchRol}
+                  onChange={(e) => setSearchRol(e.target.value)}
+                  style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', backgroundColor: 'var(--papel)', fontSize: '0.875rem' }}
+                >
+                  <option value="">Todos los roles</option>
+                  <option value="ABOGADO">Abogado</option>
+                  <option value="PSICOLOGO">Psicólogo</option>
+                  <option value="SOCIAL">Trabajador Social</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                type="submit"
+                disabled={loadingResultados}
+                style={{ backgroundColor: 'var(--bosque-profundo)', color: 'white', border: 'none', padding: '0.625rem 1.25rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Search size={16} /> {loadingResultados ? 'Buscando...' : 'Buscar'}
+              </button>
+            </div>
+          </form>
+
+          {/* Results */}
+          {loadingResultados ? (
+            <p style={{ opacity: 0.6 }}>Buscando expedientes...</p>
+          ) : (
+            <>
+              {/* Estadísticas */}
+              {estadisticas && resultados.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                    <FileText size={24} color="var(--bosque-profundo)" style={{ margin: '0 auto 0.5rem' }} />
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>{estadisticas.totalCasos}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.7 }}>Expedientes encontrados</div>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>Por Tipificación</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      {Object.entries(estadisticas.porTipificacion).map(([t, c]) => (
+                        <div key={t} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span style={{ color: 'var(--grafito)' }}>{t}</span>
+                          <span style={{ fontWeight: 700 }}>{c}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>Por Género</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      {Object.entries(estadisticas.porGenero).map(([g, c]) => (
+                        <div key={g} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span style={{ color: 'var(--grafito)' }}>{g}</span>
+                          <span style={{ fontWeight: 700 }}>{c}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>Por Edad</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      {Object.entries(estadisticas.porRangoEdad).map(([r, c]) => (
+                        <div key={r} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span style={{ color: 'var(--grafito)' }}>{r.replace('_', ' - ')}</span>
+                          <span style={{ fontWeight: 700 }}>{c}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Casos Table */}
+              {resultados.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <FileText size={48} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
+                  <p>No se encontraron expedientes para los criterios de búsqueda.</p>
+                </div>
+              ) : (
+                <div style={{ backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--papel)', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Expediente</th>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>NNA</th>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Tipo</th>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Fase</th>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Riesgo</th>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Estado</th>
+                          <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Ingreso</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {resultados.map((c) => (
+                          <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '0.875rem 1.25rem', fontFamily: 'monospace', fontWeight: 700, color: 'var(--bosque-profundo)' }}>{c.caseCode}</td>
+                            <td style={{ padding: '0.875rem 1.25rem' }}>
+                              {c.nna ? `${c.nna.firstName} ${c.nna.lastName}` : 'NNA no especificado'}
+                            </td>
+                            <td style={{ padding: '0.875rem 1.25rem', opacity: 0.8 }}>{c.caseType}</td>
+                            <td style={{ padding: '0.875rem 1.25rem' }}>{getPhaseLabel(c.currentPhase)}</td>
+                            <td style={{ padding: '0.875rem 1.25rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '12px', backgroundColor: c.riskLevel ? 'oklch(0.95 0.04 30)' : 'var(--papel)', color: getRiskColor(c.riskLevel) }}>
+                                {c.riskLevel ? c.riskLevel.charAt(0) + c.riskLevel.slice(1).toLowerCase() : 'Sin evaluar'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.875rem 1.25rem' }}>
+                              {c.isClosed ? (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669' }}>Cerrado</span>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F59E0B' }}>Activo</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '0.875rem 1.25rem', opacity: 0.7 }}>{formatDate(c.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* --- Carga por Profesional --- */}
+      {activeTab === 'profesionales' && (
+        <div>
+          {loadingProfesionales ? (
+            <p style={{ opacity: 0.6 }}>Cargando carga profesional...</p>
+          ) : profesionales.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <Users size={48} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
+              <p>No hay profesionales activos en el sistema.</p>
+            </div>
+          ) : (
+            <div style={{ backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--papel)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Profesional</th>
+                    <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'left' }}>Rol</th>
+                    <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>Asignados</th>
+                    <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>En Curso</th>
+                    <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>Cerrados</th>
+                    <th style={{ padding: '0.875rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>Rechazados</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profesionales.map((p) => (
+                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '0.875rem 1.25rem' }}>
+                        <div style={{ fontWeight: 600 }}>{p.firstName} {p.lastName}</div>
+                      </td>
+                      <td style={{ padding: '0.875rem 1.25rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: '12px', backgroundColor: 'var(--papel)' }}>{p.role}</span>
+                      </td>
+                      <td style={{ padding: '0.875rem 1.25rem', textAlign: 'right', fontWeight: 700 }}>{p.stats.totalAsignados}</td>
+                      <td style={{ padding: '0.875rem 1.25rem', textAlign: 'right', color: '#F59E0B', fontWeight: 700 }}>{p.stats.enCurso}</td>
+                      <td style={{ padding: '0.875rem 1.25rem', textAlign: 'right', color: '#059669', fontWeight: 700 }}>{p.stats.cerrados}</td>
+                      <td style={{ padding: '0.875rem 1.25rem', textAlign: 'right', color: '#DC2626', fontWeight: 700 }}>{p.stats.rechazados}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

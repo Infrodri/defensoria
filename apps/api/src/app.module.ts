@@ -25,6 +25,7 @@ import { TemplatesModule } from './modules/templates/templates.module';
 import { InstrumentsModule } from './modules/instruments/instruments.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { AiConfigModule } from './modules/ai-config/ai-config.module';
+import { AiTaskLockModule } from './modules/ai-task-lock/ai-task-lock.module';
 import { CatalogsModule } from './modules/catalogs/catalogs.module';
 import { SystemBackupModule } from './modules/system-backup/system-backup.module';
 import { QuestionnairesModule } from './modules/questionnaires/questionnaires.module';
@@ -34,6 +35,8 @@ import { SocialToolsModule } from './modules/social-tools/social-tools.module';
 import { TransversalToolsModule } from './modules/transversal-tools/transversal-tools.module';
 import { SocialIntakeModule } from './modules/social-intake/social-intake.module';
 import { ConciliationModule } from './modules/conciliation/conciliation.module';
+import { JefaturaModule } from './modules/jefatura/jefatura.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -65,6 +68,7 @@ import { ConciliationModule } from './modules/conciliation/conciliation.module';
     InstrumentsModule,
     KnowledgeModule,
     AiConfigModule,
+    AiTaskLockModule,
     CatalogsModule,
     SystemBackupModule,
     QuestionnairesModule,
@@ -74,6 +78,8 @@ import { ConciliationModule } from './modules/conciliation/conciliation.module';
     TransversalToolsModule,
     SocialIntakeModule,
     ConciliationModule,
+    JefaturaModule,
+    AdminModule,
   ],
   controllers: [],
   providers: [],

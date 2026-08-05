@@ -60,17 +60,21 @@ export class InspectionsService {
         establishmentId: dto.establishmentId,
         caseId: dto.caseId,
         officeId,
-        inspectorId,
         scheduledAt: new Date(dto.scheduledAt),
-        status: 'PROGRAMADA',
+        status: 'PENDIENTE',
         isSurpriseInspection: dto.isSurpriseInspection ?? false,
         generalNotes: dto.generalNotes,
-        inspectorIds: dto.inspectorIds || [inspectorId],
         createdBy: userId,
+        // Link inspector team members via join table
+        inspectorTeam: {
+          create: (dto.inspectorIds?.length ? dto.inspectorIds : [inspectorId]).map((id) => ({
+            inspectorId: id,
+          })),
+        },
       },
       include: {
         establishment: true,
-        inspector: true,
+        inspectorTeam: true,
       },
     });
 
@@ -94,7 +98,7 @@ export class InspectionsService {
       where: caseId ? { caseId } : undefined,
       include: {
         establishment: true,
-        inspector: true,
+        inspectorTeam: true,
         location: true,
         findings: true,
         evidenceFiles: true,
@@ -213,7 +217,7 @@ export class InspectionsService {
     return this.prisma.inspectionFinding.create({
       data: {
         inspectionId,
-        findingCategory: dto.findingCategory,
+        findingCategory: dto.findingCategory as any,
         severity: dto.severity,
         description: dto.description,
         recommendations: dto.recommendations,
@@ -268,7 +272,7 @@ export class InspectionsService {
       where: { id: inspectionId },
       include: {
         establishment: true,
-        inspector: true,
+        inspectorTeam: true,
         location: true,
         findings: true,
         evidenceFiles: true,

@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReportType, ReportStatus, RiskLevel, Role } from '@defensoria/shared';
+import { ReportType, ReportStatus, RiskLevel, Role, RoleInCase, Phase } from '@defensoria/shared';
+import { RAGService } from '../knowledge/rag.service';
+import { EvidenceRagService } from '../evidences/evidence-rag.service';
+import { AccessUser } from '../../common/case-access/case-access.service';
 
 export interface CreateReportDto {
   caseId: string;
@@ -12,7 +15,11 @@ export interface CreateReportDto {
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private ragService: RAGService,
+    private evidenceRag: EvidenceRagService,
+  ) {}
 
   private checkReportRolePermission(reportType: ReportType, userRole: Role) {
     if (userRole === Role.JEFATURA || userRole === Role.ADMINISTRADOR) return; // Jefatura / Admin can manage all
@@ -299,5 +306,336 @@ export class ReportsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async generateDraft(caseId: string, reportType: ReportType, userRole: Role) {
+    this.checkReportRolePermission(reportType, userRole);
+
+    const caseData = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      include: {
+        parties: { include: { person: true } },
+      },
+    });
+
+    if (!caseData) {
+      throw new NotFoundException('Expediente no encontrado');
+    }
+
+    const nna = caseData.parties.find((p) => p.isPrimary || p.roleInCase === 'NNA')?.person;
+    const nnaName = nna ? `${nna.firstName} ${nna.lastName}` : 'NNA Titular';
+
+    // ── 1. RAG del expediente: evidencia específica de ESTE caso ───────────
+    //    Busca en case_chunks WHERE caseId = X (transcripciones, fotos,
+    //    PDFs, informes previos, actuaciones). NUNCA mezcla con otros casos.
+    const reportTypeLabel = {
+      [ReportType.INFORME_JURIDICO]: 'informe jurídico legal',
+      [ReportType.INFORME_PSICOLOGICO]: 'informe psicológico clínico',
+      [ReportType.INFORME_SOCIAL]: 'informe social familiar',
+    }[reportType] || 'informe profesional';
+
+    const caseContext = await this.evidenceRag.searchCaseContext(
+      caseId,
+      `Evidencia relevante para ${reportTypeLabel}: hechos, testimonios, indicadores, hallazgos`,
+      10,
+    );
+
+    // ── 2. RAG general: base de conocimiento legal compartida ─────────────
+    //    Busca en legal_chunks (Ley 548, Código Penal, memoriales modelo,
+    //    normativas, libros). Compartido entre todos los casos.
+    const legalQuery = {
+      [ReportType.INFORME_JURIDICO]: 'procedimiento legal protección niñez adolescencia medidas legales memorial',
+      [ReportType.INFORME_PSICOLOGICO]: 'evaluación psicológica indicadores trauma riesgo niñez protección',
+      [ReportType.INFORME_SOCIAL]: 'evaluación social vulnerabilidad familiar vivienda riesgo ambiental niñez',
+    }[reportType] || 'informe profesional defensoría niñez';
+
+    let legalContext = '';
+    try {
+      const legalChunks = await this.ragService.searchSimilarChunks(legalQuery, 5);
+      legalContext = this.ragService.buildRAGContext(legalChunks);
+    } catch {
+      // Si no hay base de conocimiento legal cargada, continuamos sin ella
+      legalContext = '';
+    }
+
+    // ── 3. Construir prompt con ambas capas ───────────────────────────────
+    let structureInstructions = '';
+    let defaultTitle = '';
+
+    if (reportType === ReportType.INFORME_JURIDICO) {
+      defaultTitle = `Informe Jurídico de Evaluación - ${caseData.caseCode}`;
+      structureInstructions = `Estructura requerida:
+1. ANTECEDENTES Y HECHOS RELEVANTES
+2. ANÁLISIS DE TIPICIDAD Y ENCUADRE LEGAL (Ley 548 / Código Penal)
+3. VALORACIÓN DE VIABILIDAD Y MEDIDAS LEGALES RECOMENDADAS
+4. CONCLUSIONES Y PASOS SIGUIENTES (Conciliación vs Vía Judicial)`;
+    } else if (reportType === ReportType.INFORME_PSICOLOGICO) {
+      defaultTitle = `Informe Psicológico Inicial - ${caseData.caseCode}`;
+      structureInstructions = `Estructura requerida:
+1. MOTIVO DE EVALUACIÓN Y DESCRIPCIÓN DE LA CONDUCTA
+2. INDICADORES DE TRAUMA Y AFECTACIÓN EMOCIONAL IDENTIFICADOS
+3. VALORACIÓN DE RIESGO Y FACTORES PROTECTORES
+4. RECOMENDACIONES TERAPÉUTICAS Y PLAN DE INTERVENCIÓN`;
+    } else if (reportType === ReportType.INFORME_SOCIAL) {
+      defaultTitle = `Informe Social de Evaluación - ${caseData.caseCode}`;
+      structureInstructions = `Estructura requerida:
+1. COMPOSICIÓN Y DINÁMICA SOCIOFAMILIAR
+2. SITUACIÓN VIVIENDA, ECONÓMICA Y HABITACIONAL
+3. FACTORES DE VULNERABILIDAD Y RIESGO AMBIENTAL
+4. DIAGNÓSTICO SOCIAL Y RECOMENDACIONES DE INTERVENCIÓN`;
+    } else {
+      defaultTitle = `Informe de Seguimiento - ${caseData.caseCode}`;
+      structureInstructions = `Redactá un informe de seguimiento profesional estructurado.`;
+    }
+
+    const systemPrompt = `Sos un profesional perito de la Defensoría de la Niñez y Adolescencia de Bolivia (Ley 548).
+Generá un borrador profesional de ${reportTypeLabel.toUpperCase()} en español para el expediente ${caseData.caseCode} sobre el NNA ${nnaName}.
+
+${structureInstructions}
+
+REGLAS ESTRICTAS:
+- Basá tu análisis SOLO en la evidencia del expediente y el marco legal proporcionado.
+- NO inventés hechos, testimonios ni datos que no estén en el contexto.
+- Si la evidencia es insuficiente, indicalo explícitamente como "Pendiente de mayor documentación".
+- Este es un BORRADOR que el profesional revisará y completará.`;
+
+    const userPrompt = `
+=== NARRATIVA INICIAL DEL CASO ===
+${caseData.intakeNarrative || 'Sin narrativa de ingesta registrada.'}
+
+=== EVIDENCIA PROCESADA DEL EXPEDIENTE (transcripciones, fotos, documentos, informes previos) ===
+${caseContext || 'No hay evidencia procesada aún para este expediente.'}
+
+=== BASE DE CONOCIMIENTO LEGAL (Ley 548, normativas, modelos) ===
+${legalContext || 'No hay documentos legales cargados en la base de conocimiento.'}
+
+Generá el ${reportTypeLabel} estructurado completo para el caso ${caseData.caseCode}.`;
+
+    try {
+      const generatedContent = await this.ragService.queryOllama(systemPrompt, userPrompt);
+
+      return {
+        title: defaultTitle,
+        content: generatedContent,
+        riskAssessment: caseData.riskLevel || null,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(
+        'No se pudo conectar con la IA local (Ollama) para generar el borrador. Podés redactar el informe manualmente.',
+      );
+    }
+  }
+
+  // =========================================================================
+  // GET /reports/filtrar
+  // Filtra expedientes por CI / nombre / apellido del NNA, devuelve casos +
+  // estadísticas + profesionales con carga de trabajo.
+  // RBAC: ADMINISTRADOR ve todo; JEFATURA filtra por su oficina.
+  // =========================================================================
+  async filtrarExpedientes(query: any, user: AccessUser) {
+    const { ci, nombre, apellido, rol, oficina } = query;
+
+    // --- 1. Construir where clause para Person ---
+    const personWhere: any = {};
+    if (ci) {
+      personWhere.OR = [
+        { documentNumber: { equals: ci } },
+        { documentNumber: { equals: ci.replace(/\D/g, '') } }, // normalizar sin puntos/guiones
+      ];
+    }
+    if (nombre) {
+      personWhere.AND = personWhere.AND || [];
+      personWhere.AND.push({
+        firstName: { contains: nombre, mode: 'insensitive' },
+      });
+    }
+    if (apellido) {
+      personWhere.AND = personWhere.AND || [];
+      personWhere.AND.push({
+        lastName: { contains: apellido, mode: 'insensitive' },
+      });
+    }
+
+    // --- 2. Buscar personas que coinciden ---
+    const matchingPersons = Object.keys(personWhere).length === 0
+      ? null // si no hay filtro de persona, buscamos todos los casos
+      : await this.prisma.person.findMany({ where: personWhere, select: { id: true } });
+
+    // --- 3. Construir where clause para Cases ---
+    const caseWhere: any = {};
+
+    // Filtrar por oficina (JEFATURA solo ve su oficina)
+    if (user.role === Role.JEFATURA) {
+      const targetOfficeId = oficina || user.officeId;
+      if (targetOfficeId) {
+        caseWhere.currentOfficeId = targetOfficeId;
+      }
+    } else if (user.role === Role.ADMINISTRADOR && oficina) {
+      caseWhere.currentOfficeId = oficina;
+    }
+
+    // Si hay filtro de persona, solo incluir casos que tengan al NNA como party
+    if (matchingPersons && matchingPersons.length > 0) {
+      const personIds = matchingPersons.map((p) => p.id);
+      caseWhere.parties = {
+        some: {
+          personId: { in: personIds },
+          roleInCase: RoleInCase.NNA,
+        },
+      };
+    }
+
+    // --- 4. Buscar casos ---
+    const cases = await this.prisma.case.findMany({
+      where: caseWhere,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        parties: {
+          where: { roleInCase: RoleInCase.NNA },
+          include: { person: true },
+        },
+        currentOffice: { select: { name: true, code: true } },
+        teamHistory: {
+          where: { endDate: null },
+          include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        },
+      },
+    });
+
+    // --- 5. Formatear casos ---
+    const casosFormateados = cases.map((c) => {
+      const nnaParty = c.parties[0];
+      const nna = nnaParty?.person || null;
+      return {
+        id: c.id,
+        caseCode: c.caseCode,
+        caseType: c.caseType,
+        currentPhase: c.currentPhase,
+        riskLevel: c.riskLevel,
+        isClosed: c.isClosed,
+        createdAt: c.createdAt,
+        nna: nna
+          ? {
+              id: nna.id,
+              firstName: nna.firstName,
+              lastName: nna.lastName,
+              birthDate: nna.birthDate,
+              gender: nna.gender,
+              documentNumber: nna.documentNumber,
+            }
+          : null,
+      };
+    });
+
+    // --- 6. Calcular estadísticas ---
+    const estadisticas = {
+      totalCasos: casosFormateados.length,
+      porTipificacion: {} as Record<string, number>,
+      porGenero: { FEMENINO: 0, MASCULINO: 0, OTRO: 0 } as Record<string, number>,
+      porRangoEdad: {
+        '0_5': 0,
+        '6_11': 0,
+        '12_17': 0,
+        '18_24': 0,
+        '25_mas': 0,
+      } as Record<string, number>,
+    };
+
+    for (const caso of casosFormateados) {
+      // Tipificación
+      const tipo = caso.caseType || 'SIN_TIPIFICACION';
+      estadisticas.porTipificacion[tipo] = (estadisticas.porTipificacion[tipo] || 0) + 1;
+
+      // Género + rango de edad
+      if (caso.nna) {
+        const genero = caso.nna.gender || 'OTRO';
+        if (genero in estadisticas.porGenero) {
+          estadisticas.porGenero[genero]++;
+        } else {
+          estadisticas.porGenero['OTRO']++;
+        }
+
+        if (caso.nna.birthDate) {
+          const age = new Date().getFullYear() - new Date(caso.nna.birthDate).getFullYear();
+          const rango = age <= 5 ? '0_5'
+            : age <= 11 ? '6_11'
+            : age <= 17 ? '12_17'
+            : age <= 24 ? '18_24'
+            : '25_mas';
+          estadisticas.porRangoEdad[rango]++;
+        }
+      }
+    }
+
+    // --- 7. Profesionales con carga ---
+    let profesionalesWhere: any = {};
+    if (user.role === Role.JEFATURA && user.officeId && !oficina) {
+      profesionalesWhere.officeId = user.officeId;
+    }
+
+    const usuarios = await this.prisma.user.findMany({
+      where: {
+        role: { in: [Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL] },
+        isActive: true,
+        ...(user.role === Role.JEFATURA && user.officeId && !oficina
+          ? { officeId: user.officeId }
+          : {}),
+        ...(oficina ? { officeId: oficina } : {}),
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        officeId: true,
+      },
+    });
+
+    const profesionales = [];
+    for (const u of usuarios) {
+      // Contar casos activos/inactivos del profesional
+      const [totalActivos, casosCerrados, casosRechazados] = await Promise.all([
+        this.prisma.caseTeamHistory.count({
+          where: { userId: u.id, endDate: null },
+        }),
+        this.prisma.case.count({
+          where: {
+            teamHistory: { some: { userId: u.id, endDate: { not: null } } },
+            isClosed: true,
+          },
+        }),
+        this.prisma.case.count({
+          where: {
+            teamHistory: {
+              some: { userId: u.id },
+            },
+            currentPhase: Phase.CIERRE,
+            isClosed: false,
+          },
+        }),
+      ]);
+
+      if (rol && u.role !== rol) continue;
+
+      profesionales.push({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        role: u.role,
+        officeId: u.officeId,
+        stats: {
+          totalAsignados: totalActivos,
+          enCurso: totalActivos,
+          cerrados: casosCerrados,
+          rechazados: casosRechazados,
+        },
+      });
+    }
+
+    return {
+      casos: casosFormateados,
+      estadisticas,
+      profesionales,
+    } as any;
   }
 }

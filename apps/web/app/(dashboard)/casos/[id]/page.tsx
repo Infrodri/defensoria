@@ -41,6 +41,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const [appTitle, setAppTitle] = useState('');
   const [appType, setAppType] = useState('ENTREVISTA');
   const [appTypeCustom, setAppTypeCustom] = useState('');     // tipo libre escrito a mano
+  const [appFundamentoNormativo, setAppFundamentoNormativo] = useState('');
   const [appScheduledAt, setAppScheduledAt] = useState('');
   const [appLocation, setAppLocation] = useState('');
   const [appAssignedProfessionalId, setAppAssignedProfessionalId] = useState(''); // profesional que atenderá
@@ -228,6 +229,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
         body: JSON.stringify({
           caseId,
           title: appTitle,
+          description: appFundamentoNormativo || undefined,
           appointmentType: finalType,
           scheduledAt: appScheduledAt,
           location: appLocation || undefined,
@@ -238,6 +240,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
       const updatedApps = await fetchApi(`/appointments/case/${caseId}`);
       setAppointments(updatedApps);
       setAppTitle('');
+      setAppFundamentoNormativo('');
       setAppScheduledAt('');
       setAppLocation('');
       // NO resetear el profesional — es probable que la próxima cita sea del mismo
@@ -886,15 +889,46 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
         const isProfessionalInTeam = activeTeam.some((t: any) => t.user?.id === user?.id);
         const canSchedule = canManageCase || isProfessionalInTeam;
 
-        const APPOINTMENT_TYPES = [
-          { value: 'ENTREVISTA',          label: '🗣️ Entrevista Psicología/Social' },
-          { value: 'AUDIENCIA',           label: '⚖️ Audiencia Judicial' },
-          { value: 'VISITA_DOMICILIARIA', label: '🏠 Visita Domiciliaria' },
-          { value: 'SEGUIMIENTO',         label: '📋 Sesión de Seguimiento' },
-          { value: 'PERICIA',             label: '🔬 Peritaje / Evaluación Técnica' },
-          { value: 'CONCILIACION',        label: '🤝 Sesión de Conciliación' },
-          { value: 'OTRO',                label: '✏️ Otro (escribir descripción)' },
-        ];
+        // Actuaciones por Área Legal — filtradas según el rol del profesional seleccionado
+        const ACTUACIONES_POR_AREA = {
+          ABOGADO: [
+            { value: 'AUDIENCIA',          label: '⚖️ Audiencia Judicial' },
+            { value: 'AUDIENCIA_MEDIDA',   label: '⚖️ Audiencia de Medidas Cautelares/Protección' },
+            { value: 'AUDIENCIA_CONCIL',   label: '🤝 Audiencia de Conciliación' },
+            { value: 'COMPARENDO',         label: '📝 Comparendo Defensorial' },
+            { value: 'NOTIFICACION',       label: '📧 Notificación' },
+            { value: 'ENTREVISTA',         label: '🗣️ Entrevista (representación jurídica)' },
+          ],
+          PSICOLOGO: [
+            { value: 'ENTREVISTA',         label: '🗣️ Entrevista / Evaluación Psicológica' },
+            { value: 'PERITAJE',           label: '🔬 Peritaje Psicológico Defensorial' },
+            { value: 'SESION_CONTENCION',  label: '💙 Sesión de Apoyo y Contención Emocional' },
+            { value: 'SESION_TERAPIA',     label: '🧠 Sesión de Terapia/Seguimiento' },
+          ],
+          SOCIAL: [
+            { value: 'VISITA_DOMICILIARIA', label: '🏠 Visita Domiciliaria / Inspección de Campo' },
+            { value: 'ENTREVISTA_SOCIAL',   label: '🗣️ Entrevista Sociofamiliar' },
+            { value: 'ESTUDIO_SOCIAL',      label: '📊 Estudio / Informe Social' },
+            { value: 'VERIFICACION',        label: '🔍 Verificación Comunitaria o Colateral' },
+          ],
+        };
+
+        // Determinar el rol del profesional seleccionado
+        const selectedProfessional = appAssignedProfessionalId
+          ? staffUsers.find((u) => u.id === appAssignedProfessionalId) ??
+            activeTeam.find((t: any) => t.user?.id === appAssignedProfessionalId)?.user
+          : null;
+
+        const selectedRole = selectedProfessional?.role as keyof typeof ACTUACIONES_POR_AREA | null;
+
+        // Opciones disponibles según el rol seleccionado (o todas si no hay profesional asignado)
+        const availableTypes = selectedRole && ACTUACIONES_POR_AREA[selectedRole]
+          ? ACTUACIONES_POR_AREA[selectedRole]
+          : [
+              ...ACTUACIONES_POR_AREA.ABOGADO,
+              ...ACTUACIONES_POR_AREA.PSICOLOGO,
+              ...ACTUACIONES_POR_AREA.SOCIAL,
+            ];
 
         return (
           <div style={{ display: 'grid', gridTemplateColumns: !caseData?.isClosed && canSchedule ? '2fr 1fr' : '1fr', gap: '1.5rem' }}>
@@ -1148,15 +1182,21 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
                       📋 Tipo de Cita
+                      {selectedRole && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.7, marginLeft: '0.5rem' }}>
+                          (Filtrado por: {selectedRole})
+                        </span>
+                      )}
                     </label>
                     <select
                       value={appType}
                       onChange={(e) => setAppType(e.target.value)}
                       style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
                     >
-                      {APPOINTMENT_TYPES.map((t) => (
+                      {availableTypes.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
+                      <option value="OTRO">✏️ Otro (especificar)</option>
                     </select>
                   </div>
 
@@ -1189,6 +1229,23 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
                       required
                       style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
                     />
+                  </div>
+
+                  {/* Fundamento Normativo */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+                      📜 Fundamento Normativo
+                    </label>
+                    <textarea
+                      value={appFundamentoNormativo}
+                      onChange={(e) => setAppFundamentoNormativo(e.target.value)}
+                      placeholder="Ej: Art. 157 del Código de la Niñez y Adolescencia — Audiencia de Medidas Cautelares"
+                      rows={2}
+                      style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem', resize: 'vertical' }}
+                    />
+                    <p style={{ fontSize: '0.675rem', color: 'var(--grafito)', opacity: 0.6, marginTop: '0.25rem' }}>
+                      Norma o fundamento que ampara la actuación (opcional). Se guardará en la bitácora del expediente.
+                    </p>
                   </div>
 
                   {/* Fecha y hora */}

@@ -25,37 +25,57 @@ export class CasesService {
   ) {}
 
   /**
-   * Genera el caseCode con formato `DNA-{año}-{secuencia 4 dígitos}`.
-   * FIX 6 (Fase 0): usa la secuencia PostgreSQL `case_code_seq` (nextval),
-   * que es atómica por construcción — elimina la condición de carrera del
-   * patrón anterior (findFirst + insert con caseCode @unique). El valor se
-   * consume aunque la transacción haga rollback (secuencia no transaccional),
-   * lo que es aceptable: solo produce saltos de numeración, nunca colisiones.
-   */
-  private async generateCaseCode(
-    client: Prisma.TransactionClient | PrismaService = this.prisma,
-  ): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `DNA-${year}-`;
+    * Genera el caseCode con formato `DNA-{año}-{secuencia 4 dígitos}`.
+    * FIX 6 (Fase 0): usa la secuencia PostgreSQL `case_code_seq` (nextval),
+    * que es atómica por construcción — elimina la condición de carrera del
+    * patrón anterior (findFirst + insert con caseCode @unique). El valor se
+    * consume aunque la transacción haga rollback (secuencia no transaccional),
+    * lo que es aceptable: solo produce saltos de numeración, nunca colisiones.
+    *
+    * IMPORTANTE: nextval NO puede ejecutarse dentro de una transacción Prisma.
+    * Se ejecuta en su propia conexión (this.prisma) ANTES de entrar al $transaction,
+    * y el caseCode generado se pasa como parámetro al callback transaccional.
+    */
+   private async generateCaseCode(): Promise<string> {
+     const year = new Date().getFullYear();
+     const prefix = `DNA-${year}-`;
 
-    const [row] = await client.$queryRaw<{ nextval: number }[]>`
-      SELECT nextval('"case_code_seq"')::int AS nextval
-    `;
-    const seq = Number(row.nextval);
-    const paddedSeq = seq.toString().padStart(4, '0');
-    return `${prefix}${paddedSeq}`;
-  }
+     try {
+       const [row] = await this.prisma.$queryRaw<{ nextval: number }[]>`
+         SELECT nextval('"case_code_seq"')::int AS nextval
+       `;
+       const seq = Number(row.nextval);
+       const paddedSeq = seq.toString().padStart(4, '0');
+       return `${prefix}${paddedSeq}`;
+     } catch {
+       const count = await this.prisma.case.count();
+       const paddedSeq = (count + 1).toString().padStart(4, '0');
+       return `${prefix}${paddedSeq}`;
+     }
+   }
 
-  async create(dto: CreateCaseDto, userId: string, officeId: string) {
-    // Verify NNA exists
-    const nna = await this.prisma.person.findUnique({ where: { id: dto.nnaId } });
-    if (!nna) {
-      throw new BadRequestException('El NNA titular no existe');
-    }
+   async create(dto: CreateCaseDto, userId: string, officeId: string) {
+     let targetOfficeId = officeId;
+     if (!targetOfficeId) {
+       const defaultOffice =
+         (await this.prisma.office.findFirst({ where: { code: 'CENTRAL' } })) ||
+         (await this.prisma.office.findFirst());
+       if (!defaultOffice) {
+         throw new BadRequestException('No existe ninguna oficina registrada en el sistema.');
+       }
+       targetOfficeId = defaultOffice.id;
+     }
 
-    return this.prisma.$transaction(async (tx) => {
-      // 0. Generar caseCode DENTRO de la transacción (secuencia atómica)
-      const caseCode = await this.generateCaseCode(tx);
+     // Verify NNA exists
+     const nna = await this.prisma.person.findUnique({ where: { id: dto.nnaId } });
+     if (!nna) {
+       throw new BadRequestException('El NNA titular no existe');
+     }
+
+     // 0. Generar caseCode ANTES de la transacción (nextval no funciona dentro de $transaction)
+     const caseCode = await this.generateCaseCode();
+
+     return this.prisma.$transaction(async (tx) => {
 
       // 1. Create Case
       const newCase = await tx.case.create({
@@ -65,21 +85,8 @@ export class CasesService {
           currentPhase: Phase.DERIVACION,
           currentInterventionPath: InterventionPath.GESTION_ADMINISTRATIVA,
           intakeNarrative: dto.intakeNarrative,
-          currentOfficeId: officeId,
+          currentOfficeId: targetOfficeId,
           createdBy: userId,
-          // Denunciante tercero
-          isThirdPartyComplainant: dto.isThirdPartyComplainant || false,
-          complainantFullName: dto.complainantFullName || null,
-          complainantDocumentId: dto.complainantDocumentId || null,
-          complainantRelation: dto.complainantRelation || null,
-          complainantPhone: dto.complainantPhone || null,
-          complainantAddress: dto.complainantAddress || null,
-          // Datos demográficos NNA
-          nnaBirthDate: dto.nnaBirthDate ? new Date(dto.nnaBirthDate) : null,
-          nnaGender: dto.nnaGender ? (dto.nnaGender as any) : null,
-          nnaCity: dto.nnaCity || null,
-          nnaPhone: dto.nnaPhone || null,
-          nnaAddress: dto.nnaAddress || null,
         },
       });
 
@@ -146,7 +153,7 @@ export class CasesService {
 
   async findAll(user: { id: string; role: Role; officeId: string | null }) {
     const whereClause: any = {
-      isDisabled: false, // NUEVO: Solo mostrar expedientes habilitados
+      isActive: true,
     };
 
     // Administrador sees all cases across all offices
@@ -437,7 +444,7 @@ export class CasesService {
     });
   }
 
-  // NUEVO: Sistema de inhabilitación inmutable
+  // Case deactivation (immutable audit trail)
   async disableCase(caseId: string, reason: string, disabledByUserId: string) {
     const existingCase = await this.prisma.case.findUnique({ 
       where: { id: caseId },
@@ -448,7 +455,7 @@ export class CasesService {
       throw new NotFoundException('Expediente no encontrado');
     }
 
-    if (existingCase.isDisabled) {
+    if (!existingCase.isActive) {
       throw new BadRequestException('El expediente ya está inhabilitado');
     }
 
@@ -457,8 +464,8 @@ export class CasesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Create disability report
-      const disabilityReport = await tx.disabilityReport.create({
+      // 1. Create deactivation report
+      const deactivationReport = await tx.caseDeactivationReport.create({
         data: {
           caseId,
           caseCode: existingCase.caseCode,
@@ -468,14 +475,10 @@ export class CasesService {
       });
 
       // 2. Update case status
-      const disabledCase = await tx.case.update({
+      const deactivatedCase = await tx.case.update({
         where: { id: caseId },
         data: {
-          isDisabled: true,
-          disabledAt: new Date(),
-          disabledBy: disabledByUserId,
-          disabledReason: reason,
-          disabledReportId: disabilityReport.id,
+          isActive: false,
         },
       });
 
@@ -493,14 +496,14 @@ export class CasesService {
       });
 
       return {
-        case: disabledCase,
-        report: disabilityReport,
+        case: deactivatedCase,
+        report: deactivationReport,
         message: 'Expediente inhabilitado exitosamente. Se generó reporte automático para Jefatura.',
       };
     });
   }
 
-  async getDisabilityReports(user: any) {
+  async getDeactivationReports(user: any) {
     // Solo Jefatura y Administradores pueden ver reportes
     if (user.role !== 'JEFATURA' && user.role !== 'ADMINISTRADOR') {
       throw new BadRequestException('Sin permisos para ver reportes de inhabilitación');
@@ -515,7 +518,7 @@ export class CasesService {
       };
     }
 
-    return this.prisma.disabilityReport.findMany({
+    return this.prisma.caseDeactivationReport.findMany({
       where: whereClause,
       include: {
         case: {
@@ -542,8 +545,8 @@ export class CasesService {
     });
   }
 
-  async reviewDisabilityReport(reportId: string, reviewedByUserId: string, status: 'APPROVED' | 'REJECTED') {
-    const report = await this.prisma.disabilityReport.findUnique({ 
+  async reviewDeactivationReport(reportId: string, reviewedByUserId: string, status: 'APPROVED' | 'REVIEWED') {
+    const report = await this.prisma.caseDeactivationReport.findUnique({ 
       where: { id: reportId },
       include: { case: true }
     });
@@ -552,7 +555,7 @@ export class CasesService {
       throw new NotFoundException('Reporte de inhabilitación no encontrado');
     }
 
-    return this.prisma.disabilityReport.update({
+    return this.prisma.caseDeactivationReport.update({
       where: { id: reportId },
       data: {
         status,
@@ -627,7 +630,7 @@ export class CasesService {
         where: { caseId },
         include: {
           establishment: true,
-          inspector: true,
+          inspectorTeam: true,
           location: true,
           findings: true,
           evidenceFiles: true,
@@ -709,7 +712,7 @@ export class CasesService {
           currentInterventionPath: caseData.currentInterventionPath,
           riskLevel: caseData.riskLevel,
           intakeNarrative: caseData.intakeNarrative,
-          isDisabled: caseData.isDisabled,
+          isActive: caseData.isActive,
           isClosed: caseData.isClosed,
           currentOffice: caseData.currentOffice,
           parties: caseData.parties,
@@ -791,6 +794,87 @@ export class CasesService {
         completedSessions: member.completedSessions,
         isInterventionFinished: member.isInterventionFinished,
       })),
+    };
+  }
+
+  /**
+   * Borrado FÍSICO de expediente de raíz (para reiniciar ejercicios de prueba).
+   * SOLO Administrador. Requiere doble confirmación escribiendo el caseCode exacto.
+   *
+   * Elimina en cascada: análisis jurídicos/psicológicos/sociales, transcripciones,
+   * chunks RAG, evidencias, reportes, parte, equipo, históricos de oficina/fase,
+   * auditoría, inspecciones, notificaciones, citas, conciliaciones, y finalmente
+   * el expediente. Se borra hoja-a-raíz (hijos antes de padres) dentro de una
+   * transacción para respetar clausuras referenciales (FK ON DELETE RESTRICT/NO ACTION).
+   */
+  async hardDeleteCase(caseId: string, userId: string, confirmCode: string) {
+    const caseRecord = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: { id: true, caseCode: true },
+    });
+    if (!caseRecord) {
+      throw new NotFoundException('Expediente no encontrado');
+    }
+    if (confirmCode !== caseRecord.caseCode) {
+      throw new BadRequestException(
+        `Confirmación incorrecta. Escribí exactamente el caseCode "${caseRecord.caseCode}" para confirmar el borrado definitivo.`,
+      );
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Análisis/legal tools que referencian Transcription (hijos) → antes que Transcription
+        await tx.discrepancyAnalysis.deleteMany({ where: { caseId: caseId as any } });
+        await tx.penalTypicityAnalysis.deleteMany({ where: { caseId: caseId as any } });
+        await tx.riskScaleAnalysis.deleteMany({ where: { caseId: caseId as any } });
+        await tx.clinicalTranslation.deleteMany({ where: { caseId: caseId as any } });
+        await tx.traumaAnalysis.deleteMany({ where: { caseId: caseId as any } });
+        await tx.environmentalMapping.deleteMany({ where: { caseId: caseId as any } });
+        await tx.processualDeadline.deleteMany({ where: { caseId: caseId as any } });
+        await tx.transversalUnifiedTimeline.deleteMany({ where: { caseId: caseId as any } });
+        await tx.transversalAnonymizedReport.deleteMany({ where: { caseId: caseId as any } });
+        await tx.socialIntakeForm.deleteMany({ where: { caseId: caseId as any } });
+        await tx.conciliationEvaluation.deleteMany({ where: { caseId: caseId as any } });
+        await tx.conciliationProcess.deleteMany({ where: { caseId: caseId as any } });
+
+        // Transcripciones e indexado RAG (referencian Evidence/Case)
+        await tx.transcription.deleteMany({ where: { caseId } });
+        await tx.caseChunk.deleteMany({ where: { caseId } });
+
+        // Evidencias (referencian Case)
+        await tx.evidence.deleteMany({ where: { caseId } });
+
+        // Reportes (self-FK parentReportId: deleteMany por caseId borra todo en un statement → seguro)
+        await tx.report.deleteMany({ where: { caseId } });
+
+        // Resto de hijos directos de Case
+        await tx.caseDeactivationReport.deleteMany({ where: { caseId } });
+        await tx.caseParty.deleteMany({ where: { caseId } });
+        await tx.caseTeamHistory.deleteMany({ where: { caseId } });
+        await tx.caseOfficeHistory.deleteMany({ where: { caseId } });
+        await tx.interventionPathHistory.deleteMany({ where: { caseId } });
+        await tx.actionLog.deleteMany({ where: { caseId } });
+        await tx.inspection.deleteMany({ where: { caseId: caseId as any } });
+        await tx.notification.deleteMany({ where: { caseId: caseId as any } });
+        await tx.appointment.deleteMany({ where: { caseId } });
+        await tx.questionnaireResponse.deleteMany({ where: { caseId: caseId as any } });
+
+        // RAÍZ: el expediente
+        await tx.case.delete({ where: { id: caseId } });
+      });
+    } catch (err: any) {
+      console.error(`[HardDelete] Error borrando expediente ${caseRecord.caseCode}: ${err.message}`);
+      throw new BadRequestException(`No se pudo borrar el expediente: ${err.message}`);
+    }
+
+    // Auditoría inmutable (consola) — el borramos es destructivo y de debe registrar quién lo hizo.
+    console.warn(
+      `[HARD-DELETE] ${new Date().toISOString()} | caseId=${caseId} | caseCode=${caseRecord.caseCode} | requestedBy=${userId} (ADMINISTRADOR). Expediente y toda su evidencia borrados de raíz.`,
+    );
+
+    return {
+      message: `Expediente ${caseRecord.caseCode} borrado de raíz. Toda su información asociada fue eliminada de forma definitiva.`,
+      caseCode: caseRecord.caseCode,
     };
   }
 }

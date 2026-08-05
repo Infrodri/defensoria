@@ -40,6 +40,10 @@ enum CaseType {
   EXTRAVIO
   NNA_INFRACTOR
   FISCALIZACION
+  VIOLENCIA_SEXUAL
+  VIOLENCIA_DIGITAL
+  SITUACION_CALLE
+  TRABAJO_ADOLESCENTE
 }
 
 enum Phase {
@@ -103,14 +107,14 @@ enum AppointmentType {
 }
 
 enum AppointmentStatus {
-  PROPUESTA       // creada por secretaria, espera respuesta del profesional
-  PROGRAMADA      // profesional aceptó tal cual
-  CONFIRMADA      // profesional confirmó con cambios propios
+  PROPUESTA // creada por secretaria, espera respuesta del profesional
+  PROGRAMADA // profesional aceptó tal cual
+  CONFIRMADA // profesional confirmó con cambios propios
   COMPLETADA
   CANCELADA
-  REPROGRAMADA    // profesional propuso otra fecha
+  REPROGRAMADA // profesional propuso otra fecha
   NO_ASISTIO
-  RECHAZADA       // profesional no puede y no propone alternativa
+  RECHAZADA // profesional no puede y no propone alternativa
 }
 
 enum NotificationType {
@@ -168,6 +172,7 @@ enum QuestionnaireResponseStatus {
 
 enum TranscriptionTaskStatus {
   PENDIENTE
+  PROCESSING
   COMPLETADA
   ERROR
 }
@@ -190,6 +195,29 @@ enum ProcessualAlertLevel {
   ROJO
 }
 
+enum InspectionStatus {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADA
+  REPROGRAMADA
+  CANCELADA
+}
+
+enum InspectionFindingCategory {
+  TRABAJO_INFANTIL_PROHIBIDO
+  TRABAJO_ADOLESCENTE_NO_AUTORIZADO
+  EXPLOTACION_LABORAL_O_MULTA
+  NNA_SITUACION_DE_CALLE
+  SIN_NOVEDAD
+  OTRA_VULNERACION
+}
+
+enum CaseDeactivationStatus {
+  PENDING
+  REVIEWED
+  APPROVED
+}
+
 model User {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email            String    @unique
@@ -205,55 +233,54 @@ model User {
   createdAt        DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @db.Timestamptz(6)
 
-  office                 Office?                   @relation(fields: [officeId], references: [id])
-  createdPersons         Person[]                  @relation("CreatedPersons")
-  createdCases           Case[]                    @relation("CreatedCases")
-  closedCases            Case[]                    @relation("ClosedCases")
-  disabledCases          Case[]                    @relation("DisabledCases")
-  createdCaseParties     CaseParty[]               @relation("CreatedCaseParties")
-  assignedCaseTeam       CaseTeamHistory[]         @relation("AssignedTeam")
-  performedAssignments   CaseTeamHistory[]         @relation("PerformedAssignments")
-  performedTransfers     CaseOfficeHistory[]       @relation("TransferredOffice")
-  performedPathChanges   InterventionPathHistory[] @relation("PathChangedBy")
-  authoredActions        ActionLog[]               @relation("ActionAuthor")
-  authoredReports        Report[]                  @relation("ReportAuthor")
-  uploadedEvidences      Evidence[]                @relation("EvidenceUploader")
-  inspectionEvidenceUploaded InspectionEvidenceFile[] @relation("InspectionEvidenceUploader")
-  createdAppointments    Appointment[]             @relation("CreatedAppointments")
-  assignedAppointments   Appointment[]             @relation("AssignedAppointments")
-  notifications          Notification[]            @relation("UserNotifications")
-  escalatedNotifications Notification[]            @relation("EscalatedNotifications")
-  auditLogs              AuditLog[]
-  systemSettings         SystemSetting[]
-  inspections            Inspection[]
+  office                     Office?                   @relation(fields: [officeId], references: [id])
+  createdPersons             Person[]                  @relation("CreatedPersons")
+  createdCases               Case[]                    @relation("CreatedCases")
+  closedCases                Case[]                    @relation("ClosedCases")
+  createdCaseParties         CaseParty[]               @relation("CreatedCaseParties")
+  assignedCaseTeam           CaseTeamHistory[]         @relation("AssignedTeam")
+  performedAssignments       CaseTeamHistory[]         @relation("PerformedAssignments")
+  performedTransfers         CaseOfficeHistory[]       @relation("TransferredOffice")
+  performedPathChanges       InterventionPathHistory[] @relation("PathChangedBy")
+  authoredActions            ActionLog[]               @relation("ActionAuthor")
+  authoredReports            Report[]                  @relation("ReportAuthor")
+  uploadedEvidences          Evidence[]                @relation("EvidenceUploader")
+  inspectionEvidenceUploaded InspectionEvidenceFile[]  @relation("InspectionEvidenceUploader")
+  createdAppointments        Appointment[]             @relation("CreatedAppointments")
+  assignedAppointments       Appointment[]             @relation("AssignedAppointments")
+  notifications              Notification[]            @relation("UserNotifications")
+  escalatedNotifications     Notification[]            @relation("EscalatedNotifications")
+  auditLogs                  AuditLog[]
+  systemSettings             SystemSetting[]
+  disciplineId               String?                   @db.Uuid
+  discipline                 Discipline?               @relation(fields: [disciplineId], references: [id])
 
-  disciplineId String?     @db.Uuid
-  discipline   Discipline? @relation(fields: [disciplineId], references: [id])
-  
-  questionnairesCreated   QuestionnaireTemplate[]   @relation("QuestionnaireCreator")
-  questionnairesAnswered  QuestionnaireResponse[]   @relation("QuestionnaireResponses")
-  transcriptionsCreated   Transcription[]           @relation("TranscriptionsCreated")
-  
-  discrepancyAnalysisCreated DiscrepancyAnalysis[]  @relation("DiscrepancyAnalysts")
+  questionnairesCreated  QuestionnaireTemplate[] @relation("QuestionnaireCreator")
+  questionnairesAnswered QuestionnaireResponse[] @relation("QuestionnaireResponses")
+  transcriptionsCreated  Transcription[]         @relation("TranscriptionsCreated")
+
+  discrepancyAnalysisCreated   DiscrepancyAnalysis[]   @relation("DiscrepancyAnalysts")
   penalTypicityAnalysisCreated PenalTypicityAnalysis[] @relation("PenalTypicityAnalysts")
-  processualDeadlineCreated ProcessualDeadline[]     @relation("ProcessualDeadlineCreators")
+  processualDeadlineCreated    ProcessualDeadline[]    @relation("ProcessualDeadlineCreators")
 
-  riskScaleAnalysesCreated       RiskScaleAnalysis[]       @relation("RiskScaleAnalysts")
-  clinicalTranslationsCreated    ClinicalTranslation[]     @relation("ClinicalTranslationCreators")
-  traumaAnalysesCreated          TraumaAnalysis[]          @relation("TraumaAnalysts")
-  environmentalMappingsCreated   EnvironmentalMapping[]    @relation("EnvironmentalMappingAnalysts")
+  riskScaleAnalysesCreated     RiskScaleAnalysis[]    @relation("RiskScaleAnalysts")
+  clinicalTranslationsCreated  ClinicalTranslation[]  @relation("ClinicalTranslationCreators")
+  traumaAnalysesCreated        TraumaAnalysis[]       @relation("TraumaAnalysts")
+  environmentalMappingsCreated EnvironmentalMapping[] @relation("EnvironmentalMappingAnalysts")
 
-  transversalTimelinesCreated TransversalUnifiedTimeline[] @relation("TransversalTimelineCreators")
-  transversalReportsCreated TransversalAnonymizedReport[] @relation("TransversalReportCreators")
+  transversalTimelinesCreated TransversalUnifiedTimeline[]  @relation("TransversalTimelineCreators")
+  transversalReportsCreated   TransversalAnonymizedReport[] @relation("TransversalReportCreators")
 
-  socialIntakeForms          SocialIntakeForm[]          @relation("SocialIntakeForms")
-  conciliationEvaluations    ConciliationEvaluation[]    @relation("ConciliationEvaluations")
-  conciliationProcesses      ConciliationProcess[]       @relation("ConciliationProcesses")
+  socialIntakeForms       SocialIntakeForm[]       @relation("SocialIntakeForms")
+  conciliationEvaluations ConciliationEvaluation[] @relation("ConciliationEvaluations")
+  conciliationProcesses   ConciliationProcess[]    @relation("ConciliationProcesses")
 
-  disabilityReports          DisabilityReport[]          @relation("UserDisabilityReports")
-  reviewedDisabilityReports  DisabilityReport[]          @relation("ReviewedDisabilityReports")
+  caseDeactivationReports         CaseDeactivationReport[] @relation("UserCaseDeactivationReports")
+  reviewedCaseDeactivationReports CaseDeactivationReport[] @relation("ReviewedCaseDeactivationReports")
 
-  @@map("users")
+  coAuthoredReports         Report[]              @relation("ReportCoAuthor")
+  inspectionsCreated        Inspection[]          @relation("InspectionCreators")
+  inspectionTeamMemberships InspectionInspector[] @relation("InspectionInspectors")
 }
 
 model Office {
@@ -269,6 +296,7 @@ model Office {
   users           User[]
   currentCases    Case[]              @relation("CurrentOfficeCases")
   officeHistories CaseOfficeHistory[]
+  inspections     Inspection[]        @relation("InspectionOffice")
 
   @@map("offices")
 }
@@ -324,81 +352,58 @@ model Case {
   evidences     Evidence[]
   appointments  Appointment[]
   notifications Notification[]
-  
-  inspections   Inspection[]
+
+  inspections    Inspection[]
   questionnaires QuestionnaireResponse[]
   transcriptions Transcription[]
-  
-  discrepancyAnalyses DiscrepancyAnalysis[] @relation("CaseDiscrepancies")
+
+  discrepancyAnalyses   DiscrepancyAnalysis[]   @relation("CaseDiscrepancies")
   penalTypicityAnalyses PenalTypicityAnalysis[] @relation("CasePenalTypicities")
-  processualDeadlines ProcessualDeadline[] @relation("CaseProcessualDeadlines")
+  processualDeadlines   ProcessualDeadline[]    @relation("CaseProcessualDeadlines")
 
-  riskScaleAnalyses      RiskScaleAnalysis[]    @relation("CaseRiskScaleAnalyses")
-  clinicalTranslations   ClinicalTranslation[]  @relation("CaseClinicalTranslations")
-  traumaAnalyses         TraumaAnalysis[]       @relation("CaseTraumaAnalyses")
-  environmentalMappings  EnvironmentalMapping[] @relation("CaseEnvironmentalMappings")
+  riskScaleAnalyses     RiskScaleAnalysis[]    @relation("CaseRiskScaleAnalyses")
+  clinicalTranslations  ClinicalTranslation[]  @relation("CaseClinicalTranslations")
+  traumaAnalyses        TraumaAnalysis[]       @relation("CaseTraumaAnalyses")
+  environmentalMappings EnvironmentalMapping[] @relation("CaseEnvironmentalMappings")
 
-  transversalTimelines TransversalUnifiedTimeline[] @relation("CaseTransversalTimelines")
-  transversalReports TransversalAnonymizedReport[] @relation("CaseTransversalReports")
+  transversalTimelines TransversalUnifiedTimeline[]  @relation("CaseTransversalTimelines")
+  transversalReports   TransversalAnonymizedReport[] @relation("CaseTransversalReports")
 
-  socialIntakeForm        SocialIntakeForm?
-  conciliationEvaluation  ConciliationEvaluation?
-  conciliationProcesses   ConciliationProcess[]
-  
-  disabilityReports       DisabilityReport[]       @relation("CaseDisabilityReports")
+  socialIntakeForm       SocialIntakeForm?
+  conciliationEvaluation ConciliationEvaluation?
+  conciliationProcesses  ConciliationProcess[]
+
+  caseDeactivationReports CaseDeactivationReport[] @relation("CaseCaseDeactivationReports")
   caseChunks              CaseChunk[]              @relation("CasechunkCase")
 
-  // Denunciante tercero (cuando no es el NNA mismo)
-  isThirdPartyComplainant Boolean  @default(false)
-  complainantFullName     String?
-  complainantDocumentId   String?
-  complainantRelation     String?  // MADRE, PADRE, TIO, DOCENTE, VECINO, OTRO, ETC
-  complainantPhone        String?
-  complainantAddress      String?
-
-  // Datos demográficos del NNA
-  nnaBirthDate            DateTime? @db.Date
-  nnaGender              Gender?
-  nnaCity                String?
-  nnaPhone               String?
-  nnaAddress             String?
-
-  // Campos de auditoría inmutable
-  isDisabled             Boolean   @default(false)
-  disabledAt             DateTime? @db.Timestamptz(6)
-  disabledBy             String?   @db.Uuid
-  disabledReason         String?
-  disabledReportId       String?   @db.Uuid // Link al reporte generado
-  
-  // Relaciones para auditoría
-  disabler               User?     @relation("DisabledCases", fields: [disabledBy], references: [id])
+  isActive Boolean @default(true) // replaces isDisabled — standard polarity
 
   @@index([currentPhase])
   @@index([riskLevel])
   @@index([isClosed])
-  @@index([isDisabled])
+  @@index([isActive])
   @@index([currentOfficeId])
   @@map("cases")
 }
 
-model DisabilityReport {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId             String    @db.Uuid
-  caseCode           String
-  reason             String
-  disabledBy         String    @db.Uuid
-  disabledAt         DateTime  @default(now()) @db.Timestamptz(6)
-  reviewedBy         String?   @db.Uuid
-  reviewedAt         DateTime? @db.Timestamptz(6)
-  status             String    @default("PENDING") // PENDING, REVIEWED, APPROVED
-  
-  case               Case      @relation("CaseDisabilityReports", fields: [caseId], references: [id])
-  disabler           User      @relation("UserDisabilityReports", fields: [disabledBy], references: [id])
-  reviewer           User?     @relation("ReviewedDisabilityReports", fields: [reviewedBy], references: [id])
+model CaseDeactivationReport {
+  id         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId     String                 @db.Uuid
+  caseCode   String
+  reason     String
+  disabledBy String                 @db.Uuid
+  disabledAt DateTime               @default(now()) @db.Timestamptz(6)
+  reviewedBy String?                @db.Uuid
+  reviewedAt DateTime?              @db.Timestamptz(6)
+  status     CaseDeactivationStatus @default(PENDING)
+
+  case     Case  @relation("CaseCaseDeactivationReports", fields: [caseId], references: [id])
+  disabler User  @relation("UserCaseDeactivationReports", fields: [disabledBy], references: [id])
+  reviewer User? @relation("ReviewedCaseDeactivationReports", fields: [reviewedBy], references: [id])
 
   @@index([disabledAt])
   @@index([status])
-  @@map("disability_reports")
+  @@map("case_deactivation_reports")
 }
 
 model CaseParty {
@@ -415,6 +420,7 @@ model CaseParty {
   creator User   @relation("CreatedCaseParties", fields: [createdBy], references: [id])
 
   @@unique([caseId, personId, roleInCase])
+  @@index([caseId])
   @@map("case_parties")
 }
 
@@ -487,6 +493,7 @@ model ActionLog {
   case   Case @relation(fields: [caseId], references: [id])
   author User @relation("ActionAuthor", fields: [authorId], references: [id])
 
+  @@index([caseId])
   @@map("action_logs")
 }
 
@@ -510,12 +517,15 @@ model Report {
   parentReport Report?  @relation("ComplementaryReports", fields: [parentReportId], references: [id])
   children     Report[] @relation("ComplementaryReports")
 
-  disciplineReportTypeId String?               @db.Uuid
-  disciplineReportType   DisciplineReportType? @relation(fields: [disciplineReportTypeId], references: [id])
+  coAuthorId String? @db.Uuid
+  coAuthor   User?   @relation("ReportCoAuthor", fields: [coAuthorId], references: [id])
+
+  anonymizedReports TransversalAnonymizedReport[] @relation("AnonymizedFromReport")
 
   authorRoleSnapshot       Role?
   authorDisciplineSnapshot String?
 
+  @@index([caseId])
   @@map("reports")
 }
 
@@ -533,42 +543,44 @@ model Evidence {
   transcriptionStatus TranscriptionStatus @default(DIGITAL_NATIVO)
   createdAt           DateTime            @default(now()) @db.Timestamptz(6)
 
-  case            Case              @relation(fields: [caseId], references: [id])
-  uploader        User              @relation("EvidenceUploader", fields: [uploadedBy], references: [id])
-  
-  transcriptions  Transcription[]
+  case     Case @relation(fields: [caseId], references: [id])
+  uploader User @relation("EvidenceUploader", fields: [uploadedBy], references: [id])
 
+  transcriptions Transcription[]
+
+  @@index([caseId])
   @@map("evidences")
 }
 
 model Appointment {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId          String            @db.Uuid
-  title           String
-  description     String?
-  appointmentType AppointmentType
-  scheduledAt     DateTime?         @db.Timestamptz(6)   // opcional si secretaria no define fecha
-  endAt           DateTime?         @db.Timestamptz(6)
-  location        String?
-  status          AppointmentStatus @default(PROPUESTA)  // inicia como propuesta
-  createdBy       String            @db.Uuid             // quien crea (secretaria/jefatura)
-  assignedProfessionalId String?    @db.Uuid             // profesional que atenderá
+  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                 String            @db.Uuid
+  title                  String
+  description            String?
+  appointmentType        AppointmentType
+  scheduledAt            DateTime?         @db.Timestamptz(6) // opcional si secretaria no define fecha
+  endAt                  DateTime?         @db.Timestamptz(6)
+  location               String?
+  status                 AppointmentStatus @default(PROPUESTA) // inicia como propuesta
+  createdBy              String            @db.Uuid // quien crea (secretaria/jefatura)
+  assignedProfessionalId String?           @db.Uuid // profesional que atenderá
 
   // Respuesta del profesional
-  professionalResponse  String?    // ACCEPTED | MODIFIED | REJECTED
-  professionalNotes     String?    // observaciones del profesional al aceptar/modificar
-  respondedAt           DateTime?  @db.Timestamptz(6)   // cuándo respondió
+  professionalResponse String? // ACCEPTED | MODIFIED | REJECTED
+  professionalNotes    String? // observaciones del profesional al aceptar/modificar
+  respondedAt          DateTime? @db.Timestamptz(6) // cuándo respondió
 
-  case                Case    @relation(fields: [caseId], references: [id])
-  creator             User    @relation("CreatedAppointments", fields: [createdBy], references: [id])
-  assignedProfessional User?  @relation("AssignedAppointments", fields: [assignedProfessionalId], references: [id])
+  case                 Case  @relation(fields: [caseId], references: [id])
+  creator              User  @relation("CreatedAppointments", fields: [createdBy], references: [id])
+  assignedProfessional User? @relation("AssignedAppointments", fields: [assignedProfessionalId], references: [id])
 
-  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime          @updatedAt @db.Timestamptz(6)
-  
-  questionnaires  QuestionnaireResponse[]
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  questionnaires QuestionnaireResponse[]
 
   @@index([assignedProfessionalId])
+  @@index([caseId])
   @@map("appointments")
 }
 
@@ -591,6 +603,8 @@ model Notification {
   case      Case? @relation(fields: [caseId], references: [id])
   escalator User? @relation("EscalatedNotifications", fields: [escalatedTo], references: [id])
 
+  @@index([userId])
+  @@index([caseId])
   @@map("notifications")
 }
 
@@ -632,89 +646,99 @@ model Establishment {
 }
 
 model Inspection {
-  id                    String                    @id @default(uuid()) @db.Uuid
-  establishmentId       String                    @db.Uuid
-  establishment         Establishment             @relation(fields: [establishmentId], references: [id])
-  
-  caseId                String?                   @db.Uuid
-  case                  Case?                     @relation(fields: [caseId], references: [id])
-  
-  officeId              String                    @db.Uuid
-  inspectorId           String                    @db.Uuid
-  inspector             User                      @relation(fields: [inspectorId], references: [id])
-  
-  scheduledAt           DateTime                  @db.Timestamptz(6)
-  completedAt           DateTime?                 @db.Timestamptz(6)
-  
-  status                String
-  isSurpriseInspection  Boolean                   @default(false)
-  generalNotes          String?                   @db.Text
-  
-  location              InspectionLocation?
-  findings              InspectionFinding[]
-  evidenceFiles         InspectionEvidenceFile[]
-  
-  inspectorIds          String[]                  @db.Uuid @default([])
-  createdAt             DateTime                  @default(now()) @db.Timestamptz(6)
-  createdBy             String?                   @db.Uuid
-  
+  id              String        @id @default(uuid()) @db.Uuid
+  establishmentId String        @db.Uuid
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+
+  caseId String? @db.Uuid
+  case   Case?   @relation(fields: [caseId], references: [id])
+
+  officeId String @db.Uuid
+  office   Office @relation("InspectionOffice", fields: [officeId], references: [id])
+
+  scheduledAt DateTime  @db.Timestamptz(6)
+  completedAt DateTime? @db.Timestamptz(6)
+
+  status               InspectionStatus @default(PENDIENTE)
+  isSurpriseInspection Boolean          @default(false)
+  generalNotes         String?          @db.Text
+
+  location      InspectionLocation?
+  findings      InspectionFinding[]
+  evidenceFiles InspectionEvidenceFile[]
+  inspectorTeam InspectionInspector[]
+
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  createdBy   String   @db.Uuid
+  caseCreator User     @relation("InspectionCreators", fields: [createdBy], references: [id])
+
   @@index([caseId])
-  @@map("Inspection")
+  @@map("inspections")
 }
 
 model InspectionLocation {
-  id              String      @id @default(uuid()) @db.Uuid
-  inspectionId    String      @db.Uuid @unique
-  inspection      Inspection  @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  
-  latitude        Float
-  longitude       Float
-  address         String?
-  googleMapsUrl   String?
-  
+  id           String     @id @default(uuid()) @db.Uuid
+  inspectionId String     @unique @db.Uuid
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  latitude      Float
+  longitude     Float
+  address       String?
+  googleMapsUrl String?
+
   @@map("inspection_locations")
 }
 
 model InspectionEvidenceFile {
-  id              String                    @id @default(uuid()) @db.Uuid
-  inspectionId    String                    @db.Uuid
-  inspection      Inspection                @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  
-  fileName        String
-  mimeType        String
-  fileSize        Int
-  
-  storagePath     String
-  fileHash        String                    @unique
-  
-  description     String?
-  evidenceType    InspectionEvidenceType
-  
-  uploadedBy      String                    @db.Uuid
-  uploader        User                      @relation("InspectionEvidenceUploader", fields: [uploadedBy], references: [id])
-  
-  createdAt       DateTime                  @default(now()) @db.Timestamptz(6)
-  
+  id           String     @id @default(uuid()) @db.Uuid
+  inspectionId String     @db.Uuid
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  fileName String
+  mimeType String
+  fileSize Int
+
+  storagePath String
+  fileHash    String @unique
+
+  description  String?
+  evidenceType InspectionEvidenceType
+
+  uploadedBy String @db.Uuid
+  uploader   User   @relation("InspectionEvidenceUploader", fields: [uploadedBy], references: [id])
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
   @@index([inspectionId])
   @@map("inspection_evidence_files")
 }
 
 model InspectionFinding {
-  id                String              @id @default(uuid()) @db.Uuid
-  inspectionId      String              @db.Uuid
-  inspection        Inspection          @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  
-  findingCategory   String
-  severity          InspectionSeverity
-  description       String              @db.Text
-  recommendations   String?             @db.Text
-  
+  id           String     @id @default(uuid()) @db.Uuid
+  inspectionId String     @db.Uuid
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  findingCategory InspectionFindingCategory
+  severity        InspectionSeverity
+  description     String                    @db.Text
+  recommendations String?                   @db.Text
+
   nnaCount          Int?
-  photosEvidenceIds String[]            @db.Uuid @default([])
-  
-  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
-  
+  photosEvidenceIds String[] @default([]) @db.Uuid
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
   @@map("inspection_findings")
+}
+
+model InspectionInspector {
+  inspectionId String     @db.Uuid
+  inspectorId  String     @db.Uuid
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  inspector    User       @relation("InspectionInspectors", fields: [inspectorId], references: [id])
+
+  @@id([inspectionId, inspectorId])
+  @@map("inspection_inspectors")
 }
 
 model SystemCatalog {
@@ -725,22 +749,22 @@ model SystemCatalog {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  items       CatalogItem[]
+  items CatalogItem[]
 
   @@map("system_catalogs")
 }
 
 model CatalogItem {
-  id          String   @id @default(uuid()) @db.Uuid
-  catalogId   String   @db.Uuid
-  value       String
-  label       String
-  isActive    Boolean  @default(true)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id        String   @id @default(uuid()) @db.Uuid
+  catalogId String   @db.Uuid
+  value     String
+  label     String
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  catalog     SystemCatalog @relation(fields: [catalogId], references: [id])
+  catalog SystemCatalog @relation(fields: [catalogId], references: [id])
 
   @@unique([catalogId, value])
   @@map("catalog_items")
@@ -769,26 +793,9 @@ model Discipline {
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
   users       User[]
-  reportTypes DisciplineReportType[]
   instruments Instrument[]
 
   @@map("disciplines")
-}
-
-model DisciplineReportType {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  disciplineId String   @db.Uuid
-  code         String   @unique
-  name         String
-  description  String?
-  template     Json?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-
-  discipline Discipline @relation(fields: [disciplineId], references: [id])
-  reports    Report[]
-
-  @@map("discipline_report_types")
 }
 
 model DocumentTemplate {
@@ -820,166 +827,166 @@ model Instrument {
 }
 
 model LegalDocument {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String   
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
   sourceUrl   String?
   publishedAt DateTime?
-  isActive    Boolean  @default(true)
+  isActive    Boolean   @default(true)
   version     String?
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  
-  chunks      LegalChunk[]
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  chunks LegalChunk[]
 
   @@map("legal_documents")
 }
 
 model LegalChunk {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  legalDocumentId String   @db.Uuid
-  content         String   
-  metadata        Json     
-  
-  embedding       Unsupported("vector(768)")?
-  
-  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  legalDocumentId String @db.Uuid
+  content         String
+  metadata        Json
 
-  document        LegalDocument @relation(fields: [legalDocumentId], references: [id])
+  embedding Unsupported("vector(768)")?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  document LegalDocument @relation(fields: [legalDocumentId], references: [id])
 
   @@map("legal_chunks")
 }
 
 // ── RAG por expediente: chunks indexados de evidencias subidas al caso ─────────
 model CaseChunk {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId      String    @db.Uuid
-  evidenceId  String?   @db.Uuid        // evidencia de origen (si viene de una)
-  sourceType  String                    // 'audio_transcript' | 'image_description' | 'pdf_text' | 'report' | 'action_log'
-  content     String
-  metadata    Json      @default("{}")
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId     String  @db.Uuid
+  evidenceId String? @db.Uuid // evidencia de origen (si viene de una)
+  sourceType String // 'audio_transcript' | 'image_description' | 'pdf_text' | 'report' | 'action_log'
+  content    String
+  metadata   Json    @default("{}")
 
-  embedding   Unsupported("vector(768)")?
+  embedding Unsupported("vector(768)")?
 
-  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
-  case        Case      @relation("CasechunkCase", fields: [caseId], references: [id])
+  case Case @relation("CasechunkCase", fields: [caseId], references: [id])
 
   @@index([caseId])
   @@map("case_chunks")
 }
 
 model QuestionnaireTemplate {
-  id              String                      @id @default(uuid()) @db.Uuid
-  name            String
-  description     String?
-  category        QuestionnaireCategory
-  version         Int                         @default(1)
-  
-  questions       Question[]
-  responses       QuestionnaireResponse[]
-  
-  isActive        Boolean                     @default(true)
-  createdAt       DateTime                    @default(now()) @db.Timestamptz(6)
-  createdBy       String                      @db.Uuid
-  creator         User                        @relation("QuestionnaireCreator", fields: [createdBy], references: [id])
-  
+  id          String                @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  category    QuestionnaireCategory
+  version     Int                   @default(1)
+
+  questions Question[]
+  responses QuestionnaireResponse[]
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String   @db.Uuid
+  creator   User     @relation("QuestionnaireCreator", fields: [createdBy], references: [id])
+
   @@map("questionnaire_templates")
 }
 
 model Question {
-  id                String                @id @default(uuid()) @db.Uuid
-  templateId        String                @db.Uuid
-  template          QuestionnaireTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  
-  question          String                @db.Text
-  questionType      QuestionType
-  
-  order             Int
-  required          Boolean               @default(true)
-  
-  options           String[]
-  riskKeywords      String[]              @default([])
-  
-  answers           Answer[]
-  
+  id         String                @id @default(uuid()) @db.Uuid
+  templateId String                @db.Uuid
+  template   QuestionnaireTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  question     String       @db.Text
+  questionType QuestionType
+
+  order    Int
+  required Boolean @default(true)
+
+  options      String[]
+  riskKeywords String[] @default([])
+
+  answers Answer[]
+
   @@map("questions")
 }
 
 model QuestionnaireResponse {
-  id              String                      @id @default(uuid()) @db.Uuid
-  templateId      String                      @db.Uuid
-  template        QuestionnaireTemplate       @relation(fields: [templateId], references: [id])
-  
-  caseId          String                      @db.Uuid
-  case            Case                        @relation(fields: [caseId], references: [id])
-  
-  appointmentId   String?                     @db.Uuid
-  appointment     Appointment?                @relation(fields: [appointmentId], references: [id])
-  
-  respondentId    String                      @db.Uuid
-  respondent      User                        @relation("QuestionnaireResponses", fields: [respondentId], references: [id])
-  
-  completedAt     DateTime?
-  answers         Answer[]
-  
-  riskFlags       String[]                    @default([])
-  riskScore       Float?                      @default(0)
-  
-  status          QuestionnaireResponseStatus @default(PENDIENTE)
-  notes           String?                     @db.Text
-  
-  createdAt       DateTime                    @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime                    @updatedAt @db.Timestamptz(6)
-  
+  id         String                @id @default(uuid()) @db.Uuid
+  templateId String                @db.Uuid
+  template   QuestionnaireTemplate @relation(fields: [templateId], references: [id])
+
+  caseId String @db.Uuid
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  appointmentId String?      @db.Uuid
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  respondentId String @db.Uuid
+  respondent   User   @relation("QuestionnaireResponses", fields: [respondentId], references: [id])
+
+  completedAt DateTime?
+  answers     Answer[]
+
+  riskFlags String[] @default([])
+  riskScore Float?   @default(0)
+
+  status QuestionnaireResponseStatus @default(PENDIENTE)
+  notes  String?                     @db.Text
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
   @@index([caseId])
   @@index([status])
   @@map("questionnaire_responses")
 }
 
 model Answer {
-  id              String                  @id @default(uuid()) @db.Uuid
-  responseId      String                  @db.Uuid
-  response        QuestionnaireResponse   @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  
-  questionId      String                  @db.Uuid
-  question        Question                @relation(fields: [questionId], references: [id])
-  
-  answer          String                  @db.Text
-  
-  createdAt       DateTime                @default(now()) @db.Timestamptz(6)
-  
+  id         String                @id @default(uuid()) @db.Uuid
+  responseId String                @db.Uuid
+  response   QuestionnaireResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  questionId String   @db.Uuid
+  question   Question @relation(fields: [questionId], references: [id])
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
   @@map("answers")
 }
 
 model Transcription {
-  id              String                  @id @default(uuid()) @db.Uuid
-  caseId          String                  @db.Uuid
-  case            Case                    @relation(fields: [caseId], references: [id])
-  
-  evidenceId      String                  @db.Uuid
-  evidence        Evidence                @relation(fields: [evidenceId], references: [id])
-  
-  text            String                  @db.Text
-  
-  duration        String?
-  confidence      Float                   @default(0.95)
-  language        String                  @default("es")
-  
-  searchIndex     String?
-  
-  status          TranscriptionTaskStatus @default(PENDIENTE)
-  errorMessage    String?
-  
-  createdAt       DateTime                @default(now()) @db.Timestamptz(6)
-  createdBy       String                  @db.Uuid
-  creator         User                    @relation("TranscriptionsCreated", fields: [createdBy], references: [id])
-  
-  discrepancyAnalysesAsTarget DiscrepancyAnalysis[] @relation("DiscrepancyCurrentTranscription")
-  penalTypicityAnalyses PenalTypicityAnalysis[] @relation("PenalTypicityTranscriptions")
+  id     String @id @default(uuid()) @db.Uuid
+  caseId String @db.Uuid
+  case   Case   @relation(fields: [caseId], references: [id])
 
-  riskScaleAnalyses      RiskScaleAnalysis[]    @relation("RiskScaleTranscriptions")
-  environmentalMappings  EnvironmentalMapping[] @relation("EnvironmentalMappingTranscriptions")
-  
+  evidenceId String   @db.Uuid
+  evidence   Evidence @relation(fields: [evidenceId], references: [id])
+
+  text String @db.Text
+
+  duration   String?
+  confidence Float   @default(0.95)
+  language   String  @default("es")
+
+  searchIndex String?
+
+  status       TranscriptionTaskStatus @default(PENDIENTE)
+  errorMessage String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String   @db.Uuid
+  creator   User     @relation("TranscriptionsCreated", fields: [createdBy], references: [id])
+
+  discrepancyAnalysesAsTarget DiscrepancyAnalysis[]   @relation("DiscrepancyCurrentTranscription")
+  penalTypicityAnalyses       PenalTypicityAnalysis[] @relation("PenalTypicityTranscriptions")
+
+  riskScaleAnalyses     RiskScaleAnalysis[]    @relation("RiskScaleTranscriptions")
+  environmentalMappings EnvironmentalMapping[] @relation("EnvironmentalMappingTranscriptions")
+
   @@map("transcriptions")
 }
 
@@ -988,69 +995,69 @@ model Transcription {
 // =====================================================
 
 model DiscrepancyAnalysis {
-  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId                String                @db.Uuid
-  case                  Case                  @relation("CaseDiscrepancies", fields: [caseId], references: [id], onDelete: Cascade)
-  
-  currentTranscriptionId String               @db.Uuid
-  currentTranscription  Transcription         @relation("DiscrepancyCurrentTranscription", fields: [currentTranscriptionId], references: [id], onDelete: Cascade)
-  
-  comparableDocumentIds String[]              @db.Uuid @default([])
-  
-  discrepancies         Json                                              // Array de discrepancias detectadas
-  consistencyScore      Float                 @default(0)                // 0-100
-  riskLevel             DiscrepancyRiskLevel
-  recommendation        String?               @db.Text
-  
-  analyzedAt            DateTime              @default(now()) @db.Timestamptz(6)
-  analyzedBy            String                @db.Uuid
-  analyst               User                  @relation("DiscrepancyAnalysts", fields: [analyzedBy], references: [id])
-  
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId String @db.Uuid
+  case   Case   @relation("CaseDiscrepancies", fields: [caseId], references: [id], onDelete: Cascade)
+
+  currentTranscriptionId String        @db.Uuid
+  currentTranscription   Transcription @relation("DiscrepancyCurrentTranscription", fields: [currentTranscriptionId], references: [id], onDelete: Cascade)
+
+  comparableDocumentIds String[] @default([]) @db.Uuid
+
+  discrepancies    Json // Array de discrepancias detectadas
+  consistencyScore Float                @default(0) // 0-100
+  riskLevel        DiscrepancyRiskLevel
+  recommendation   String?              @db.Text
+
+  analyzedAt DateTime @default(now()) @db.Timestamptz(6)
+  analyzedBy String   @db.Uuid
+  analyst    User     @relation("DiscrepancyAnalysts", fields: [analyzedBy], references: [id])
+
   @@index([caseId])
   @@index([analyzedAt])
   @@map("discrepancy_analyses")
 }
 
 model PenalTypicityAnalysis {
-  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId            String                @db.Uuid
-  case              Case                  @relation("CasePenalTypicities", fields: [caseId], references: [id], onDelete: Cascade)
-  
-  transcriptionId   String                @db.Uuid
-  transcription     Transcription         @relation("PenalTypicityTranscriptions", fields: [transcriptionId], references: [id], onDelete: Cascade)
-  
-  potentialCrimes   Json                                                  // Array de delitos potenciales
-  primaryCrime      String                                                // Delito principal
-  secondaryCrimes   String[]              @default([])
-  evidenceGaps      String[]              @default([])
-  investigationPath String?               @db.Text
-  
-  analyzedAt        DateTime              @default(now()) @db.Timestamptz(6)
-  analyzedBy        String                @db.Uuid
-  analyst           User                  @relation("PenalTypicityAnalysts", fields: [analyzedBy], references: [id])
-  
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId String @db.Uuid
+  case   Case   @relation("CasePenalTypicities", fields: [caseId], references: [id], onDelete: Cascade)
+
+  transcriptionId String        @db.Uuid
+  transcription   Transcription @relation("PenalTypicityTranscriptions", fields: [transcriptionId], references: [id], onDelete: Cascade)
+
+  potentialCrimes   Json // Array de delitos potenciales
+  primaryCrime      String // Delito principal
+  secondaryCrimes   String[] @default([])
+  evidenceGaps      String[] @default([])
+  investigationPath String?  @db.Text
+
+  analyzedAt DateTime @default(now()) @db.Timestamptz(6)
+  analyzedBy String   @db.Uuid
+  analyst    User     @relation("PenalTypicityAnalysts", fields: [analyzedBy], references: [id])
+
   @@index([caseId])
   @@index([analyzedAt])
   @@map("penal_typicality_analyses")
 }
 
 model ProcessualDeadline {
-  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId            String                @db.Uuid
-  case              Case                  @relation("CaseProcessualDeadlines", fields: [caseId], references: [id], onDelete: Cascade)
-  
-  milestone         String                                                // "Audiencia Preliminar", etc.
-  calculatedDate    DateTime
-  daysRemaining     Int
-  status            ProcessualStatus
-  urgency           Int                   @default(0)                    // 0-100
-  alertLevel        ProcessualAlertLevel
-  relatedLaws       String[]              @default([])                   // ["Ley 548", "Art. 102"]
-  
-  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
-  createdBy         String                @db.Uuid
-  creator           User                  @relation("ProcessualDeadlineCreators", fields: [createdBy], references: [id])
-  
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId String @db.Uuid
+  case   Case   @relation("CaseProcessualDeadlines", fields: [caseId], references: [id], onDelete: Cascade)
+
+  milestone      String // "Audiencia Preliminar", etc.
+  calculatedDate DateTime
+  daysRemaining  Int
+  status         ProcessualStatus
+  urgency        Int                  @default(0) // 0-100
+  alertLevel     ProcessualAlertLevel
+  relatedLaws    String[]             @default([]) // ["Ley 548", "Art. 102"]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String   @db.Uuid
+  creator   User     @relation("ProcessualDeadlineCreators", fields: [createdBy], references: [id])
+
   @@index([caseId])
   @@index([calculatedDate])
   @@map("processual_deadlines")
@@ -1065,7 +1072,7 @@ model RiskScaleAnalysis {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caseId             String   @db.Uuid
   transcriptionId    String   @db.Uuid
-  scaleResults       Json     // { sara: {nivelRiesgo, score, items[]}, nvi: {...}, evaluacionGlobal }
+  scaleResults       Json // { sara: {nivelRiesgo, score, items[]}, nvi: {...}, evaluacionGlobal }
   pendingValidations String[] @default([])
   analyzedAt         DateTime @default(now()) @db.Timestamptz(6)
   analyzedBy         String   @db.Uuid
@@ -1084,7 +1091,7 @@ model ClinicalTranslation {
   caseId         String   @db.Uuid
   originalText   String   @db.Text
   translatedText String   @db.Text
-  terminology    Json     // Lista de términos técnicos sugeridos
+  terminology    Json // Lista de términos técnicos sugeridos
   createdAt      DateTime @default(now()) @db.Timestamptz(6)
   createdBy      String   @db.Uuid
 
@@ -1098,7 +1105,7 @@ model ClinicalTranslation {
 model TraumaAnalysis {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caseId           String   @db.Uuid
-  indicadores      Json     // Indicadores recibidos como input
+  indicadores      Json // Indicadores recibidos como input
   patronExposicion String   @db.Text
   cronicidad       String
   hipotesisClinica String   @db.Text
@@ -1119,7 +1126,7 @@ model EnvironmentalMapping {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caseId           String   @db.Uuid
   transcriptionId  String   @db.Uuid
-  factoresRiesgo   Json     // Array de { factor, descripcion, evidenciaTextual, severidad }
+  factoresRiesgo   Json // Array de { factor, descripcion, evidenciaTextual, severidad }
   recomendaciones  Json
   notaMetodologica String?
   analyzedAt       DateTime @default(now()) @db.Timestamptz(6)
@@ -1139,32 +1146,33 @@ model EnvironmentalMapping {
 // =====================================================
 
 model TransversalUnifiedTimeline {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId            String    @db.Uuid
-  case              Case      @relation("CaseTransversalTimelines", fields: [caseId], references: [id], onDelete: Cascade)
-  
-  events            Json      // Array de eventos unificados de legal, psicologico y social
-  
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  createdBy         String    @db.Uuid
-  creator           User      @relation("TransversalTimelineCreators", fields: [createdBy], references: [id])
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId String @db.Uuid
+  case   Case   @relation("CaseTransversalTimelines", fields: [caseId], references: [id], onDelete: Cascade)
+
+  events Json // Array de eventos unificados de legal, psicologico y social
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String   @db.Uuid
+  creator   User     @relation("TransversalTimelineCreators", fields: [createdBy], references: [id])
 
   @@index([caseId])
   @@map("transversal_unified_timelines")
 }
 
 model TransversalAnonymizedReport {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId            String    @db.Uuid
-  case              Case      @relation("CaseTransversalReports", fields: [caseId], references: [id], onDelete: Cascade)
-  
-  originalReportId  String    @db.Uuid
-  anonymizedContent String    @db.Text
-  replacements      Json      // Diccionario de reemplazos
-  
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  createdBy         String    @db.Uuid
-  creator           User      @relation("TransversalReportCreators", fields: [createdBy], references: [id])
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId String @db.Uuid
+  case   Case   @relation("CaseTransversalReports", fields: [caseId], references: [id], onDelete: Cascade)
+
+  originalReportId  String @db.Uuid
+  originalReport    Report @relation("AnonymizedFromReport", fields: [originalReportId], references: [id])
+  anonymizedContent String @db.Text
+  replacements      Json // Diccionario de reemplazos
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String   @db.Uuid
+  creator   User     @relation("TransversalReportCreators", fields: [createdBy], references: [id])
 
   @@index([caseId])
   @@map("transversal_anonymized_reports")
@@ -1174,13 +1182,13 @@ model TransversalAnonymizedReport {
 // ADMIN TOOLS - VERIFICACIÓN Y APROBACIÓN (FASE 2)
 // =====================================================
 model ToolApproval {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  approvedAt      DateTime  @default(now()) @db.Timestamptz(6)
-  approvedBy      String    // Nombre o email del admin que aprobó
-  status          String    @default("APPROVED") // APPROVED, REJECTED, PENDING
-  notes           String?   @db.Text // Notas del admin
-  healthSnapshot  String?   @db.Text // JSON string del health check al momento de aprobación
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  approvedAt     DateTime @default(now()) @db.Timestamptz(6)
+  approvedBy     String // Nombre o email del admin que aprobó
+  status         String   @default("APPROVED") // APPROVED, REJECTED, PENDING
+  notes          String?  @db.Text // Notas del admin
+  healthSnapshot String?  @db.Text // JSON string del health check al momento de aprobación
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([approvedAt])
   @@map("tool_approvals")
@@ -1191,25 +1199,25 @@ model ToolApproval {
 // =====================================================
 
 model SocialIntakeForm {
-  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId                    String    @unique @db.Uuid
-  socialWorkerId            String    @db.Uuid
-  interviewDate             DateTime  @db.Timestamptz(6)
+  id                        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId                    String     @unique @db.Uuid
+  socialWorkerId            String     @db.Uuid
+  interviewDate             DateTime   @db.Timestamptz(6)
   interviewLocation         String
-  incidentDescription       String    @db.Text
+  incidentDescription       String     @db.Text
   incidentLocation          String
-  incidentDate              DateTime? @db.Timestamptz(6)
-  incidentWitnesses         String?   @db.Text
-  familyStructure           String    @db.Text
-  socialEconomicSituation   String    @db.Text
-  immediateDangerAssessment Boolean   @default(false)
+  incidentDate              DateTime?  @db.Timestamptz(6)
+  incidentWitnesses         String?    @db.Text
+  familyStructure           String     @db.Text
+  socialEconomicSituation   String     @db.Text
+  immediateDangerAssessment Boolean    @default(false)
   dangerLevel               RiskLevel?
-  professionalObservations  String    @db.Text
-  initialRecommendations    String    @db.Text
-  isCompleted               Boolean   @default(false)
-  completedAt               DateTime? @db.Timestamptz(6)
-  createdAt                 DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt                 DateTime  @updatedAt @db.Timestamptz(6)
+  professionalObservations  String     @db.Text
+  initialRecommendations    String     @db.Text
+  isCompleted               Boolean    @default(false)
+  completedAt               DateTime?  @db.Timestamptz(6)
+  createdAt                 DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime   @updatedAt @db.Timestamptz(6)
 
   case         Case @relation(fields: [caseId], references: [id])
   socialWorker User @relation("SocialIntakeForms", fields: [socialWorkerId], references: [id])
@@ -1228,8 +1236,8 @@ model ConciliationEvaluation {
   hasAuthorityLoss  Boolean  @default(false)
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
 
-  case       Case @relation(fields: [caseId], references: [id])
-  evaluator  User @relation("ConciliationEvaluations", fields: [evaluatedBy], references: [id])
+  case      Case @relation(fields: [caseId], references: [id])
+  evaluator User @relation("ConciliationEvaluations", fields: [evaluatedBy], references: [id])
 
   @@map("conciliation_evaluations")
 }

@@ -36,6 +36,17 @@ export function CaseTimeline({ caseId }: { caseId: string }) {
     }
   };
 
+  const getEventTypeLabel = (type: string) => {
+    switch (type) {
+      case 'CASE_OPENED': return 'Apertura de Expediente';
+      case 'APPOINTMENT': return 'Cita Programada';
+      case 'EVIDENCE': return 'Evidencia Adjuntada';
+      case 'ACTION_LOG': return 'Actuación Registrada';
+      case 'REPORT': return 'Reporte Generado';
+      default: return type.replace('_', ' ');
+    }
+  };
+
   if (loading) return <div style={{ opacity: 0.6 }}>Cargando línea de tiempo procesal...</div>;
 
   return (
@@ -67,7 +78,7 @@ export function CaseTimeline({ caseId }: { caseId: string }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tierra-calida)', textTransform: 'uppercase' }}>
-                  {event.type.replace('_', ' ')}
+                  {getEventTypeLabel(event.type)}
                 </span>
                 <h4 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginTop: '0.25rem' }}>
                   {event.title}

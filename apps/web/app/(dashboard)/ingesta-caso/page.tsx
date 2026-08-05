@@ -33,10 +33,6 @@ export default function InicioCasoPage() {
   const [nnaLastName, setNnaLastName] = useState('');
   const [nnaDocumentNumber, setNnaDocumentNumber] = useState('');
   const [nnaGender, setNnaGender] = useState('MASCULINO');
-  const [nnaBirthDate, setNnaBirthDate] = useState('');
-  const [nnaCity, setNnaCity] = useState('');
-  const [nnaPhone, setNnaPhone] = useState('');
-  const [nnaAddress, setNnaAddress] = useState('');
 
   // Case Details
   const [caseType, setCaseType] = useState('');
@@ -146,26 +142,12 @@ export default function InicioCasoPage() {
         nnaId: finalNnaId,
         caseType,
         intakeNarrative,
-        isThirdPartyComplainant,
-        // Datos demográficos NNA
-        nnaBirthDate: nnaBirthDate || undefined,
-        nnaGender: nnaGender || undefined,
-        nnaCity: nnaCity || undefined,
-        nnaPhone: nnaPhone || undefined,
-        nnaAddress: nnaAddress || undefined,
       };
 
-      // Add third party complainant fields if applicable
-      if (isThirdPartyComplainant) {
-        if (!complainantFullName.trim()) {
-          throw new Error('Nombre del denunciante es obligatorio');
-        }
-        casePayload.complainantFullName = complainantFullName;
-        casePayload.complainantDocumentId = complainantDocumentId || undefined;
-        casePayload.complainantRelation = complainantRelation;
-        casePayload.complainantPhone = complainantPhone || undefined;
-        casePayload.complainantAddress = complainantAddress || undefined;
-      }
+      // Third party complainant data is captured for UX only.
+      // The complainant person should be registered via /persons and linked
+      // to the case as a CaseParty with roleInCase=DENUNCIANTE using complainantId.
+      // These fields no longer exist on the Case model.
 
       // Create Case
       const newCase = await fetchApi('/cases', {
@@ -215,6 +197,9 @@ export default function InicioCasoPage() {
       // NO crear cita automática — la secretaria asigna citas manualmente desde Agenda y Citas
 
       router.push(`/casos/${newCase.id}`);
+      // NOTE: NNA demographic data (birthDate, gender, city, phone, address)
+      // should be saved directly on the Person record via /persons/:id PATCH
+      // before or after case creation. It no longer lives on the Case model.
     } catch (err: any) {
       setError(err.message || 'Error al registrar el expediente');
     } finally {
@@ -490,54 +475,6 @@ export default function InicioCasoPage() {
                     <option value="FEMENINO">Femenino</option>
                     <option value="OTRO">Otro / No especificado</option>
                   </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Fecha de Nacimiento</label>
-                  <input
-                    type="date"
-                    value={nnaBirthDate}
-                    onChange={(e) => setNnaBirthDate(e.target.value)}
-                    placeholder="dd/mm/aaaa"
-                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Ciudad</label>
-                  <input
-                    type="text"
-                    value={nnaCity}
-                    onChange={(e) => setNnaCity(e.target.value)}
-                    placeholder="ej: Sucre"
-                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Teléfono de Contacto</label>
-                  <input
-                    type="tel"
-                    value={nnaPhone}
-                    onChange={(e) => setNnaPhone(e.target.value)}
-                    placeholder="ej: 71234501"
-                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Dirección</label>
-                  <input
-                    type="text"
-                    value={nnaAddress}
-                    onChange={(e) => setNnaAddress(e.target.value)}
-                    placeholder="ej: Calle Bolívar #245, Barrio San Roque"
-                    style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                  />
                 </div>
               </div>
             </div>

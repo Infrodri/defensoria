@@ -121,6 +121,7 @@ Responde basándote SOLO en la información anterior de la base de conocimiento 
       const response = await fetch(`${endpoint}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000), // 30s timeout estricto
         body: JSON.stringify({
           model,
           prompt,
@@ -138,10 +139,10 @@ Responde basándote SOLO en la información anterior de la base de conocimiento 
 
       const data = await response.json();
       return data.response;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error consultando Ollama: ${error.message}`);
       throw new BadRequestException(
-        'El servicio de IA local (Ollama) no está disponible. Contacte al administrador.',
+        'El servicio de IA local (Ollama) no responde o excedió el tiempo límite (30s). Verificá que la IA esté activa.',
       );
     }
   }
@@ -158,6 +159,7 @@ Responde basándote SOLO en la información anterior de la base de conocimiento 
       const response = await fetch(`${endpoint}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000), // 30s timeout estricto
         body: JSON.stringify({
           model,
           prompt: userQuery,
@@ -175,10 +177,10 @@ Responde basándote SOLO en la información anterior de la base de conocimiento 
 
       const data = await response.json();
       return data.response;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error consultando Ollama: ${error.message}`);
       throw new BadRequestException(
-        'El servicio de IA local (Ollama) no está disponible. Contacte al administrador.',
+        'El servicio de IA local (Ollama) no responde o excedió el tiempo límite (30s). Verificá que la IA esté activa.',
       );
     }
   }

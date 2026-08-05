@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -11,14 +12,16 @@ import {
   Calendar,
   ShieldCheck,
   LogOut,
-  Shield,
-  Building2,
-  BrainCircuit,
-  Database,
-  BookOpen,
-  ExternalLink,
-  ClipboardList,
-} from 'lucide-react';
+    Shield,
+    Building2,
+    BrainCircuit,
+    Database,
+    BookOpen,
+    ExternalLink,
+    ClipboardList,
+    UserCog,
+    ChevronLeft,
+  } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -40,7 +43,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: 'Expedientes',          href: '/casos',                     icon: FileText },
     { label: 'Inicio de caso',      href: '/ingesta-caso',              icon: UserPlus },
     { label: 'Inspecciones',         href: '/inspecciones',              icon: ShieldCheck },
-    { label: 'Reportes GAM',         href: '/reportes',                  icon: FileText },
+    { label: 'Reportes',             href: '/reportes',                icon: FileText },
     { label: 'Balanceo de Equipo',   href: '/equipo',                    icon: Users },
     { label: 'Personal & Permisos',  href: '/permisos',                  icon: Users },
     { label: 'Oficinas y Distritos', href: '/oficinas',                  icon: Building2 },
@@ -51,6 +54,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
     { label: 'Disciplinas',          href: '/panel/admin/disciplinas',   icon: BookOpen },
     { label: 'Catálogos',            href: '/panel/admin/catalogos',     icon: Building2 },
+    { label: 'Usuarios del Sistema', href: '/panel/admin/usuarios',      icon: UserCog },
     { label: 'Mantenimiento',        href: '/panel/admin/mantenimiento', icon: Shield },
   ],
 
@@ -63,7 +67,7 @@ const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
     { label: 'Expedientes',                href: '/casos',          icon: FileText },
     { label: 'Inicio de caso',             href: '/ingesta-caso',   icon: UserPlus },
     { label: 'Inspecciones',               href: '/inspecciones',   icon: ShieldCheck },
-    { label: 'Reportes de Inhabilitación', href: '/reportes',       icon: ClipboardList },
+    { label: 'Reportes',             href: '/reportes',    icon: FileText },
     { label: 'Balanceo de Equipo',         href: '/equipo',         icon: Users },
     { label: 'Herramientas',               href: '/herramientas',   icon: ShieldCheck },
     { label: 'Auditoría',                  href: '/auditoria',      icon: ShieldCheck },
@@ -135,19 +139,26 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
       { label: 'Personal & Permisos',        href: '/permisos',    icon: Users },
       { label: 'Oficinas y Distritos',        href: '/oficinas',    icon: Building2 },
       { label: 'Auditoría Total',             href: '/auditoria',   icon: ShieldCheck },
-      { label: 'Reportes Inhabilitaciones',   href: '/reportes',    icon: ClipboardList },
+      { label: 'Reportes',          href: '/reportes',    icon: FileText },
     ],
   },
   {
     groupLabel: 'Sistema',
     items: [
       { label: 'Herramientas',           href: '/herramientas',              icon: ShieldCheck },
-      { label: 'Verificar Herramientas', href: '/admin/tools-verification', icon: BrainCircuit },
+       { label: 'Verificar Herramientas', href: '/admin/tools-verification', icon: BrainCircuit },
       { label: 'Configuración IA',     href: '/panel/admin/ia',            icon: BrainCircuit },
       { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
       { label: 'Disciplinas',          href: '/panel/admin/disciplinas',   icon: BookOpen },
       { label: 'Catálogos',            href: '/panel/admin/catalogos',     icon: Building2 },
+      { label: 'Usuarios del Sistema', href: '/panel/admin/usuarios',      icon: UserCog },
       { label: 'Mantenimiento',        href: '/panel/admin/mantenimiento', icon: Shield },
+    ],
+  },
+  {
+    groupLabel: 'IA',
+    items: [
+      { label: 'Procesos IA',          href: '/panel/admin/ia-procesos',   icon: BrainCircuit },
     ],
   },
 ];
@@ -158,6 +169,7 @@ export function Sidebar() {
   const role = user?.role || 'SECRETARIA';
   const isAdmin = role === 'ADMINISTRADOR';
   const navItems = NAV_ITEMS_BY_ROLE[role] || NAV_ITEMS_BY_ROLE.SECRETARIA;
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Helper para renderizar un ítem (evita duplicar JSX)
   const renderItem = (item: NavItem, groupLabel?: string) => {
@@ -167,10 +179,12 @@ export function Sidebar() {
       <Link
         key={groupLabel ? `${item.href}-${groupLabel}` : item.href}
         href={item.href}
+        title={item.label}
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.75rem',
+          gap: isCollapsed ? '0' : '0.75rem',
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
           padding: '0.625rem 0.875rem',
           borderRadius: 'var(--radius)',
           fontSize: '0.875rem',
@@ -181,7 +195,7 @@ export function Sidebar() {
         }}
       >
         <Icon size={18} color={isActive ? 'var(--tierra-calida)' : 'currentColor'} />
-        <span>{item.label}</span>
+        {!isCollapsed && <span>{item.label}</span>}
       </Link>
     );
   };
@@ -189,7 +203,7 @@ export function Sidebar() {
   return (
     <aside
       style={{
-        width: '260px',
+        width: isCollapsed ? '60px' : '260px',
         backgroundColor: 'var(--bosque-profundo)',
         color: 'white',
         display: 'flex',
@@ -200,21 +214,71 @@ export function Sidebar() {
         flexShrink: 0,
         boxSizing: 'border-box',
         overflowY: 'auto',
+        transition: 'width 0.25s ease',
       }}
     >
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem', marginBottom: isCollapsed ? '1rem' : '2rem', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
           <Shield size={28} color="var(--tierra-calida)" />
-          <div>
-            <div style={{ fontSize: '0.875rem', fontWeight: 800, letterSpacing: '0.05em' }}>DNA SUCRE</div>
-            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Gestión de Casos</div>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 800, letterSpacing: '0.05em' }}>DNA SUCRE</div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Gestión de Casos</div>
+            </div>
+          )}
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+        {!isCollapsed && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            padding: '0 0.5rem',
+            marginBottom: '0.5rem',
+          }}>
+            <button
+              onClick={() => setIsCollapsed(true)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'oklch(0.8 0.03 175)',
+                cursor: 'pointer',
+                padding: '0.25rem',
+                borderRadius: 'var(--radius)',
+                fontSize: '0.7rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+              title="Colapsar menú"
+            >
+              <ChevronLeft size={14} />
+              <span>Colapsar</span>
+            </button>
+          </div>
+        )}
+        {isCollapsed && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0 0.5rem', marginBottom: '0.5rem' }}>
+            <button
+              onClick={() => setIsCollapsed(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'oklch(0.8 0.03 175)',
+                cursor: 'pointer',
+                padding: '0.25rem',
+                borderRadius: 'var(--radius)',
+              }}
+              title="Expandir menú"
+            >
+              <ChevronLeft size={14} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+          </div>
+        )}
+
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', alignItems: isCollapsed ? 'center' : 'stretch' }}>
           {isAdmin
             ? NAV_GROUPS_ADMINISTRADOR.map((group) => (
-                <div key={group.groupLabel} style={{ marginBottom: '0.25rem' }}>
+                <div key={group.groupLabel} style={{ marginBottom: '0.25rem', textAlign: isCollapsed ? 'center' : 'left' }}>
                   <div style={{
                     fontSize: '0.6875rem',
                     fontWeight: 800,
@@ -222,6 +286,7 @@ export function Sidebar() {
                     letterSpacing: '0.08em',
                     color: 'oklch(0.65 0.04 175)',
                     padding: '0.75rem 0.875rem 0.375rem',
+                    display: isCollapsed ? 'none' : 'block',
                   }}>
                     {group.groupLabel}
                   </div>
@@ -233,14 +298,18 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div style={{ borderTop: '1px solid oklch(0.45 0.06 175)', paddingTop: '1rem', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
+      <div style={{ borderTop: '1px solid oklch(0.45 0.06 175)', paddingTop: '1rem', paddingLeft: isCollapsed ? '0' : '0.5rem', paddingRight: isCollapsed ? '0' : '0.5rem', textAlign: isCollapsed ? 'center' : 'left' }}>
         <div style={{ marginBottom: '0.75rem' }}>
-          <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-            {user?.firstName} {user?.lastName}
-          </div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.7, color: 'var(--tierra-calida)', fontWeight: 600 }}>
-            {user?.role}
-          </div>
+          {!isCollapsed && (
+            <>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                {user?.firstName} {user?.lastName}
+              </div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.7, color: 'var(--tierra-calida)', fontWeight: 600 }}>
+                {user?.role}
+              </div>
+            </>
+          )}
         </div>
 
         <button
@@ -248,16 +317,19 @@ export function Sidebar() {
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
             gap: '0.5rem',
             backgroundColor: 'transparent',
             border: 'none',
             color: 'oklch(0.85 0 0)',
             fontSize: '0.875rem',
             cursor: 'pointer',
-            padding: 0,
+            padding: isCollapsed ? '0.5rem 0' : 0,
           }}
+          title="Salir del sistema"
         >
-          <LogOut size={16} /> Salir del sistema
+          <LogOut size={16} />
+          {!isCollapsed && <span>Salir del sistema</span>}
         </button>
       </div>
     </aside>

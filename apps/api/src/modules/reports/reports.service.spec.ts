@@ -5,6 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { Role, ReportType, ReportStatus, RiskLevel } from '@defensoria/shared';
 
+import { RAGService } from '../knowledge/rag.service';
+import { EvidenceRagService } from '../evidences/evidence-rag.service';
+
 describe('ReportsService Integration Tests', () => {
   let reportsService: ReportsService;
   let prisma: PrismaService;
@@ -48,10 +51,22 @@ describe('ReportsService Integration Tests', () => {
       $transaction: vi.fn((cb) => cb(prismaMock)),
     };
 
+    const ragServiceMock = {
+      queryOllama: vi.fn().mockResolvedValue('Borrador generado por IA'),
+      searchSimilarChunks: vi.fn().mockResolvedValue([]),
+      buildRAGContext: vi.fn().mockReturnValue(''),
+    };
+
+    const evidenceRagMock = {
+      searchCaseContext: vi.fn().mockResolvedValue(''),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReportsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: RAGService, useValue: ragServiceMock },
+        { provide: EvidenceRagService, useValue: evidenceRagMock },
       ],
     }).compile();
 

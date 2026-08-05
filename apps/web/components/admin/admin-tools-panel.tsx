@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, AlertTriangle, Loader, RefreshCw, CheckCheck } from 'lucide-react';
+import { fetchApi } from '@/lib/api';
 
 interface ToolHealth {
   name: string;
@@ -264,28 +265,15 @@ export function AdminToolsPanel() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/tools-admin/health', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) throw new Error('Error fetching health data');
-      const data = await response.json();
+      const data = await fetchApi<ToolsHealthReport>('/tools-admin/health');
       setHealth(data);
 
       // Cargar estadísticas también
-      const statusResponse = await fetch('/api/tools-admin/status', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
+      try {
+        const statusData = await fetchApi<any>('/tools-admin/status');
         setStatistics(statusData.statistics);
+      } catch {
+        // Status endpoint may not exist yet, ignore
       }
     } catch (err: any) {
       setError(err.message || 'Error loading health data');
@@ -299,18 +287,12 @@ export function AdminToolsPanel() {
       setApproving(true);
       setApprovalMessage(null);
 
-      const response = await fetch('/api/tools-admin/approve', {
+      const data = await fetchApi<any>('/tools-admin/approve', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           notes: 'Approved by admin via dashboard',
         }),
       });
-
-      if (!response.ok) throw new Error('Error approving tools');
-      const data = await response.json();
 
       if (data.approved) {
         setApprovalMessage('✅ Herramientas aprobadas exitosamente');
@@ -329,15 +311,7 @@ export function AdminToolsPanel() {
       setTesting(true);
       setError(null);
 
-      const response = await fetch('/api/tools-admin/test-tools', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) throw new Error('Error running tests');
-      const data = await response.json();
+      const data = await fetchApi<any>('/tools-admin/test-tools');
       setTestResults(data);
     } catch (err: any) {
       setError(err.message || 'Error running tests');

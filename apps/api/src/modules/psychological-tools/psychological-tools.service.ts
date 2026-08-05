@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService, AccessUser } from '../../common/case-access/case-access.service';
@@ -66,7 +67,9 @@ export class PsychologicalToolsService {
       : null;
 
     if (!transcription) {
-      return this.generateExampleIndicators(dto.caseId, user.id);
+      throw new BadRequestException(
+        'No se encontraron transcripciones de entrevistas para extraer indicadores de trauma. Subí un audio de entrevista primero.',
+      );
     }
 
     // Buscar documentos sobre indicadores de trauma

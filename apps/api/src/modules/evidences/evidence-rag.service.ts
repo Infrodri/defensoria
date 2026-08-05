@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingsService } from '../knowledge/embeddings.service';
+import { AiTaskLockService } from '../ai-task-lock/ai-task-lock.service';
 import axios from 'axios';
-import FormData from 'form-data';
+import FormData = require('form-data');
 
 // ──────────────────────────────────────────────────────────────────────────────
 // EvidenceRagService
@@ -25,6 +26,7 @@ export class EvidenceRagService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly embeddings: EmbeddingsService,
+    private readonly aiTaskLock: AiTaskLockService,
   ) {}
 
   // ── Punto de entrada principal ─────────────────────────────────────────────
@@ -73,6 +75,25 @@ export class EvidenceRagService {
   ) {
     this.logger.log(`[RAG] Transcribiendo audio/video: ${file.originalname}`);
 
+    // Cola global: el trabajo se encola y se ejecuta cuando el motor queda
+    // libre (una petición de IA a la vez, en orden FIFO).
+    this.aiTaskLock.enqueue(
+      `ev-${evidenceId}-audio`,
+      'Indexado RAG de audio (Whisper)',
+      file.originalname,
+      async () => {
+        await this.doProcessAudioVideo(caseId, evidenceId, file, description);
+      },
+    );
+  }
+
+  private async doProcessAudioVideo(
+    caseId: string,
+    evidenceId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    description?: string,
+  ) {
+
     const whisperUrl = process.env.WHISPER_API_URL || 'http://localhost:8000/v1/audio/transcriptions';
     let transcribedText = '';
 
@@ -88,15 +109,12 @@ export class EvidenceRagService {
       });
       transcribedText = response.data.text || response.data.result?.text || '';
     } catch (whisperErr: any) {
-      this.logger.warn(`[RAG] Whisper no disponible: ${whisperErr.message}`);
-      transcribedText = description
-        ? `Grabación de audio: ${description}`
-        : `Archivo de audio adjunto al expediente: ${file.originalname}`;
+      this.logger.warn(`[RAG] Whisper no disponible o falló transcripción: ${whisperErr.message}`);
+      return; // No indexar fragmentos falsos si Whisper no está disponible
     }
 
-    if (transcribedText.trim().length > 10) {
-      // Solo indexamos en case_chunks — no duplicamos en la tabla Transcription
-      // ya que esa tabla tiene su propio flujo con evidenceId y createdBy requeridos
+    if (transcribedText && transcribedText.trim().length > 10) {
+      // Solo indexamos en case_chunks transcripciones reales
       await this.indexChunk(caseId, evidenceId, 'audio_transcript', transcribedText, {
         fileName: file.originalname,
         description,
@@ -107,6 +125,27 @@ export class EvidenceRagService {
 
   // ── Imagen → Descripción por IA Vision ────────────────────────────────────
 
+  /**
+   * Modelo de visión configurable desde el panel admin (systemSetting AI_MODEL_VISION
+   * o OLLAMA_VISION_MODEL) con fallback a env y a gemma4-tasks:latest.
+   */
+  private async getVisionModelConfig() {
+    const endpointSetting = await this.prisma.systemSetting.findUnique({
+      where: { key: 'OLLAMA_ENDPOINT' },
+    });
+    const modelSetting = await this.prisma.systemSetting.findUnique({
+      where: { key: 'AI_MODEL_VISION' },
+    });
+    const modelSettingAlt = await this.prisma.systemSetting.findUnique({
+      where: { key: 'OLLAMA_VISION_MODEL' },
+    });
+
+    const endpoint = endpointSetting?.value || process.env.OLLAMA_URL || process.env.OLLAMA_ENDPOINT || 'http://localhost:11434';
+    const model = modelSetting?.value || modelSettingAlt?.value || process.env.OLLAMA_VISION_MODEL || 'gemma4-tasks:latest';
+
+    return { endpoint, model };
+  }
+
   private async processImage(
     caseId: string,
     evidenceId: string,
@@ -115,17 +154,40 @@ export class EvidenceRagService {
   ) {
     this.logger.log(`[RAG] Analizando imagen: ${file.originalname}`);
 
-    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+    // Cola global: se encola y procesa cuando el motor queda libre (una a la vez).
+    this.aiTaskLock.enqueue(
+      `ev-${evidenceId}-image`,
+      'Indexado RAG de imagen (Ollama visión)',
+      file.originalname,
+      async () => {
+        await this.doProcessImage(caseId, evidenceId, file, description);
+      },
+    );
+  }
+
+  private async doProcessImage(
+    caseId: string,
+    evidenceId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    description?: string,
+  ) {
+
+    const visionConfig = await this.getVisionModelConfig();
+    const ollamaUrl = visionConfig.endpoint;
+    const visionModel = visionConfig.model;
     let imageDescription = '';
 
     try {
       const base64Image = file.buffer.toString('base64');
       const response = await axios.post(`${ollamaUrl}/api/generate`, {
-        model: 'llava',
-        prompt: `Describí en detalle esta imagen en español. 
-Contexto: es una evidencia de un caso de la Defensoría de la Niñez y Adolescencia de Bolivia.
-Identificá: personas visibles (sin nombrar), objetos, ambiente, posibles indicadores de violencia o vulneración de derechos, condiciones del lugar.
-Sé objetivo y profesional, como un perito forense.`,
+        model: visionModel,
+        prompt: `Analizá minuciosamente esta imagen en español para un expediente de la Defensoría de la Niñez y Adolescencia de Bolivia.
+
+1. EXTRACCIÓN DE TEXTO / OCR: Si la imagen contiene texto escrito (manuscritos, cartas, capturas de pantalla de chats de WhatsApp, certificados, documentos fotografiados, letreros), transcribe TODO el texto legible de forma exacta. Si no hay texto visible, indicá "Sin texto visible".
+
+2. DESCRIPCIÓN VISUAL Y ENTÓRNO: Describí objetivamente lo que se observa (entorno, estado del lugar, objetos, personas sin nombrarlas, posibles indicadores de violencia o vulneración).
+
+Sé profesional, preciso y detallado como un perito forense.`,
         images: [base64Image],
         stream: false,
       }, { timeout: 30_000 });

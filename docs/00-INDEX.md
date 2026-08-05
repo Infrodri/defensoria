@@ -1,4 +1,4 @@
-﻿# Índice de Documentación - Sistema DNA
+# Índice de Documentación - Sistema DNA
 
 **Para Agentes IA**: Este es el punto de entrada principal. Lea este documento primero para entender la estructura y saber qué leer según la tarea.
 
@@ -146,7 +146,8 @@ docs/
 - [arquitectura/ADR/ADR-023-ia-local-soberana.md](arquitectura/ADR/ADR-023-ia-local-soberana.md)
 
 ### Para Administradores/Usuarios
-- [rag/guias/](rag/guias/) - Guías de uso
+- [guias-usuario/GUIA-HERRAMIENTAS-SISTEMA.md](guias-usuario/GUIA-HERRAMIENTAS-SISTEMA.md) - Catálogo completo de herramientas (propósito, uso y ejemplos)
+- [rag/guias/](rag/guias/) - Guías de uso de RAG
 - [ejemplos/](ejemplos/) - Ejemplos prácticos
 
 ---

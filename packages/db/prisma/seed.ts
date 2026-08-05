@@ -375,13 +375,17 @@ async function main() {
 
   // Seed catalog items for case types
   const caseTypesItems = [
-    { value: 'DENUNCIA_VULNERACION', label: 'Denuncia por Vulneración de Derechos', order: 1 },
-    { value: 'CONSUMO_SUSTANCIAS', label: 'Consumo de Sustancias', order: 2 },
-    { value: 'VENTA_ALCOHOL', label: 'Venta de Alcohol a Menores', order: 3 },
-    { value: 'DERECHO_EDUCACION', label: 'Vulneración del Derecho a la Educación', order: 4 },
-    { value: 'EXTRAVIO', label: 'Extravío / Desaparición', order: 5 },
-    { value: 'NNA_INFRACTOR', label: 'NNA Infractor de Ley Penal', order: 6 },
-    { value: 'FISCALIZACION', label: 'Fiscalización / Operativo', order: 7 },
+    { value: 'DENUNCIA_VULNERACION',  label: 'Denuncia por Vulneración de Derechos',      order: 1 },
+    { value: 'CONSUMO_SUSTANCIAS',    label: 'Consumo de Sustancias',                      order: 2 },
+    { value: 'VENTA_ALCOHOL',         label: 'Venta de Alcohol a Menores',                 order: 3 },
+    { value: 'DERECHO_EDUCACION',     label: 'Vulneración del Derecho a la Educación',     order: 4 },
+    { value: 'EXTRAVIO',              label: 'Extravío / Desaparición',                    order: 5 },
+    { value: 'NNA_INFRACTOR',         label: 'NNA Infractor de Ley Penal',                 order: 6 },
+    { value: 'FISCALIZACION',         label: 'Fiscalización / Operativo',                  order: 7 },
+    { value: 'VIOLENCIA_SEXUAL',      label: 'Violencia Sexual',                           order: 8 },
+    { value: 'VIOLENCIA_DIGITAL',     label: 'Violencia Digital / Cibervictimización',     order: 9 },
+    { value: 'SITUACION_CALLE',       label: 'NNA en Situación de Calle',                  order: 10 },
+    { value: 'TRABAJO_ADOLESCENTE',   label: 'Trabajo Adolescente / NNATS',                order: 11 },
   ];
 
   for (const item of caseTypesItems) {

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { AccesoRestringido } from '@/components/common/acceso-restringido';
-import { BrainCircuit, Save, RefreshCw, Cpu, Volume2, Shield } from 'lucide-react';
+import { BrainCircuit, Save, RefreshCw, Cpu, Volume2, Shield, Eye } from 'lucide-react';
 export default function AiConfigPage() {
   const { user } = useAuth();
   if (user?.role !== 'ADMINISTRADOR') {
@@ -15,8 +15,10 @@ export default function AiConfigPage() {
 
   const [llmModel, setLlmModel] = useState('qwen2.5:7b');
   const [embedModel, setEmbedModel] = useState('nomic-embed-text');
+  const [visionModel, setVisionModel] = useState('gemma4-tasks:latest');
   const [whisperEndpoint, setWhisperEndpoint] = useState('http://localhost:8000/v1/audio/transcriptions');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [visionModels, setVisionModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -24,10 +26,12 @@ export default function AiConfigPage() {
   const fetchOllamaModels = async () => {
     setLoadingModels(true);
     try {
-      const data = await fetchApi<{ models: string[] }>('/ai-config/models');
+      const data = await fetchApi<{ models: string[]; visionModels?: string[] }>('/ai-config/models');
       setAvailableModels(data.models || ['qwen2.5:7b', 'nomic-embed-text']);
+      setVisionModels((data.visionModels && data.visionModels.length ? data.visionModels : data.models) || ['gemma4-tasks:latest']);
     } catch {
       setAvailableModels(['qwen2.5:7b', 'nomic-embed-text']);
+      setVisionModels(['gemma4-tasks:latest']);
     } finally {
       setLoadingModels(false);
     }
@@ -35,10 +39,16 @@ export default function AiConfigPage() {
 
   const loadSettings = async () => {
     try {
-      const settings = await fetchApi<Record<string, string>>('/ai-config');
-      if (settings.LLM_MODEL) setLlmModel(settings.LLM_MODEL);
-      if (settings.EMBEDDING_MODEL) setEmbedModel(settings.EMBEDDING_MODEL);
-      if (settings.WHISPER_ENDPOINT) setWhisperEndpoint(settings.WHISPER_ENDPOINT);
+      const settings = await fetchApi<{
+        textModel?: string;
+        embeddingModel?: string;
+        whisperEndpoint?: string;
+        visionModel?: string;
+      }>('/ai-config');
+      if (settings.textModel) setLlmModel(settings.textModel);
+      if (settings.embeddingModel) setEmbedModel(settings.embeddingModel);
+      if (settings.whisperEndpoint) setWhisperEndpoint(settings.whisperEndpoint);
+      if (settings.visionModel) setVisionModel(settings.visionModel);
     } catch {
       // Use defaults if settings table not seeded yet
     }
@@ -58,9 +68,11 @@ export default function AiConfigPage() {
       await fetchApi('/ai-config', {
         method: 'PUT',
         body: JSON.stringify({
-          LLM_MODEL: llmModel,
-          EMBEDDING_MODEL: embedModel,
-          WHISPER_ENDPOINT: whisperEndpoint,
+          textModel: llmModel,
+          embeddingModel: embedModel,
+          whisperEndpoint: whisperEndpoint,
+          whisperModel: 'whisper-1',
+          visionModel: visionModel,
         }),
       });
 
@@ -141,7 +153,7 @@ export default function AiConfigPage() {
               fontWeight: 600,
             }}
           >
-            {availableModels.map((m) => (
+            {(availableModels.includes(llmModel) ? availableModels : [llmModel, ...availableModels]).map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
@@ -169,10 +181,41 @@ export default function AiConfigPage() {
               fontWeight: 600,
             }}
           >
-            {availableModels.map((m) => (
+            {(availableModels.includes(embedModel) ? availableModels : [embedModel, ...availableModels]).map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
+        </section>
+
+        {/* Modelo de Visión (imágenes) */}
+        <section style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <Eye size={20} color="var(--salvia)" /> Modelo de Visión (Descripción + OCR de imágenes)
+          </h2>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--grafito)', opacity: 0.8, marginBottom: '1rem' }}>
+            Analiza las imágenes de evidencias (descripción visual y lectura OCR) y las indexa en el RAG del expediente. Requiere un modelo con capacidad de visión instalado en Ollama.
+          </p>
+
+          <select
+            value={visionModel}
+            onChange={(e) => setVisionModel(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.625rem 0.875rem',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--papel)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
+            {(visionModels.includes(visionModel) ? visionModels : [visionModel, ...visionModels]).map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+          <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '0.375rem' }}>
+            Modelos con capacidad de visión detectados en tu Ollama local. Si no ves el tuyo, tocá "Detectar Ollama Local" en la card de arriba.
+          </div>
         </section>
 
         {/* Whisper Card */}

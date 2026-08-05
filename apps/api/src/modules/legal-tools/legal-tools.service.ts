@@ -82,8 +82,9 @@ export class LegalToolsService {
       if (latestTranscription) {
         transcriptionId = latestTranscription.id;
       } else {
-        // Si no hay transcripción, usar datos de ejemplo (análisis de prueba)
-        return this.generateExampleAnalysis(dto.caseId, user.id);
+        throw new BadRequestException(
+          'No se encontraron transcripciones ni grabaciones procesadas en este expediente para realizar el análisis de discrepancias. Subí un audio de entrevista primero.',
+        );
       }
     }
 
@@ -306,9 +307,26 @@ ${transcriptionContent}`;
   };
 
   async analyzeTypicality(dto: AnalyzeTypicalityDto, user: AccessUser) {
-    // 1. El DTO no trae caseId: el caso se deriva de la transcripción
+    let transcriptionId = dto.transcriptionId;
+
+    if (!transcriptionId) {
+      if (!dto.caseId) {
+        throw new BadRequestException('Se requiere caseId o transcriptionId para realizar el análisis de tipicidad.');
+      }
+      const latestTranscription = await this.prisma.transcription.findFirst({
+        where: { caseId: dto.caseId, status: 'COMPLETADA' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!latestTranscription) {
+        throw new BadRequestException(
+          'No se encontraron transcripciones ni grabaciones procesadas en este expediente para realizar el análisis de tipicidad. Subí un audio de entrevista primero.',
+        );
+      }
+      transcriptionId = latestTranscription.id;
+    }
+
     const transcription = await this.prisma.transcription.findUnique({
-      where: { id: dto.transcriptionId },
+      where: { id: transcriptionId },
     });
 
     if (!transcription) {

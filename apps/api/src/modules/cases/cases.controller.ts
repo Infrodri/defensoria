@@ -87,22 +87,35 @@ export class CasesController {
     return this.casesService.disableCase(caseId, dto.reason, userId);
   }
 
-  @Get('admin/disability-reports')
+  @Get('admin/deactivation-reports')
   @Roles(Role.JEFATURA, Role.ADMINISTRADOR)
   @ApiOperation({ summary: 'Ver reportes de expedientes inhabilitados (Solo Jefatura y Administradores)' })
-  async getDisabilityReports(@CurrentUser() user: any) {
-    return this.casesService.getDisabilityReports(user);
+  async getDeactivationReports(@CurrentUser() user: any) {
+    return this.casesService.getDeactivationReports(user);
   }
 
-  @Post('admin/disability-reports/:id/review')
+  @Post('admin/deactivation-reports/:id/review')
   @Roles(Role.JEFATURA, Role.ADMINISTRADOR)
   @ApiOperation({ summary: 'Revisar y aprobar/rechazar reporte de inhabilitación' })
-  async reviewDisabilityReport(
+  async reviewDeactivationReport(
     @Param('id') reportId: string,
-    @Body() dto: { status: 'APPROVED' | 'REJECTED' },
+    @Body() dto: { status: 'APPROVED' | 'REVIEWED' },
     @CurrentUser('id') userId: string,
   ) {
-    return this.casesService.reviewDisabilityReport(reportId, userId, dto.status);
+    return this.casesService.reviewDeactivationReport(reportId, userId, dto.status);
+  }
+
+  // Borrado FÍSICO de raíz — SOLO ADMINISTRADOR, con doble confirmación (caseCode).
+  // Se usa para reiniciar ejercicios de prueba. DESTRUCTIVO e IRREVERSIBLE.
+  @Post(':id/hard-delete')
+  @Roles(Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Borrar expediente de raíz (solo Admin, requiere confirmar caseCode) — destructivo e irreversible' })
+  async hardDelete(
+    @Param('id') caseId: string,
+    @Body('confirm') confirm: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.casesService.hardDeleteCase(caseId, userId, confirm);
   }
 
   @Get(':id/record')

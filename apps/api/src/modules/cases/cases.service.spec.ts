@@ -238,12 +238,14 @@ describe('CasesService Integration Tests', () => {
     it('debería usar nextval de la secuencia case_code_seq y formatear DNA-YYYY-NNNN', async () => {
       vi.mocked(prisma.person.findUnique).mockResolvedValue({ id: 'nna-1' } as any);
       
+      // Mock generateCaseCode: nextval se ejecuta en this.prisma ANTES del $transaction
+      vi.mocked(prisma.$queryRaw).mockResolvedValue([{ nextval: 42 }] as any);
+      
       const mockTx = {
         case: { create: vi.fn().mockResolvedValue({ id: 'case-new', caseCode: 'DNA-2026-0042' }) },
         caseParty: { create: vi.fn() },
         caseOfficeHistory: { create: vi.fn() },
         interventionPathHistory: { create: vi.fn() },
-        $queryRaw: vi.fn().mockResolvedValue([{ nextval: 42 }]),
       };
       vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx));
       vi.mocked(caseAccessService.assertUserHasAccess).mockResolvedValue(undefined);
@@ -256,8 +258,8 @@ describe('CasesService Integration Tests', () => {
       
       await casesService.create(dto, 'user-1', 'office-1');
 
-      // Verificar que se llamó nextval en el cliente de transacción
-      expect(mockTx.$queryRaw).toHaveBeenCalledWith(expect.anything());
+      // Verificar que se llamó nextval en this.prisma (fuera de la transacción)
+      expect(prisma.$queryRaw).toHaveBeenCalledWith(expect.anything());
       // Verificar que el caseCode se formó con la secuencia
       expect(mockTx.case.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ caseCode: 'DNA-2026-0042' }),
