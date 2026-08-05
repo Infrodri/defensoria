@@ -32,7 +32,7 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 ✅ Edad/Fecha nacimiento
 ✅ Dirección actual
 ✅ Descripción de los hechos
-✅ Datos del denunciante
+✅ Datos del denunciante (opcional — solo si lo presenta un tercero)
 ✅ Fecha y hora del incidente
 ⚠️  Situación de riesgo inmediato (SÍ/NO)
 ```
@@ -42,7 +42,7 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 ## 2️⃣ **FASE 2: INGRESO POR SECRETARIA**
 
 ### **Rol**: SECRETARIA
-### **URL**: `http://localhost:3100/ingreso`
+### **URL**: `http://localhost:3100/ingesta-caso`
 ### **Tiempo estimado**: 15-30 minutos
 
 ### **PASOS DETALLADOS:**
@@ -67,7 +67,7 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 1. Click **"Crear Nuevo Caso"**
 2. Llenar información inicial:
    ```
-   - Tipo de caso: [VIOLENCIA/NEGLIGENCIA/ABUSO/ABANDONO/OTRO]
+   - Tipo de caso: [catálogo CASE_TYPES - 7 valores: DENUNCIA_VULNERACION, CONSUMO_SUSTANCIAS, VENTA_ALCOHOL, DERECHO_EDUCACION, EXTRAVIO, NNA_INFRACTOR, FISCALIZACION]
    - Descripción inicial de hechos (narrativa básica)
    - Oficina responsable
    - Fecha de ingreso (automática)
@@ -84,14 +84,14 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
    - Documentos de identidad
    - Informes médicos
    - Fotografías (evidencia)
-2. Registrar información del denunciante
+2. Registrar información del denunciante (OPCIONAL — solo si la denuncia la presenta un tercero)
 3. **GUARDAR CASO**
 
 ### **⚠️ IMPORTANTE - ASIGNACIÓN Y AUTOMATIZACIÓN DE FASE:**
 ```
-🔴 SECRETARIA realiza el INGRESO BÁSICO del expediente
-🟢 JEFATURA asigna el Equipo Interdisciplinario en la pestaña "Equipo" del expediente
-📋 Al asignar al menos un profesional activo, el sistema avanza automáticamente el caso a fase "EVALUACION"
+🔴 SECRETARIA realiza el INGRESO BÁSICO del expediente (fase DERIVACION)
+🟢 JEFATURA asigna el Equipo Interdisciplinario en la pestaña "Equipo" del expediente (la asignación NO cambia la fase)
+📋 La fase avanza automáticamente a "EVALUACION" cuando el TRABAJADOR SOCIAL completa la ficha social (Art. 25) — no con la asignación
 ```
 
 ### **RESULTADO FASE 2:**
@@ -122,9 +122,9 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
    - **Trabajador Social responsable** (Área Social)
 4. Guardar la asignación.
 
-#### **Paso 3.2: Transición Automática de Fase**
-1. El backend verifica la incorporación del equipo.
-2. **El estado del caso avanza automáticamente de `DERIVACION` a `EVALUACION`.**
+#### **Paso 3.2: La Fase NO Cambia con la Asignación**
+1. La asignación del equipo NO modifica la fase: el caso permanece en `DERIVACION`.
+2. La fase avanza a `EVALUACION` cuando el **Trabajador Social completa la ficha social** (Art. 25) — no antes.
 3. En la pestaña **"Resumen"**, el widget de línea de tiempo `CaseFlowWidget` muestra el estado actualizado y destaca las tareas pendientes por disciplina.
 
 ---
@@ -209,13 +209,13 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
    - **Psicólogo responsable** (si aplica)  
    - **Trabajador Social responsable** (si aplica)
 3. Definir **Profesional Principal** (quien coordina)
-4. Establecer **Prioridad del Caso**: [URGENTE/ALTA/MEDIA/BAJA]
+4. Establecer **Prioridad del Caso**: [NORMAL/URGENTE/CRITICA]
 5. **CONFIRMAR ASIGNACIÓN**
 
 ### **RESULTADO FASE 3:**
 ```
 ✅ Profesionales asignados según tipo de caso
-✅ Estado: "EN_PROCESO" 
+✅ Estado: "DERIVACION" (la fase NO cambia con la asignación; avanzará a EVALUACION con la ficha social)
 ✅ Notificaciones enviadas a profesionales
 ✅ Caso visible en agenda de cada profesional
 ```
@@ -657,7 +657,7 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 ## 🎯 **RESUMEN EJECUTIVO**
 
 ### **FLUJO GARANTIZADO (ACTUALIZADO CON CUMPLIMIENTO LEGAL):**
-1. **SECRETARIA** → Ingresa caso básico en `/ingreso` (fase DERIVACION)
+1. **SECRETARIA** → Ingresa caso básico en `/ingesta-caso` (fase DERIVACION)
 2. **TRABAJADOR SOCIAL** → Completa ficha social profesional (Art. 25) → Avanza a fase EVALUACION
 3. **JEFATURA** → Asigna profesionales según tipo de caso
 4. **ABOGADO** → Evalúa conciliabilidad (Arts. 24, 26, 27):
