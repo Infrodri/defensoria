@@ -17,6 +17,7 @@
 ```
 📂 GUIAS-USUARIO-HERRAMIENTAS/
 ├── 📄 README.md (este archivo)
+├── 🛠️ GUIA-HERRAMIENTAS-SISTEMA.md (catálogo completo: propósito, uso y ejemplos de cada herramienta)
 ├── 🎯 FLUJO-COMPLETO-CASO-REAL.md (guía maestra del proceso completo)
 ├── 🔐 GUIA-ADMINISTRADOR.md (gestión completa del sistema)
 ├── 📝 GUIA-SECRETARIA.md (ingreso de casos, documentación inicial)
@@ -24,7 +25,7 @@
 ├── 🧠 GUIA-PSICOLOGO.md (herramientas psicológicas)  
 ├── 👥 GUIA-SOCIAL.md (herramientas sociales)
 ├── 👨‍💼 GUIA-JEFATURA.md (supervisión y coordinación)
-└── 🚨 TROUBLESHOOTING.md (solución de problemas)
+└── ⚡ INICIO-RAPIDO-HERRAMIENTAS.md (guía rápida de verificación)
 ```
 
 ## 🎯 FLUJO GENERAL
@@ -32,7 +33,7 @@
 ### Para ADMINISTRADOR:
 ```
 1. Verificar herramientas funcionan → /admin/tools-verification
-2. Subir datos de ejemplo para testing → /tools-demo
+2. Subir datos de ejemplo para testing → /herramientas
 3. Aprobar herramientas como funcionales
 4. Capacitar a profesionales
 ```
@@ -41,7 +42,7 @@
 ```
 1. Realizar entrevista con NNA/familia
 2. Grabar audio (con consentimiento)
-3. Subir audio al sistema → /tools-demo
+3. Subir audio al sistema → /herramientas
 4. Generar análisis según su disciplina
 5. Usar análisis en informes profesionales
 ```
@@ -55,8 +56,8 @@
 | **Plazos Procesales** | Abogado | Calcular vencimientos legales |
 | **Indicadores de Trauma** | Psicólogo | Detectar signos de trauma psicológico |
 | **Escalas de Riesgo** | Psicólogo | Evaluar nivel de riesgo del NNA |
-| **Mapa Familiar** | Social | Visualizar estructura y dinámicas familiares |
-| **Vulnerabilidad Social** | Social | Evaluar factores de riesgo social |
+| **Estructura Familiar** | Social | Visualizar estructura y dinámicas familiares |
+| **Evaluación Vulnerabilidad** | Social | Evaluar factores de riesgo social |
 | **Timeline Unificada** | Transversal | Cronología integrada del caso |
 | **Anonimización** | Transversal | Preparar reportes sin datos sensibles |
 
@@ -79,15 +80,14 @@
 ### Para Administrador:
 1. Lee `GUIA-ADMINISTRADOR.md`
 2. Verifica sistema: `/admin/tools-verification`
-3. Prueba con datos ejemplo: `/tools-demo`
+3. Prueba con datos ejemplo: `/herramientas`
 
 ### Para Profesionales:
-1. Lee tu guía específica (`GUIA-[ROL].md`)  
-2. Revisa casos ejemplo: `CASOS-EJEMPLO/`
-3. Practica con caso real: `/tools-demo`
+1. Lee tu guía específica (`GUIA-[ROL].md`)
+2. Revisa el flujo de ejemplo: `FLUJO-COMPLETO-CASO-REAL.md`
+3. Practica con caso real: `/herramientas`
 
 ## 📞 SOPORTE
 Si tienes dudas:
-1. Consulta `TROUBLESHOOTING.md`
-2. Revisa casos ejemplo
-3. Contacta al administrador del sistema
+1. Consulta `GUIA-HERRAMIENTAS-SISTEMA.md` (catálogo de herramientas)
+2. Contacta al administrador del sistema
