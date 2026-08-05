@@ -92,7 +92,7 @@ Lectura: todos los roles con herramienta pueden leer (`read` = los 5 roles en to
 | ADMINISTRADOR | 12 herramientas (todos los módulos) |
 | JEFATURA | 12 herramientas visibles; analyze de disciplina → **403** (intención vs backend) |
 | ABOGADO | Legales + transversales (5) |
-| PSICOLOGO | Psicológicas + transversales (5) |
+| PSICOLOGO | Psicológicas + transversales (6) |
 | SOCIAL | Sociales + transversales (5) |
 | SECRETARIA | Sin herramientas |
 
