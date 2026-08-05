@@ -8,7 +8,7 @@ Como **TRABAJADOR SOCIAL** en la Defensoría de la Niñez y Adolescencia, tu tra
 ## 📂 ESTRUCTURA DEL EXPEDIENTE Y SEGUIMIENTO EN TIEMPO REAL
 
 ### 1. **Pestaña Resumen (`/casos/[id]`) — Control de Flujo**
-- **`CaseFlowWidget`**: Muestra la fase actual del caso (`DERIVACION` → `EVALUACION` → `SEGUIMIENTO` → `CONCILIACION / VIA_JUDICIAL` → `CIERRE`).
+- **`CaseFlowWidget`**: Muestra la fase actual del caso (`DERIVACION` → `EVALUACION` → `SEGUIMIENTO` → `JUDICIALIZACION` → `CIERRE`).
 - **Alerta Personal**: Si el caso está en fase `EVALUACION` y aún no presentaste tu `INFORME_SOCIAL`, el widget mostrará un aviso destacado con enlace directo a la pestaña **Informes**.
 
 ### 2. **Pestaña Equipo (`/casos/[id]`) — Plan y Control de Intervenciones**
@@ -22,7 +22,7 @@ Como **TRABAJADOR SOCIAL** en la Defensoría de la Niñez y Adolescencia, tu tra
 - Emisión de `INFORME_SESION_SEGUIMIENTO` tras cada visita o intervención efectuada.
 
 ### 4. **Módulo de Herramientas Sociales (`/herramientas/social`)**
-- Herramientas especializadas de análisis familiar (generador de mapa familiar, ecomapa de redes, guía de visitas domiciliarias). Acceso directo desde el menú lateral en **Herramientas → Social**.
+- Tres herramientas sociales reales: **Estructura Familiar**, **Evaluación Vulnerabilidad** y **Mapeo Ambiental** (además de las transversales Línea de Tiempo Unificada y Reporte Anonimizado). Acceso directo desde el menú lateral en **Herramientas → Social**.
 
 ---
 
@@ -98,8 +98,8 @@ JEFATURA (asignación de equipo interdisciplinario)
 
 ## 🏠 HERRAMIENTAS SOCIALES DISPONIBLES
 
-### 1. **🌳 GENERACIÓN DE MAPA FAMILIAR**
-**¿Qué hace?**: Crea automáticamente un diagrama visual de la estructura familiar, relaciones y dinámicas identificadas.
+### 1. **👨‍👩‍👧‍👦 ESTRUCTURA FAMILIAR**
+**¿Qué hace?**: Genera el familiograma (diagrama visual de la estructura familiar), las relaciones y las dinámicas identificadas.
 
 **¿Cuándo usar?**:
 - En la primera evaluación sociofamiliar
@@ -109,7 +109,7 @@ JEFATURA (asignación de equipo interdisciplinario)
 
 **Pasos de uso**:
 1. Accede a "Herramientas Sociales"
-2. Selecciona "Mapa Familiar"
+2. Selecciona "Estructura Familiar"
 3. El sistema analiza automáticamente:
    - Información registrada sobre familiares
    - Relaciones identificadas en entrevistas
@@ -122,7 +122,7 @@ JEFATURA (asignación de equipo interdisciplinario)
 
 ---
 
-### 2. **📊 CÁLCULO DE VULNERABILIDAD SOCIAL**
+### 2. **⚠️ EVALUACIÓN VULNERABILIDAD**
 **¿Qué hace?**: Evalúa múltiples factores de riesgo social para determinar el nivel de vulnerabilidad del NNA y su familia.
 
 **¿Cuándo usar?**:
@@ -140,7 +140,7 @@ JEFATURA (asignación de equipo interdisciplinario)
 - Recursos y fortalezas identificadas
 
 **Pasos de uso**:
-1. Click en "Vulnerabilidad Social"
+1. Click en "Evaluación Vulnerabilidad"
 2. El sistema integra automáticamente:
    - Datos socioeconómicos registrados
    - Información de visitas domiciliarias
@@ -149,7 +149,7 @@ JEFATURA (asignación de equipo interdisciplinario)
 4. Revisa el cálculo de vulnerabilidad
 5. Genera recomendaciones de intervención
 
-**Resultado**: Índice de vulnerabilidad con categorización (Bajo/Medio/Alto) y plan de intervención sugerido.
+**Resultado**: Índice de vulnerabilidad con categorización (Bajo/Medio/Alto/Crítico) y plan de intervención sugerido.
 
 ---
 
@@ -213,8 +213,8 @@ JEFATURA asigna caso → Revisión de expediente → Planificación de evaluaci�
 4. **Usar "Mapeo Ambiental"** para evaluar entorno comunitario
 
 **Sesión 3**: Análisis y síntesis
-1. **Usar "Mapa Familiar"** para visualizar estructura y relaciones
-2. **Usar "Vulnerabilidad Social"** para evaluar riesgo integral
+1. **Usar "Estructura Familiar"** para visualizar estructura y relaciones
+2. **Usar "Evaluación Vulnerabilidad"** para evaluar riesgo integral
 3. Integrar toda la información recopilada
 4. Formular plan de intervención inicial
 
@@ -233,7 +233,7 @@ JEFATURA asigna caso → Revisión de expediente → Planificación de evaluaci�
 - Coordinar derivaciones a servicios identificados
 - Realizar visitas de seguimiento según cronograma
 - Re-evaluar vulnerabilidad cada 60-90 días
-- Actualizar mapa familiar cuando cambien las circunstancias
+- Actualizar el familiograma (Estructura Familiar) cuando cambien las circunstancias
 
 ---
 
@@ -247,7 +247,7 @@ JEFATURA asigna caso → Revisión de expediente → Planificación de evaluaci�
 - Violencia doméstica activa
 
 ### **Protocolo de Urgencia**:
-1. **INMEDIATAMENTE**: Evaluar con "Vulnerabilidad Social"
+1. **INMEDIATAMENTE**: Evaluar con "Evaluación Vulnerabilidad"
 2. **EN 4 HORAS**: Realizar visita domiciliaria de urgencia
 3. **EN 24 HORAS**: Coordinar medidas de protección social
 4. **EN 48 HORAS**: Activar red de servicios de emergencia
