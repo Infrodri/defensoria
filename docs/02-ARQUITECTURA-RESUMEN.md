@@ -369,7 +369,7 @@ Panel, Citas, Mis Casos, Directorio de Derivación, Copiloto IA
 | **ADMINISTRADOR** | Config IA, Matriz RBAC, Distritos | Lectura de todos |
 | **SECRETARIA** | Agenda, Ingesta | Sin informes clínicos |
 
-**Nota sobre `INFORME_PSICOSOCIAL`**: Puede ser generado por PSICOLOGO y SOCIAL en conjunto. La autoría es del profesional que lo redacta. El sistema lo permite desde el `ReportsModule`.
+**Nota sobre `INFORME_PSICOSOCIAL`**: Puede ser generado por PSICOLOGO y SOCIAL en conjunto. La autoría es del profesional que lo redacta. La **emisión** exige coautoría: el informe debe tener autor + coautor de la disciplina complementaria (equipo PSICOLOGO + SOCIAL) vía `coAuthorId`; sin coautor, la emisión falla con error.
 
 ---
 

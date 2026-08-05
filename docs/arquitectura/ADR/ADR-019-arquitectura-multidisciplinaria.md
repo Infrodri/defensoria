@@ -30,6 +30,7 @@
   3. Deprecación del enum `ReportType` en el futuro.
 - **Rationale**: Zero-downtime deployment. Evita romper la Fase 1 y 2 que ya están operando con el enum.
 - **Consequences**: Coexistencia temporal de dos estrategias de tipificación en la base de datos durante la Fase 3.
+- **Estado 2026-08-05**: Fase 3 implementada — enum `ReportType` eliminado, `Report` usa `disciplineReportType.category` (tabla `DisciplineReportType`), columna `coAuthorId` agregada.
 
 ## ADR-022: Delegación de Autorización en Herramientas de IA
 - **Status**: Accepted

@@ -4,6 +4,8 @@
 **Fecha**: 2026-08-01  
 **Objetivo**: Diseñar módulos integrados para grabación, transcripción, cuestionarios, fotos e inspecciones sorpresas
 
+> **Nota de actualización (2026-08-05)**: Este documento es una propuesta de arquitectura. Los payloads de ejemplo de `POST /reports` fueron actualizados al esquema real: el campo `reportType` fue reemplazado por `disciplineReportTypeId` (FK a la tabla `DisciplineReportType`; la categoría del informe viene de esa tabla). El resto de la propuesta queda como documento histórico.
+
 ---
 
 ## 🎯 RESUMEN DE HERRAMIENTAS A IMPLEMENTAR
@@ -500,7 +502,8 @@ INICIO: Inspector planifica visita sorpresa
    │
    └─ Emitir recomendaciones
       └─ POST /reports
-         { reportType: "INFORME_SOCIAL", content: "...", caseId }
+         { disciplineReportTypeId: "<uuid>", content: "...", caseId }
+         // disciplineReportTypeId: UUID de DisciplineReportType; la categoría (INFORME_SOCIAL, etc.) sale de esa tabla
 
 FIN: Todo registrado, auditable, con evidencia fotográfica + análisis
 
@@ -640,7 +643,7 @@ POST /ai/draft-legal-document
 POST /reports
 {
   caseId: "uuid-maria",
-  reportType: "INFORME_SOCIAL",
+  disciplineReportTypeId: "<uuid>",  // UUID de DisciplineReportType; la categoría (INFORME_SOCIAL, etc.) sale de esa tabla
   title: "Informe Inspección Sorpresa - Negligencia Parental",
   content: "<borrador revisado>",
   riskAssessment: "ALTO"

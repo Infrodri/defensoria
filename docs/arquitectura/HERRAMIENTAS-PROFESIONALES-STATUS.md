@@ -238,7 +238,7 @@ Respuesta:
 POST /reports
 {
   "caseId": "uuid",
-  "reportType": "INFORME_JURIDICO | INFORME_PSICOLOGICO | INFORME_SOCIAL",
+  "disciplineReportTypeId": "uuid",  // UUID de DisciplineReportType; la categoría (INFORME_JURIDICO, INFORME_PSICOLOGICO, INFORME_SOCIAL, etc.) viene de esa tabla
   "title": "Informe Inicial",
   "content": "Contenido del informe...",
   "riskAssessment": "BAJO | MEDIO | ALTO"  // Solo para psicológico
@@ -247,8 +247,8 @@ POST /reports
 // Emitir (congelar) informe
 POST /reports/:id/emit
 
-// Agregar información complementaria
-POST /reports/:id/complement
+// Crear informe complementario (v2, v3) sobre informe emitido
+POST /reports/:id/complementary
 {
   "title": "Información Complementaria",
   "content": "Datos adicionales..."

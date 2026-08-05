@@ -348,6 +348,7 @@ AFECTADO → SECRETARIA → DERIVACIÓN → PROFESIONALES → HERRAMIENTAS → E
 ✅ Prohibición automática de conciliación en casos de maltrato
 ✅ Registro completo del proceso y resultado
 ✅ Trazabilidad de acuerdos y homologación
+✅ El cierre por conciliación culmina con la emisión del INFORME_FINAL_CONCILIACION (cierra el expediente automáticamente)
 ```
 
 #### **Paso 4A.5: Generar Documentos Legales**

@@ -174,11 +174,11 @@ enum Role {
 | /reports | POST | ABOGADO, PSICOLOGO, SOCIAL | CreateReportDto | Crear informe (requiere ser parte del equipo del caso) |
 | /reports/:id | GET | JWT + acceso a caso | — | Obtener detalle informe |
 | /reports/:id/emit | POST | Creador del informe | EmitReportDto | Emitir informe oficial (genera documento final) |
-| /reports/:id/complement | POST | Creador del informe | ComplementReportDto | Agregar información complementaria |
+| /reports/:id/complementary | POST | Creador del informe | { title, content } | Crear informe complementario (v2, v3) sobre informe emitido |
 
 **Notas importantes**:
 - Solo el profesional que creó el informe puede emitirlo
-- El informe está vinculado a `caseId` y `reportType`
+- El informe está vinculado a `caseId` y `disciplineReportTypeId` (la categoría del informe viene de la tabla `DisciplineReportType`)
 - Acceso al informe requiere acceso al caso (via `CaseAccessService`)
 
 ---
@@ -901,107 +901,81 @@ grep -E "^  @(Get|Post|Patch|Delete)" apps/api/src/modules/MODULO/MODULO.control
 
 ---
 
-## 🎯 PARTE 8: EJEMPLO COMPLETO - AGREGAR NUEVO ROL
+## 🎯 PARTE 8: INFORME PSICOSOCIAL - ARQUITECTURA DE COAUTORÍA
 
-### Escenario: Se necesita nuevo rol PSICOSOCIAL (combina PSICOLOGO + SOCIAL)
+> **IMPORTANTE**: NO existe un rol `PSICOSOCIAL` en el enum `Role`. El informe psicosocial se modela con la **categoría** `INFORME_PSICOSOCIAL` del enum `ReportCategory` y se emite con **autor + coautor** de las disciplinas complementarias (PSICOLOGO + SOCIAL) vía `coAuthorId`. No agregar roles nuevos al sistema.
 
-### Paso 1: Backend - Definir rol
+### Escenario: Emitir un informe psicosocial (equipo PSICOLOGO + SOCIAL)
+
+### Paso 1: La categoría, no un rol
 
 **Archivo**: `packages/shared/src/index.ts`
 ```typescript
-export enum Role {
-  ADMINISTRADOR = 'ADMINISTRADOR',
-  JEFATURA = 'JEFATURA',
-  ABOGADO = 'ABOGADO',
-  PSICOLOGO = 'PSICOLOGO',
-  SOCIAL = 'SOCIAL',
-  PSICOSOCIAL = 'PSICOSOCIAL',        // ← NUEVO
-  SECRETARIA = 'SECRETARIA',
-  REFERENTE_TUTOR = 'REFERENTE_TUTOR',
+export enum ReportCategory {
+  INFORME_SOCIAL = 'INFORME_SOCIAL',
+  INFORME_PSICOLOGICO = 'INFORME_PSICOLOGICO',
+  INFORME_PSICOSOCIAL = 'INFORME_PSICOSOCIAL',
+  INFORME_JURIDICO = 'INFORME_JURIDICO',
+  INFORME_SESION_SEGUIMIENTO = 'INFORME_SESION_SEGUIMIENTO',
+  INFORME_FINAL_CONCILIACION = 'INFORME_FINAL_CONCILIACION',
+  INFORME_COMPLEMENTARIO = 'INFORME_COMPLEMENTARIO',
 }
 ```
 
-### Paso 2: Backend - Agregar permisos en controladores
+La categoría del informe se resuelve a través de la tabla `DisciplineReportType` (FK `disciplineReportTypeId` en `Report`), no por el rol del usuario.
+
+### Paso 2: Crear el informe con el tipo de disciplina
+
+**Archivo**: `apps/api/src/modules/reports/reports.service.ts` — `CreateReportDto`
+```typescript
+export interface CreateReportDto {
+  caseId: string;
+  disciplineReportTypeId: string;  // UUID de DisciplineReportType cuya category = INFORME_PSICOSOCIAL
+  title: string;
+  content: string;
+  riskAssessment?: RiskLevel;
+}
+```
+
+El autor crea el borrador con `status: BORRADOR`; su rol se valida contra la categoría en `checkReportRolePermission` (un `PSICOLOGO` o `SOCIAL` puede redactar un informe psicosocial).
+
+### Paso 3: Emisión con coautor obligatorio
+
+Al emitir (`POST /reports/:id/emit`), si la categoría es `INFORME_PSICOSOCIAL` se exige `report.coAuthorId`:
+
+```typescript
+if (report.disciplineReportType?.category === ReportCategory.INFORME_PSICOSOCIAL) {
+  if (!report.coAuthorId) {
+    throw new BadRequestException('Informe psicosocial requiere coautor de la disciplina complementaria');
+  }
+  // El conjunto { author.role, coAuthor.role } debe ser EXACTAMENTE { PSICOLOGO, SOCIAL }
+}
+```
+
+- Sin `coAuthorId`, la emisión falla con error.
+- ⚠️ Hoy la validación existe, pero ningún flujo operativo de asignación de coautor está implementado en producción (solo tests escriben `coAuthorId`). Si se implementa la asignación, debe escribirse `coAuthorId` antes de la emisión.
+
+### Paso 4: Complementos sobre informes emitidos
 
 **Archivo**: `apps/api/src/modules/reports/reports.controller.ts`
 ```typescript
-@Post()
-@Roles(Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL, Role.PSICOSOCIAL)  // ← AGREGADO
-@ApiOperation({ summary: 'Crear informe' })
-async create(@Body() dto: CreateReportDto, @CurrentUser('id') userId: string) {
-  return this.reportsService.create(dto, userId);
-}
+@Post(':id/complementary')  // Crea informe complementario (v2, v3) sobre un informe EMITIDO
 ```
 
-### Paso 3: Backend - Actualizar lógica de acceso si es necesario
+- El complemento reutiliza la `disciplineReportTypeId` del informe padre, incrementa `version` y enlaza `parentReportId`.
+- El rol del autor se valida igual que en `create`.
 
-**Archivo**: `apps/api/src/common/case-access/case-access.service.ts`
-```typescript
-// Si PSICOSOCIAL ve casos igual que ABOGADO, PSICOLOGO, SOCIAL:
-if (['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'PSICOSOCIAL'].includes(user.role)) {
-  const activeMembership = await this.prisma.caseTeamHistory.findFirst({ ... });
-  // ...
-}
-```
-
-### Paso 4: Frontend - Agregar a sidebar
-
-**Archivo**: `apps/web/components/layout/sidebar.tsx`
-```typescript
-const NAV_ITEMS_BY_ROLE: Record<string, NavItem[]> = {
-  // ...
-  PSICOSOCIAL: [
-    { label: 'Panel General',         href: '/panel',        icon: LayoutDashboard },
-    { label: 'Agenda y Citas',        href: '/citas',        icon: Calendar },
-    { label: 'Mis Casos Asignados',   href: '/casos',        icon: FileText },
-    { label: 'Indicadores de Riesgo', href: '/riesgo',       icon: ShieldCheck },
-    { label: 'Directorio Derivación', href: '/derivacion',   icon: Users },
-    { label: 'Copiloto IA',           href: '/copilot',      icon: BrainCircuit },
-  ],
-};
-```
-
-### Paso 5: Frontend - Agregar configuración de copiloto
-
-**Archivo**: `apps/web/app/(dashboard)/copilot/page.tsx`
-```typescript
-const DISCIPLINE_CONFIG = {
-  // ...
-  PSICOSOCIAL: {
-    titulo: 'Copiloto Psicosocial (IA Local)',
-    descripcion: 'Asistencia para la redacción de informes psicosociales combinados...',
-    placeholder: 'Describa los aspectos psicológicos y sociales del caso...',
-    boton: 'Redactar Informe Psicosocial',
-    subtitulo: 'Borrador de Informe Psicosocial',
-  },
-};
-
-const ROLES_CON_ACCESO = ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'PSICOSOCIAL'];
-```
-
-### Paso 6: Compilar y verificar
+### Paso 5: Verificación
 
 ```bash
-# Backend
-cd apps/api && npx tsc --noEmit
+# Confirmar que NO existe rol PSICOSOCIAL en el enum Role
+grep -n "PSICOSOCIAL" packages/shared/src/index.ts   # solo aparece en ReportCategory
 
-# Frontend
-cd apps/web && npx tsc --noEmit --skipLibCheck
-
-# Git
-git add -A
-git commit -m "feat: agregar rol PSICOSOCIAL en backend y frontend"
+# Confirmar el endpoint complementario
+grep -n "complementary" apps/api/src/modules/reports/reports.controller.ts
 ```
 
-### Paso 7: Testing
-
-```bash
-# Login como usuario PSICOSOCIAL
-# Verificar: sidebar muestra ítems correctos
-# Verificar: /copilot muestra "Copiloto Psicosocial"
-# Verificar: POST /reports con role=PSICOSOCIAL acepta la solicitud
-# Verificar: GET /cases filtra correctamente (solo casos asignados)
-```
+> **Regla**: para agregar capacidades psicosociales NO se agregan roles nuevos; se usa la categoría `INFORME_PSICOSOCIAL` y el par autor (PSICOLOGO) + coautor (SOCIAL) vía `coAuthorId`.
 
 ---
 

@@ -19,6 +19,7 @@ Como **PSICÓLOGO** en la Defensoría de la Niñez y Adolescencia, tu trabajo se
 
 ### 3. **Pestaña Informes (`/casos/[id]`) — Emisión de Informes**
 - Emisión inmutable del `INFORME_PSICOLOGICO` o `INFORME_PSICOSOCIAL` de evaluación inicial.
+- **Requisito de emisión del `INFORME_PSICOSOCIAL`**: requiere coautor de la disciplina complementaria (equipo PSICOLOGO + SOCIAL). Sin coautor asignado, la emisión falla con error.
 - Emisión de `INFORME_SESION_SEGUIMIENTO` tras cada sesión efectuada.
 
 ### 4. **Módulo de Herramientas Psicológicas (`/herramientas/psicologico`)**

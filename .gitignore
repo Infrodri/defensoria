@@ -75,3 +75,8 @@ references/
 
 # MinIO data (local dev)
 minio-data/
+
+# Heavy legal reference documents (marco-legal)
+docs/marco-legal/legal/
+*.pdf
+*.docx

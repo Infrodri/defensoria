@@ -34,6 +34,8 @@ erDiagram
     Case ||--o{ Evidence : "has evidence"
     Case ||--o{ Appointment : "has appointments"
     Report |o--o{ Report : "parent/complementary"
+    DisciplineReportType ||--o{ Report : "defines"
+    User ||--o{ Report : "co-authors"
 ```
 
 ---
@@ -51,7 +53,7 @@ erDiagram
 | `RiskLevel` | `BAJO`, `MEDIO`, `ALTO` |
 | `RoleInCase` | `NNA`, `DENUNCIANTE`, `DENUNCIADO`, `TUTOR`, `TESTIGO` |
 | `ActionType` | `NOTA`, `ENTREVISTA`, `VISITA_DOMICILIARIA`, `AUDIENCIA`, `DERIVACION`, `CONTACTO_INSTITUCIONAL`, `OTRO` |
-| `ReportType` | `INFORME_SOCIAL`, `INFORME_PSICOLOGICO`, `INFORME_PSICOSOCIAL`, `INFORME_JURIDICO` |
+| `ReportCategory` | `INFORME_SOCIAL`, `INFORME_PSICOLOGICO`, `INFORME_PSICOSOCIAL`, `INFORME_JURIDICO`, `INFORME_SESION_SEGUIMIENTO`, `INFORME_FINAL_CONCILIACION`, `INFORME_COMPLEMENTARIO` |
 | `ReportStatus` | `BORRADOR`, `EMITIDO` |
 | `AppointmentType`| `ENTREVISTA`, `AUDIENCIA`, `VISITA_DOMICILIARIA`, `SEGUIMIENTO`, `OTRO` |
 | `AppointmentStatus`| `PROGRAMADA`, `COMPLETADA`, `CANCELADA`, `REPROGRAMADA` |
@@ -187,7 +189,8 @@ Professional reports (social, psychological, psychosocial, legal).
 *   **id**: UUID v7, PK
 *   **caseId**: UUID, FK → Case
 *   **authorId**: UUID, FK → User
-*   **reportType**: Enum `ReportType`
+*   **disciplineReportTypeId**: UUID, FK → DisciplineReportType (required; the report category comes from the `DisciplineReportType` table)
+*   **coAuthorId**: UUID, FK → User, nullable (co-author from the complementary discipline; required to emit an `INFORME_PSICOSOCIAL`, e.g. author PSICOLOGO + coAuthor SOCIAL)
 *   **version**: Int, default 1 (increments for complementary reports)
 *   **parentReportId**: UUID, FK → Report, nullable (references original if this is complementary)
 *   **title**: String
@@ -198,6 +201,18 @@ Professional reports (social, psychological, psychosocial, legal).
 *   **createdAt**: DateTime (TIMESTAMPTZ)
 *   **updatedAt**: DateTime (TIMESTAMPTZ)
 *   *Note*: Once status is `EMITIDO`, content is frozen. New reports reference via `parentReportId`.
+
+### 10.1 DisciplineReportType
+Per-discipline report type definition; the report category is resolved through this table instead of an enum column on `Report`.
+*   **id**: UUID v7, PK
+*   **disciplineId**: UUID, FK → Discipline
+*   **code**: String, unique (e.g. `INFORME_SOCIAL`, `INFORME_PSICOLOGICO`)
+*   **name**: String
+*   **category**: Enum `ReportCategory`
+*   **description**: Text, nullable
+*   **template**: JSON, nullable
+*   **isActive**: Boolean, default true
+*   **createdAt**: DateTime (TIMESTAMPTZ)
 
 ### 11. Evidence
 Files attached to cases (documents, photos, audio, video).

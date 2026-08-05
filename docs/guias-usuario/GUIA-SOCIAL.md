@@ -19,6 +19,7 @@ Como **TRABAJADOR SOCIAL** en la Defensoría de la Niñez y Adolescencia, tu tra
 
 ### 3. **Pestaña Informes (`/casos/[id]`) — Emisión de Informes**
 - Emisión inmutable del `INFORME_SOCIAL` de evaluación inicial.
+- El `INFORME_PSICOSOCIAL` (elaborado junto a PSICOLOGIA) requiere coautor de la disciplina complementaria (equipo PSICOLOGO + SOCIAL) como requisito de emisión.
 - Emisión de `INFORME_SESION_SEGUIMIENTO` tras cada visita o intervención efectuada.
 
 ### 4. **Módulo de Herramientas Sociales (`/herramientas/social`)**

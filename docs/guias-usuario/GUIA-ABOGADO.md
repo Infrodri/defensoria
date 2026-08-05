@@ -65,6 +65,7 @@ Como **ABOGADO** en la Defensoría de la Niñez y Adolescencia, tu trabajo se ce
 - Sistema registra automáticamente
 - **Pendiente**: Solicitar homologación judicial
 - Caso pasa a seguimiento
+- **Cierre del caso**: el cierre por conciliación culmina con la emisión del `INFORME_FINAL_CONCILIACION`, que cierra el expediente automáticamente
 
 **SIN ACUERDO**:
 - Documentar motivos

@@ -168,7 +168,7 @@ find apps/api/src/modules -name "*.dto.ts"
 - [ ] CreateCaseDto tiene `caseType: CaseType` (enum from shared)
 - [ ] CreateUserDto tiene `role: Role` (enum from shared)
 - [ ] AssignTeamDto tiene `role: Role` (enum from shared)
-- [ ] CreateReportDto tiene `reportType: ReportType` (si existe)
+- [ ] CreateReportDto tiene `disciplineReportTypeId: string` (la categoría del informe viene de la tabla `DisciplineReportType`)
 
 **Verificación de validación**:
 ```bash
@@ -194,6 +194,13 @@ Todos estos enums deben estar definidos y exportados:
 - [ ] RoleInCase
 - [ ] Gender
 - [ ] DocumentType
+- [ ] ActionType
+- [ ] AppointmentType
+- [ ] AppointmentStatus
+- [ ] NotificationType
+- [ ] Priority
+- [ ] ReportCategory
+- [ ] ReportStatus
 
 **Validación**:
 ```bash
