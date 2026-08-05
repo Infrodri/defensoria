@@ -53,6 +53,18 @@ export default function InicioCasoPage() {
   const [complainantRelation, setComplainantRelation] = useState('MADRE');
   const [complainantPhone, setComplainantPhone] = useState('');
   const [complainantAddress, setComplainantAddress] = useState('');
+
+  // Banderas de situación especial de la denuncia (CreateCaseDto Fase 2)
+  const [menorAutodenuncia, setMenorAutodenuncia] = useState(false);
+  const [denunciaAnonima, setDenunciaAnonima] = useState(false);
+  const [involucraFuncionario, setInvolucraFuncionario] = useState(false);
+
+  // Persona Denunciada (opcional — accusedId del CreateCaseDto)
+  const [accusedQuery, setAccusedQuery] = useState('');
+  const [accusedResults, setAccusedResults] = useState<any[]>([]);
+  const [accusedSearching, setAccusedSearching] = useState(false);
+  const [accusedSearched, setAccusedSearched] = useState(false);
+  const [selectedAccused, setSelectedAccused] = useState<any | null>(null);
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +130,22 @@ export default function InicioCasoPage() {
     setStep(2);
   };
 
+  // Búsqueda opcional de la persona denunciada (accusedId)
+  const handleSearchAccused = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accusedQuery.trim()) return;
+    setAccusedSearching(true);
+    setAccusedSearched(true);
+    try {
+      const results = await fetchApi(`/persons/search?query=${encodeURIComponent(accusedQuery)}`);
+      setAccusedResults(results);
+    } catch (err: any) {
+      setAccusedResults([]);
+    } finally {
+      setAccusedSearching(false);
+    }
+  };
+
   // Submit complete case
   const handleSubmitCase = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +175,12 @@ export default function InicioCasoPage() {
         caseType,
         intakeNarrative,
         isThirdPartyComplainant,
+        // Banderas de situación especial de la denuncia
+        menorAutodenuncia,
+        denunciaAnonima,
+        involucraFuncionario,
+        // Persona denunciada (opcional)
+        accusedId: selectedAccused?.id || undefined,
         // Datos demográficos NNA
         nnaBirthDate: nnaBirthDate || undefined,
         nnaGender: nnaGender || undefined,
@@ -693,6 +727,143 @@ export default function InicioCasoPage() {
                       style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                     />
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Banderas de situación especial de la denuncia */}
+            <div style={{ padding: '1.25rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>
+                Situación Especial de la Denuncia
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={menorAutodenuncia}
+                    onChange={(e) => setMenorAutodenuncia(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--salvia)' }}
+                  />
+                  El NNA se autodenunció
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={denunciaAnonima}
+                    onChange={(e) => setDenunciaAnonima(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--salvia)' }}
+                  />
+                  Denuncia anónima
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={involucraFuncionario}
+                    onChange={(e) => setInvolucraFuncionario(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--salvia)' }}
+                  />
+                  Involucra a un funcionario público
+                </label>
+              </div>
+            </div>
+
+            {/* Persona Denunciada (opcional) */}
+            <div style={{ padding: '1.25rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
+                Persona Denunciada <span style={{ fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>(opcional)</span>
+              </div>
+
+              {!selectedAccused ? (
+                <>
+                  <form onSubmit={handleSearchAccused} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <input
+                      type="text"
+                      value={accusedQuery}
+                      onChange={(e) => setAccusedQuery(e.target.value)}
+                      placeholder="Buscar por nombre o documento del denunciado..."
+                      style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={accusedSearching}
+                      style={{
+                        backgroundColor: 'var(--bosque-profundo)',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: 'var(--radius)',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      {accusedSearching ? 'Buscando...' : 'Buscar'}
+                    </button>
+                  </form>
+
+                  {accusedSearched && accusedResults.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {accusedResults.slice(0, 5).map((p) => (
+                        <div
+                          key={p.id}
+                          style={{
+                            padding: '0.625rem 0.875rem',
+                            backgroundColor: 'var(--card)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                            {p.firstName} {p.lastName}
+                            <span style={{ fontWeight: 400, opacity: 0.7 }}> · {p.documentNumber || 'SIN DOCUMENTO'}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAccused(p)}
+                            style={{
+                              backgroundColor: 'var(--salvia)',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.375rem 0.75rem',
+                              borderRadius: 'var(--radius)',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Seleccionar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {accusedSearched && accusedResults.length === 0 && (
+                    <p style={{ fontSize: '0.8125rem', opacity: 0.7 }}>
+                      Sin resultados. Puede dejar vacío y registrar al denunciado más adelante.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.625rem 0.875rem', backgroundColor: 'var(--card)', border: '1px solid var(--salvia)', borderRadius: 'var(--radius)' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                    ✅ {selectedAccused.firstName} {selectedAccused.lastName}
+                    <span style={{ fontWeight: 400, opacity: 0.7 }}> · {selectedAccused.documentNumber || 'SIN DOCUMENTO'}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedAccused(null);
+                      setAccusedResults([]);
+                      setAccusedSearched(false);
+                    }}
+                    style={{ backgroundColor: 'transparent', border: '1px solid var(--border)', padding: '0.375rem 0.75rem', borderRadius: 'var(--radius)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                  >
+                    Quitar
+                  </button>
                 </div>
               )}
             </div>

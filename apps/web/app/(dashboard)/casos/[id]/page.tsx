@@ -9,6 +9,7 @@ import { CaseFlowWidget } from '@/components/cases/case-flow-widget';
 import { ReportEditor } from '@/components/reports/report-editor';
 import { EvidenceGallery } from '@/components/evidences/evidence-gallery';
 import { CaseTimeline } from '@/components/cases/case-timeline';
+import { SpecialProceduresTabs } from '@/components/cases/tabs/special-procedures-tabs';
 import { AiCopilot } from '@/components/ai/ai-copilot';
 import { formatCaseType, formatInterventionPath, formatActionType, formatAppointmentType, formatRiskLevel } from '@defensoria/shared';
 import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin, ShieldAlert, FolderOpen } from 'lucide-react';
@@ -23,7 +24,7 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const [reports, setReports] = useState<any[]>([]);
   const [evidences, setEvidences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'informes' | 'evidencias' | 'agenda' | 'narrativa' | 'lineatiempo'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'informes' | 'evidencias' | 'agenda' | 'narrativa' | 'lineatiempo' | 'tramites'>('resumen');
 
   // Assignment State
   const [assignUserId, setAssignUserId] = useState('');
@@ -480,6 +481,21 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
           }}
         >
           Línea de Tiempo
+        </button>
+
+        <button
+          onClick={() => setActiveTab('tramites')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            border: 'none',
+            borderBottom: activeTab === 'tramites' ? '3px solid var(--tierra-calida)' : '3px solid transparent',
+            backgroundColor: 'transparent',
+            fontWeight: activeTab === 'tramites' ? 700 : 500,
+            color: activeTab === 'tramites' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+            cursor: 'pointer',
+          }}
+        >
+          Trámites Especiales
         </button>
       </div>
 
@@ -1260,6 +1276,11 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
       })()}
       {activeTab === 'lineatiempo' && (
         <CaseTimeline caseId={caseId} />
+      )}
+
+      {/* TAB CONTENT: Trámites Especiales (Fase 3) */}
+      {activeTab === 'tramites' && (
+        <SpecialProceduresTabs caseId={caseId} userRole={user?.role ?? ''} />
       )}
 
       {/* AI Copilot Widget */}

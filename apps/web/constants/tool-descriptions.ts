@@ -68,7 +68,7 @@ export const TOOL_DESCRIPTIONS: Record<string, ToolDescription> = {
       'Detección de factores de riesgo',
       'Planificación de intervenciones efectivas'
     ],
-    requiredRole: ['TRABAJADOR_SOCIAL', 'ADMINISTRADOR']
+    requiredRole: ['SOCIAL', 'ADMINISTRADOR']
   },
 
   // HERRAMIENTAS TRANSVERSALES
@@ -89,7 +89,7 @@ export const TOOL_DESCRIPTIONS: Record<string, ToolDescription> = {
       'Facilita comprensión del caso',
       'Apoya narrativa legal'
     ],
-    requiredRole: ['ABOGADO', 'PSICOLOGO', 'TRABAJADOR_SOCIAL', 'ADMINISTRADOR']
+    requiredRole: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'ADMINISTRADOR']
   },
 
   'transversal-risk-assessment': {
@@ -109,7 +109,7 @@ export const TOOL_DESCRIPTIONS: Record<string, ToolDescription> = {
       'Justificación de medidas de protección',
       'Prevención de escaladas violentas'
     ],
-    requiredRole: ['ABOGADO', 'PSICOLOGO', 'TRABAJADOR_SOCIAL', 'ADMINISTRADOR']
+    requiredRole: ['ABOGADO', 'PSICOLOGO', 'SOCIAL', 'ADMINISTRADOR']
   }
 };
 

@@ -4,6 +4,114 @@ import { useAuth } from '@/lib/auth-context';
 import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '0.5rem',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  fontSize: '0.875rem',
+  backgroundColor: 'var(--card)',
+  color: 'var(--grafito)',
+  boxSizing: 'border-box',
+};
+
+/** Selector de coautor para informes psicosociales en borrador (PATCH /reports/:id/coauthor). */
+function CoAuthorSelector({
+  reportId,
+  authorId,
+  authorRole,
+  currentCoAuthor,
+  professionalsByRole,
+  onChanged,
+}: {
+  reportId: string;
+  authorId?: string;
+  authorRole?: string;
+  currentCoAuthor?: any;
+  professionalsByRole: { PSICOLOGO: any[]; SOCIAL: any[] };
+  onChanged: () => void;
+}) {
+  const { user } = useAuth();
+  const [selected, setSelected] = useState(currentCoAuthor?.id ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const complement: 'PSICOLOGO' | 'SOCIAL' | null =
+    authorRole === 'PSICOLOGO' ? 'SOCIAL' : authorRole === 'SOCIAL' ? 'PSICOLOGO' : null;
+
+  const handleAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await fetchApi(`/reports/${reportId}/coauthor`, {
+        method: 'PATCH',
+        body: JSON.stringify({ coAuthorId: selected }),
+      });
+      toast.success('Coautor asignado al informe psicosocial');
+      onChanged();
+    } catch (err: any) {
+      setError(err?.message || 'Error al asignar coautor');
+      toast.error('Error al asignar coautor', { description: err?.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
+        🔗 Coautor del Informe Psicosocial
+      </div>
+
+      {currentCoAuthor && (
+        <div style={{ fontSize: '0.8125rem', marginBottom: '0.5rem' }}>
+          Coautor actual: <strong>{currentCoAuthor.firstName} {currentCoAuthor.lastName}</strong> ({currentCoAuthor.role === 'PSICOLOGO' ? 'Psicólogo/a' : 'Trabajador/a Social'})
+        </div>
+      )}
+
+      {complement ? (
+        <form onSubmit={handleAssign} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <select value={selected} onChange={(e) => setSelected(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
+            <option value="">-- {complement === 'PSICOLOGO' ? 'Psicólogo/a' : 'Trabajador/a Social'} coautor --</option>
+            {professionalsByRole[complement]
+              .filter((u: any) => u.id !== authorId && u.id !== user?.id)
+              .map((u: any) => (
+                <option key={u.id} value={u.id}>
+                  {u.firstName} {u.lastName} — {u.email} {u.office?.name ? `(${u.office.name})` : ''}
+                </option>
+              ))}
+          </select>
+          <button
+            type="submit"
+            disabled={saving || !selected}
+            style={{
+              backgroundColor: selected ? 'var(--salvia)' : 'var(--border)',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 0.875rem',
+              borderRadius: 'var(--radius)',
+              fontWeight: 700,
+              fontSize: '0.75rem',
+              cursor: selected ? 'pointer' : 'not-allowed',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {saving ? 'Asignando...' : 'Asignar'}
+          </button>
+        </form>
+      ) : (
+        <p style={{ fontSize: '0.75rem', opacity: 0.7, margin: 0 }}>
+          Este informe requiere un coautor de la disciplina complementaria (equipo PSICOLOGO + SOCIAL). Solicítelo a Jefatura.
+        </p>
+      )}
+
+      {error && <p style={{ fontSize: '0.75rem', color: 'var(--riesgo-alto)', marginTop: '0.375rem' }}>⚠️ {error}</p>}
+    </div>
+  );
+}
+
 interface ReportEditorProps {
   caseId: string;
   caseCode?: string;
@@ -87,6 +195,32 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
   // Complementary report modal
   const [complementaryParentId, setComplementaryParentId] = useState<string | null>(null);
 
+  // ── Coautoría (Fase 3): informe psicosocial requiere equipo PSICOLOGO + SOCIAL ──
+  const [professionalsByRole, setProfessionalsByRole] = useState<{ PSICOLOGO: any[]; SOCIAL: any[] }>({ PSICOLOGO: [], SOCIAL: [] });
+  const [coauthorRole, setCoauthorRole] = useState<'PSICOLOGO' | 'SOCIAL'>(user?.role === 'PSICOLOGO' ? 'SOCIAL' : 'PSICOLOGO');
+  const [coauthorId, setCoauthorId] = useState('');
+
+  useEffect(() => {
+    if (user?.role === 'SECRETARIA') return;
+    // El backend expone /users/professionals/list?role= (Fase 2 usa el mismo endpoint en el caso).
+    Promise.allSettled([
+      fetchApi('/users/professionals/list?role=PSICOLOGO').catch(() => []),
+      fetchApi('/users/professionals/list?role=SOCIAL').catch(() => []),
+    ]).then(([psico, social]) => {
+      setProfessionalsByRole({
+        PSICOLOGO: (psico as any).status === 'fulfilled' ? ((psico as any).value ?? []) : [],
+        SOCIAL: (social as any).status === 'fulfilled' ? ((social as any).value ?? []) : [],
+      });
+    });
+  }, [user?.role]);
+
+  /** Rol complementario al autor para el informe psicosocial. */
+  const complementaryRoleFor = (authorRole?: string): 'PSICOLOGO' | 'SOCIAL' | null => {
+    if (authorRole === 'PSICOLOGO') return 'SOCIAL';
+    if (authorRole === 'SOCIAL') return 'PSICOLOGO';
+    return null;
+  };
+
   // Pre-Emission & Print Preview Modal state
   const [previewReport, setPreviewReport] = useState<any | null>(null);
   const [isEmitting, setIsEmitting] = useState(false);
@@ -118,6 +252,17 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
             content,
             riskAssessment: selectedCategory === 'INFORME_PSICOLOGICO' ? riskAssessment : undefined,
           }),
+        }).then(async (created: any) => {
+          // INFORME_PSICOSOCIAL: asignar el coautor de la disciplina complementaria
+          // (PATCH /reports/:id/coauthor — Fase 2). Si falla, el borrador se creó igual
+          // y el profesional puede asignarlo desde el listado.
+          if (created?.id && selectedCategory === 'INFORME_PSICOSOCIAL' && coauthorId) {
+            await fetchApi(`/reports/${created.id}/coauthor`, {
+              method: 'PATCH',
+              body: JSON.stringify({ coAuthorId: coauthorId }),
+            }).catch(() => undefined);
+          }
+          return created;
         });
         toast.success('Borrador de informe guardado correctamente');
       }
@@ -223,6 +368,25 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                 <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, fontSize: '0.875rem', color: 'var(--grafito)' }}>
                   {rep.content}
                 </div>
+
+                {rep.disciplineReportType?.category === 'INFORME_PSICOSOCIAL' && (
+                  rep.status === 'BORRADOR' ? (
+                    <CoAuthorSelector
+                      reportId={rep.id}
+                      authorId={rep.author?.id}
+                      authorRole={rep.author?.role}
+                      currentCoAuthor={rep.coAuthor}
+                      professionalsByRole={professionalsByRole}
+                      onChanged={onReportUpdated}
+                    />
+                  ) : (
+                    rep.coAuthor && (
+                      <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem' }}>
+                        <strong>🔗 Coautor:</strong> {rep.coAuthor.firstName} {rep.coAuthor.lastName} ({rep.coAuthor.role})
+                      </div>
+                    )
+                  )
+                )}
 
                 <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {rep.status === 'BORRADOR' && rep.authorId === user?.id && (
@@ -496,6 +660,44 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   <option value="MEDIO">Riesgo Medio (Requiere Seguimiento)</option>
                   <option value="ALTO">Riesgo Alto (Protección Inmediata)</option>
                 </select>
+              </div>
+            )}
+
+            {selectedCategory === 'INFORME_PSICOSOCIAL' && !complementaryParentId && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+                  Coautor del Informe Psicosocial (obligatorio para emitir)
+                </label>
+                {complementaryRoleFor(user?.role) === null && (
+                  <select
+                    value={coauthorRole}
+                    onChange={(e: any) => {
+                      setCoauthorRole(e.target.value);
+                      setCoauthorId('');
+                    }}
+                    style={{ ...inputStyle, marginBottom: '0.5rem' }}
+                  >
+                    <option value="PSICOLOGO">🧠 Psicólogo/a</option>
+                    <option value="SOCIAL">👥 Trabajador/a Social</option>
+                  </select>
+                )}
+                <select
+                  value={coauthorId}
+                  onChange={(e) => setCoauthorId(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">-- Seleccionar profesional coautor --</option>
+                  {professionalsByRole[coauthorRole]
+                    .filter((u: any) => u.id !== user?.id)
+                    .map((u: any) => (
+                      <option key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName} — {u.email} {u.office?.name ? `(${u.office.name})` : ''}
+                      </option>
+                    ))}
+                </select>
+                <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                  El informe psicosocial requiere un equipo PSICOLOGO + SOCIAL (autor y coautor).
+                </p>
               </div>
             )}
 
