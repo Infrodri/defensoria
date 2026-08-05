@@ -80,13 +80,14 @@ enum ActionType {
   OTRO
 }
 
-enum ReportType {
+enum ReportCategory {
   INFORME_SOCIAL
   INFORME_PSICOLOGICO
   INFORME_PSICOSOCIAL
   INFORME_JURIDICO
   INFORME_SESION_SEGUIMIENTO
   INFORME_FINAL_CONCILIACION
+  INFORME_COMPLEMENTARIO // NUEVO
 }
 
 enum ReportStatus {
@@ -217,6 +218,7 @@ model User {
   performedPathChanges   InterventionPathHistory[] @relation("PathChangedBy")
   authoredActions        ActionLog[]               @relation("ActionAuthor")
   authoredReports        Report[]                  @relation("ReportAuthor")
+  coAuthoredReports      Report[]                  @relation("ReportCoAuthor")
   uploadedEvidences      Evidence[]                @relation("EvidenceUploader")
   inspectionEvidenceUploaded InspectionEvidenceFile[] @relation("InspectionEvidenceUploader")
   createdAppointments    Appointment[]             @relation("CreatedAppointments")
@@ -494,7 +496,6 @@ model Report {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   caseId         String       @db.Uuid
   authorId       String       @db.Uuid
-  reportType     ReportType
   version        Int          @default(1)
   parentReportId String?      @db.Uuid
   title          String
@@ -510,8 +511,11 @@ model Report {
   parentReport Report?  @relation("ComplementaryReports", fields: [parentReportId], references: [id])
   children     Report[] @relation("ComplementaryReports")
 
-  disciplineReportTypeId String?               @db.Uuid
-  disciplineReportType   DisciplineReportType? @relation(fields: [disciplineReportTypeId], references: [id])
+  disciplineReportTypeId String               @db.Uuid
+  disciplineReportType   DisciplineReportType @relation(fields: [disciplineReportTypeId], references: [id])
+
+  coAuthorId String? @db.Uuid
+  coAuthor   User?   @relation("ReportCoAuthor", fields: [coAuthorId], references: [id])
 
   authorRoleSnapshot       Role?
   authorDisciplineSnapshot String?
@@ -780,6 +784,7 @@ model DisciplineReportType {
   disciplineId String   @db.Uuid
   code         String   @unique
   name         String
+  category     ReportCategory
   description  String?
   template     Json?
   isActive     Boolean  @default(true)
