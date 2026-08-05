@@ -10,7 +10,7 @@
 ```bash
 cd c:\dev\defensoria\apps\api
 npm run start:dev
-# Esperado: Server running on http://localhost:4000
+# Esperado: Server running on http://localhost:4100
 ```
 
 ### Terminal 2 - Frontend
@@ -27,7 +27,7 @@ npm run dev
 
 ### Abre navegador
 ```
-URL: http://localhost:3100/(auth)/login
+URL: http://localhost:3100/(auth)/ingreso
 ```
 
 ### Ingresa credenciales
@@ -49,7 +49,6 @@ Password: Password123!
 ```
 📋 DNA SUCRE
 ├─ ⊠ Panel General
-├─ 📅 Agenda y Citas
 ├─ 📄 Mis Casos Asignados
 ├─ ⚖️ Herramientas Legales          ← AQUÍ (NUEVO)
 ├─ 🛡️ Inspecciones
@@ -125,7 +124,6 @@ Menú mostrará: 👥 Herramientas Sociales
 ### Menú del ABOGADO
 ```
 ⊠ Panel General
-📅 Agenda y Citas
 📄 Mis Casos Asignados
 ⚖️ Herramientas Legales     ← Acceso TOTAL
 🛡️ Inspecciones
@@ -135,7 +133,6 @@ Menú mostrará: 👥 Herramientas Sociales
 ### Menú del PSICÓLOGO
 ```
 ⊠ Panel General
-📅 Agenda y Citas
 📄 Mis Casos Asignados
 🧠 Herramientas Psicológicas ← Acceso TOTAL
 📊 Indicadores de Riesgo
@@ -145,7 +142,6 @@ Menú mostrará: 👥 Herramientas Sociales
 ### Menú del TRABAJADOR SOCIAL
 ```
 ⊠ Panel General
-📅 Agenda y Citas
 📄 Mis Casos Asignados
 👥 Herramientas Sociales    ← Acceso TOTAL
 👤 Directorio Derivación
