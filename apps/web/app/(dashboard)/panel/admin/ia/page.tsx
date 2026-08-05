@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { AccesoRestringido } from '@/components/common/acceso-restringido';
-import { BrainCircuit, Save, RefreshCw, Cpu, Volume2, Shield } from 'lucide-react';
+import { BrainCircuit, Save, RefreshCw, Cpu, Volume2, Image as ImageIcon, Shield } from 'lucide-react';
 export default function AiConfigPage() {
   const { user } = useAuth();
   if (user?.role !== 'ADMINISTRADOR') {
@@ -16,6 +16,9 @@ export default function AiConfigPage() {
   const [llmModel, setLlmModel] = useState('qwen2.5:7b');
   const [embedModel, setEmbedModel] = useState('nomic-embed-text');
   const [whisperEndpoint, setWhisperEndpoint] = useState('http://localhost:8000/v1/audio/transcriptions');
+  const [whisperModel, setWhisperModel] = useState('whisper-1');
+  const [ocrEndpoint, setOcrEndpoint] = useState('http://localhost:8000/v1/vision');
+  const [ocrModel, setOcrModel] = useState('qwen2.5-vl:7b');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -36,9 +39,12 @@ export default function AiConfigPage() {
   const loadSettings = async () => {
     try {
       const settings = await fetchApi<Record<string, string>>('/ai-config');
-      if (settings.LLM_MODEL) setLlmModel(settings.LLM_MODEL);
-      if (settings.EMBEDDING_MODEL) setEmbedModel(settings.EMBEDDING_MODEL);
-      if (settings.WHISPER_ENDPOINT) setWhisperEndpoint(settings.WHISPER_ENDPOINT);
+      if (settings.textModel) setLlmModel(settings.textModel);
+      if (settings.embeddingModel) setEmbedModel(settings.embeddingModel);
+      if (settings.whisperEndpoint) setWhisperEndpoint(settings.whisperEndpoint);
+      if (settings.whisperModel) setWhisperModel(settings.whisperModel);
+      if (settings.ocrEndpoint) setOcrEndpoint(settings.ocrEndpoint);
+      if (settings.ocrModel) setOcrModel(settings.ocrModel);
     } catch {
       // Use defaults if settings table not seeded yet
     }
@@ -58,9 +64,12 @@ export default function AiConfigPage() {
       await fetchApi('/ai-config', {
         method: 'PUT',
         body: JSON.stringify({
-          LLM_MODEL: llmModel,
-          EMBEDDING_MODEL: embedModel,
-          WHISPER_ENDPOINT: whisperEndpoint,
+          textModel: llmModel,
+          embeddingModel: embedModel,
+          whisperEndpoint: whisperEndpoint,
+          whisperModel: whisperModel,
+          ocrEndpoint: ocrEndpoint,
+          ocrModel: ocrModel,
         }),
       });
 
@@ -200,6 +209,51 @@ export default function AiConfigPage() {
               boxSizing: 'border-box',
             }}
           />
+        </section>
+
+        {/* OCR Card */}
+        <section style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <ImageIcon size={20} color="var(--tierra-calida)" /> OCR / Visión de Documentos
+          </h2>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--grafito)', opacity: 0.8, marginBottom: '1rem' }}>
+            Endpoint del servicio de OCR local para extraer texto de documentos escaneados y archivos de evidencia.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <input
+              type="text"
+              value={ocrEndpoint}
+              onChange={(e) => setOcrEndpoint(e.target.value)}
+              placeholder="http://localhost:8000/v1/vision"
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.875rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--papel)',
+                fontSize: '0.875rem',
+                fontFamily: 'monospace',
+                boxSizing: 'border-box',
+              }}
+            />
+            <input
+              type="text"
+              value={ocrModel}
+              onChange={(e) => setOcrModel(e.target.value)}
+              placeholder="qwen2.5-vl:7b"
+              style={{
+                width: '100%',
+                padding: '0.625rem 0.875rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--papel)',
+                fontSize: '0.875rem',
+                fontFamily: 'monospace',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
         </section>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
