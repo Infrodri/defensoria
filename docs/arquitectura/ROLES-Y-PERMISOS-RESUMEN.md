@@ -1,348 +1,120 @@
 ﻿# Resumen Ejecutivo: Roles y Permisos del Sistema DNA
 
-**Objetivo**: Guía rápida para entender quién puede hacer qué en el sistema.  
+**Objetivo**: Guía rápida para entender quién puede hacer qué en el sistema.
 **Audiencia**: Agentes IA, desarrolladores, administradores.
+**Alineación**: matrices verificadas contra los `@Roles` reales de los controllers (`apps/api/src/modules/*/*.controller.ts`) y el sidebar real (`apps/web/components/layout/sidebar.tsx`).
 
 ---
 
 ## 🔐 Los 7 Roles del Sistema
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ ADMINISTRADOR (Nivel 1: Control Total)                  │
-├─────────────────────────────────────────────────────────┤
-│ • Ver TODOS los expedientes (sin filtro)                │
-│ • Gestionar usuarios y permisos                         │
-│ • Configurar IA local (Ollama, Whisper)                │
-│ • Administrar base de conocimiento (RAG)                │
-│ • Administrar catálogos, disciplinas, instrumentos      │
-│ • Realizar transferencias masivas de casos              │
-│ • Ver auditoría sin filtro                             │
-└─────────────────────────────────────────────────────────┘
+| Rol | Acceso a expedientes | Alcance general |
+|-----|----------------------|-----------------|
+| **ADMINISTRADOR** | Todos los casos, sin filtro | Control total: usuarios, IA, conocimiento, catálogos, auditoría |
+| **JEFATURA** | Casos de su oficina (`currentOfficeId = officeId`) | Supervisión: asignar profesionales, informes, auditoría de oficina, herramientas |
+| **SECRETARIA** | Casos de su oficina | Administrativa: inicio de caso, inspecciones, agenda, expedientes |
+| **ABOGADO** | Solo casos asignados activamente | Informes jurídicos, herramientas legales, copiloto IA |
+| **PSICOLOGO** | Solo casos asignados activamente | Informes psicológicos, herramientas psicológicas, copiloto IA |
+| **SOCIAL** | Solo casos asignados activamente | Informes sociales, herramientas sociales, copiloto IA |
+| **REFERENTE_TUTOR** | Solo el expediente de su pupilo (vía portal `/portal`, PIN + caseCode) | Lectura: estado del caso, citas y documentos |
 
-┌─────────────────────────────────────────────────────────┐
-│ JEFATURA (Nivel 2: Supervisión de Oficina)              │
-├─────────────────────────────────────────────────────────┤
-│ • Ver expedientes de su oficina únicamente              │
-│ • Asignar/reasignar profesionales a casos              │
-│ • Crear expedientes                                     │
-│ • Ver auditoría de su oficina únicamente                │
-│ • Lectura: Base de conocimiento, disciplinas            │
-│ • NO puede: Configurar IA, editar catálogos, etc.     │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│ SECRETARIA (Nivel 3: Administrativa)                    │
-├─────────────────────────────────────────────────────────┤
-│ • Ver expedientes de su oficina                         │
-│ • Crear expedientes nuevos                              │
-│ • Gestionar agenda y citas                              │
-│ • Crear inspecciones                                    │
-│ • NO acceso a: Admin panels, copiloto IA               │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│ ABOGADO (Nivel 4: Profesional Jurídico)                 │
-├─────────────────────────────────────────────────────────┤
-│ • Ver SOLO casos donde esté asignado activamente        │
-│ • Crear/emitir informes jurídicos                       │
-│ • Registrar pruebas y evidencias                        │
-│ • Usar Copiloto IA: Redacción de escritos legales      │
-│ • Gestionar citas de sus casos                          │
-│ • NO puede: Ver casos de otros, admin panels           │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│ PSICOLOGO (Nivel 4: Profesional Psicológico)            │
-├─────────────────────────────────────────────────────────┤
-│ • Ver SOLO casos donde esté asignado activamente        │
-│ • Crear/emitir informes psicológicos                    │
-│ • Registrar pruebas y evidencias                        │
-│ • Usar Copiloto IA: Redacción de informes psicológicos │
-│ • Evaluar indicadores de riesgo                         │
-│ • NO puede: Ver casos de otros, admin panels           │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│ SOCIAL (Nivel 4: Profesional Social)                    │
-├─────────────────────────────────────────────────────────┤
-│ • Ver SOLO casos donde esté asignado activamente        │
-│ • Crear/emitir informes sociales                        │
-│ • Registrar pruebas y evidencias                        │
-│ • Usar Copiloto IA: Redacción de informes sociales     │
-│ • Gestionar directorio de derivación                    │
-│ • NO puede: Ver casos de otros, admin panels           │
-└─────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────┐
-│ REFERENTE_TUTOR (Nivel 5: Portal Solo Lectura)          │
-├─────────────────────────────────────────────────────────┤
-│ • Ver SOLO el expediente de su pupilo (caseCode match)  │
-│ • Acceso vía portal separado (/portal, no dashboard)    │
-│ • Lectura únicamente (sin crear, editar, eliminar)      │
-│ • Ver citas y documentos del caso                       │
-│ • Autenticación: PIN + caseCode (no email+password)    │
-└─────────────────────────────────────────────────────────┘
-```
+> "Asignado activamente" = `caseTeamHistory.endDate = null`.
 
 ---
 
-## 📊 Matriz de Acceso a Expedientes
+## 📊 Matriz de Módulos (backend `@Roles` reales)
 
-**Reglas implementadas en `CaseAccessService`**:
+| Módulo | ADMIN | JEFATURA | SECRETARIA | ABOGADO | PSICOLOGO | SOCIAL | REFERENTE |
+|--------|-------|----------|-----------|---------|-----------|--------|-----------|
+| **USERS** (funcionarios) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **CASES** (expedientes) | ✅ | ✅ | ✅ | ✅* | ✅* | ✅* | 🔒 solo su caso |
+| **REPORTS** (informes) | ✅ | ✅ | ⚠️ | ✅* | ✅* | ✅* | ❌ |
+| **APPOINTMENTS** (citas) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🔒 (portal) |
+| **EVIDENCES** (pruebas) | ✅ | ✅ | ✅ | ✅* | ✅* | ✅* | ❌ |
+| **INSPECTIONS** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **KNOWLEDGE** — base de conocimiento | ✅ | ✅ (lectura) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **KNOWLEDGE** — ops IA (transcribe, analyze-image, queue, search) | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| **AI-CONFIG** (Ollama/Whisper/visión) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **AUDIT** (auditoría) | ✅ (sin filtro) | ✅ (su oficina) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **DISCIPLINES** — escritura | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **DISCIPLINES** — lectura | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (autenticado) |
 
-| Rol | Puede ver | Filtro |
-|-----|-----------|--------|
-| **ADMINISTRADOR** | Todos los casos | SIN FILTRO (todos) |
-| **JEFATURA** | Casos de su oficina | WHERE `currentOfficeId = user.officeId` |
-| **SECRETARIA** | Casos de su oficina | WHERE `currentOfficeId = user.officeId` |
-| **ABOGADO** | Solo casos asignados | WHERE `caseTeamHistory.userId = user.id AND endDate = null` |
-| **PSICOLOGO** | Solo casos asignados | WHERE `caseTeamHistory.userId = user.id AND endDate = null` |
-| **SOCIAL** | Solo casos asignados | WHERE `caseTeamHistory.userId = user.id AND endDate = null` |
-| **REFERENTE_TUTOR** | Solo su expediente | WHERE `caseCode = user.caseCode AND isPortal = true` |
+**Notas sobre la matriz**:
+- **USERS**: CRUD completo (listar, detalle, crear, actualizar, reset de contraseña) = ADMINISTRADOR + JEFATURA en todos los endpoints (`users.controller.ts`). `GET /users/professionals/list` (para asignación) está abierto a todo rol autenticado.
+- **REPORTS**: `reports.controller.ts` NO tiene `@Roles` en create/emit/complementary/historial/borrador — cualquier rol con acceso al caso crea y emite informes. Excepción: `GET /reports/filtrar` (búsqueda de expedientes por CI/nombre) = ADMIN + JEFATURA. SECRETARIA ve solo metadata de informes.
+- **EVIDENCES**: sin `@Roles`; acceso por caso (`CaseAccessGuard` en lectura). Upload valida token JWT y existencia del caso. Las evidencias son **inmutables**: `DELETE/PATCH/PUT` responden 405 (cadena de custodia).
+- **KNOWLEDGE**: lectura de la base de conocimiento (`GET /knowledge/documents` y chunks) = solo ADMIN + JEFATURA. Escritura (ingest/upload/eliminar) = ADMIN. Las operaciones de IA (transcribir, analizar imagen, encolar caso, buscar transcripciones) están abiertas a los 3 roles profesionales + ADMIN + JEFATURA.
+- **COPILOTO IA** (`/ai/*`): intención frontend = ABOGADO, PSICOLOGO, SOCIAL; **el backend solo aplica JwtAuthGuard** (sin `@Roles`) — cualquier rol autenticado podría invocarlo. Follow-up de seguridad separado.
 
-**Nota**: "Asignado activamente" = `caseTeamHistory.endDate = null` (no cerrado)
-
----
-
-## 🔄 Flujos de Transferencia de Expedientes
-
-### 1. Reasignación Individual
-```
-JEFATURA/SECRETARIA/ADMIN ejecuta:
-  POST /cases/{caseId}/assign
-  {
-    "userId": "uuid-new-professional",
-    "role": "ABOGADO",
-    "reason": "Cambio de equipo"
-  }
-
-Backend:
-  ✓ Cierra asignación anterior (endDate = NOW)
-  ✓ Abre asignación nueva (startDate = NOW)
-  ✓ Registra en caseTeamHistory (historial inmutable)
-  ✓ Registra en audit_log
-
-Resultado: El profesional nuevo ve el caso en su lista
-           El profesional anterior ya NO lo ve
-```
-
-### 2. Transferencia Masiva
-```
-ADMIN ÚNICAMENTE ejecuta:
-  POST /cases/admin/mass-transfer
-  {
-    "fromUserId": "uuid-professional-old",
-    "toUserId": "uuid-professional-new",
-    "reason": "Jubilación del profesional"
-  }
-
-Backend:
-  ✓ Busca TODOS los casos donde fromUserId tiene endDate = null
-  ✓ Para cada caso:
-    - Cierra asignación antigua
-    - Abre asignación nueva
-    - Registra en historial
-  ✓ Retorna reporte con cantidad y detalles
-
-Resultado: Todos los casos transferidos en transacción atómica
-```
-
-### 3. Transferencia de Oficina
-```
-Cuando un expediente se mueve a otra jurisdicción:
-
-  POST /cases/{caseId}/transfer-office
-  {
-    "targetOfficeId": "uuid-new-office",
-    "reason": "Derivación legal a distrito X"
-  }
-
-Backend:
-  ✓ Actualiza case.currentOfficeId = targetOfficeId
-  ✓ Registra en caseOfficeHistory (historial de movimientos)
-  ✓ Aplica RLS (Row Level Security)
-
-Resultado: JEFATURA de nueva oficina ahora ve el caso
-           JEFATURA de oficina anterior ya NO lo ve
-```
+*✅ = acceso según `@Roles` / guard; ⚠️ = limitado (solo metadata); 🔒 = acceso restringido por caso/portal; \* = solo si está asignado activamente al caso.*
 
 ---
 
-## 🛡️ Protecciones Implementadas
-
-### Nivel 1: Guards en Controladores
-```typescript
-@Roles(Role.ADMINISTRADOR, Role.JEFATURA)
-// Solo estos roles pueden llamar este endpoint
-// Si rol no está en lista → 403 Forbidden
-```
-
-### Nivel 2: Verificación de Acceso a Caso
-```typescript
-// ANTES de retornar dato del caso:
-await caseAccessService.assertUserHasAccess(caseId, user);
-// Si acceso denegado → 403 Forbidden
-```
-
-### Nivel 3: Auditoría Append-Only
-```
-Cada acción se registra automáticamente:
-- Quién (userId)
-- Qué (acción: create, update, delete, read)
-- Cuándo (timestamp)
-- Dónde (caseId, officeId)
-- Resultado (success/error)
-
-Tabla: audit_log (SOLO INSERT, nunca UPDATE/DELETE)
-```
-
-### Nivel 4: RLS (Row Level Security)
-```sql
--- PostgreSQL nivel
-SELECT * FROM case
-WHERE CURRENT_USER_ID = ANY(allowed_office_ids)
-```
-
----
-
-## 📋 Módulos y Sus Permisos
-
-| Módulo | ADMIN | JEFE | SECRETARIA | ABOGADO | PSICOLOGO | SOCIAL |
-|--------|-------|------|-----------|---------|-----------|--------|
-| **USERS** (gestionar funcionarios) | ✅ | ⚠️ (lectura) | ❌ | ❌ | ❌ | ❌ |
-| **CASES** (ver/crear expedientes) | ✅ | ✅ | ✅ | ✅* | ✅* | ✅* |
-| **REPORTS** (crear informes) | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **APPOINTMENTS** (citas) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **EVIDENCES** (pruebas) | ❌ | ❌ | ❌ | ✅* | ✅* | ✅* |
-| **INSPECTIONS** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **KNOWLEDGE** (RAG) | ✅ (crear) | ⚠️ (lectura) | ❌ | ⚠️ (lectura) | ⚠️ (lectura) | ⚠️ (lectura) |
-| **AI-CONFIG** (Ollama) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **COPILOTO IA** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **AUDIT** | ✅ (sin filtro) | ✅ (su oficina) | ❌ | ❌ | ❌ | ❌ |
-| **DISCIPLINES** | ⚠️ (lectura) | ⚠️ (lectura) | ⚠️ (lectura) | ⚠️ (lectura) | ⚠️ (lectura) | ⚠️ (lectura) |
-
-**Leyenda**:
-- ✅ = Acceso total (CRUD)
-- ⚠️ = Acceso limitado (lectura o filtrado)
-- ❌ = Sin acceso
-- \* = Solo si está asignado activamente al caso
-
----
-
-## 🧭 Sidebar por Rol
+## 🧭 Sidebar por Rol (counts reales de `sidebar.tsx`)
 
 ```
-ADMINISTRADOR (15 ítems en 3 secciones):
-├─ Operación:
-│  ├─ Panel General
-│  ├─ Agenda y Citas
-│  ├─ Expedientes
-│  ├─ Inicio de caso
-│  ├─ Inspecciones
-│  ├─ Reportes GAM
-│  └─ Balanceo de Equipo
-├─ Gestión Institucional:
-│  ├─ Personal & Permisos
-│  ├─ Oficinas y Distritos
-│  └─ Auditoría Total
-└─ Sistema:
-   ├─ Configuración IA
-   ├─ Base de Conocimiento
-   ├─ Disciplinas
-   ├─ Catálogos
-   └─ Mantenimiento
+ADMINISTRADOR (20 ítems / 4 grupos):
+├─ Operación (7): Panel General · Agenda y Citas · Expedientes · Inicio de caso ·
+│                 Inspecciones · Reportes · Balanceo de Equipo
+├─ Gestión Institucional (4): Personal & Permisos · Oficinas y Distritos ·
+│                              Auditoría Total · Reportes
+├─ Sistema (8): Herramientas · Verificar Herramientas · Configuración IA ·
+│               Base de Conocimiento · Disciplinas · Catálogos ·
+│               Usuarios del Sistema · Mantenimiento
+└─ IA (1): Procesos IA
 
-JEFATURA (8 ítems):
-├─ Panel General
-├─ Agenda y Citas
-├─ Expedientes
-├─ Inicio de caso
-├─ Inspecciones
-├─ Reportes GAM
-├─ Balanceo de Equipo
-└─ Auditoría
+JEFATURA (9 ítems):
+  Panel General · Agenda y Citas · Expedientes · Inicio de caso · Inspecciones ·
+  Reportes · Balanceo de Equipo · Herramientas · Auditoría
 
 SECRETARIA (5 ítems):
-├─ Panel General
-├─ Agenda y Citas
-├─ Inicio de caso
-├─ Inspecciones
-└─ Expedientes
+  Panel General · Agenda y Citas · Inicio de caso · Inspecciones · Expedientes
 
 ABOGADO (5 ítems):
-├─ Panel General
-├─ Agenda y Citas
-├─ Mis Casos Asignados
-├─ Inspecciones
-└─ Copiloto IA
+  Panel General · Mis Casos Asignados · Herramientas Legales · Inspecciones · Copiloto IA
 
 PSICOLOGO (5 ítems):
-├─ Panel General
-├─ Agenda y Citas
-├─ Mis Casos Asignados
-├─ Indicadores de Riesgo
-└─ Copiloto IA
+  Panel General · Mis Casos Asignados · Herramientas Psicológicas ·
+  Indicadores de Riesgo · Copiloto IA
 
 SOCIAL (5 ítems):
-├─ Panel General
-├─ Agenda y Citas
-├─ Mis Casos Asignados
-├─ Directorio Derivación
-└─ Copiloto IA
+  Panel General · Mis Casos Asignados · Herramientas Sociales ·
+  Directorio Derivación · Copiloto IA
 
 REFERENTE_TUTOR (3 ítems):
-├─ Estado del Caso
-├─ Mis Citas
-└─ Portal del Tutor
+  Estado del Caso · Mis Citas · Portal del Tutor
 ```
+
+**Nota**: los profesionales (ABOGADO/PSICOLOGO/SOCIAL) **no tienen** "Agenda y Citas" en el sidebar (5 ítems). JEFATURA **incluye** "Herramientas" (9 ítems). El sidebar de ADMINISTRADOR tiene 20 ítems en 4 grupos.
 
 ---
 
-## 🚀 Cómo Sincronizar Frontend con Backend
+## ⚠️ Desalineación conocida: frontend vs backend (herramientas)
 
-### ❌ NO HACER (Hardcoding)
-```typescript
-const ALLOWED_ROLES = ['ADMINISTRADOR', 'JEFATURA'];
-if (!ALLOWED_ROLES.includes(user?.role)) { ... }
-```
+`apps/web/lib/role-access.ts` habilita en la UI acciones que el backend rechaza con 403:
 
-### ✅ HACER (Dinámico del Backend)
-```typescript
-// El role viene del JWT (backend validó)
-if (user?.role !== 'ADMINISTRADOR') {
-  return <AccesoRestringido />;
-}
-```
+- **JEFATURA**: write en herramientas de disciplina (legal/psicológicas/sociales) → backend `@Roles` solo admite la disciplina + ADMINISTRADOR → **403**.
+- **Profesionales**: write en transversales (Línea de Tiempo, Reporte Anonimizado) → backend solo admite JEFATURA + ADMINISTRADOR → **403**.
 
-**Razón**: Si cambias @Roles en backend, frontend automáticamente lo respeta (sin redeploy).
+Detalle completo en `docs/arquitectura/PERMISOS-ROLES-HERRAMIENTAS.md`. Resolución: **bugfix de autorización front/back (follow-up separado)**.
 
 ---
 
 ## 📞 Referencia Rápida
 
 **Archivo | Contiene**
-- `packages/shared/src/index.ts` → Enums Role, CaseType, Phase, etc.
-- `apps/api/src/modules/*/[module].controller.ts` → @Roles en cada endpoint
-- `apps/api/src/common/case-access/case-access.service.ts` → Lógica de acceso
-- `apps/web/components/layout/sidebar.tsx` → Menú por rol
-- `apps/web/lib/auth-context.tsx` → Hook useAuth() (user.role)
-- `docs/agentes-ia/INSTRUCCIONES-AGENTES.md` → Guía detallada completa
+- `packages/shared/src/index.ts` → Enums Role, CaseType, Phase, Priority
+- `apps/api/src/modules/*/[module].controller.ts` → `@Roles` en cada endpoint
+- `apps/api/src/common/case-access/case-access.service.ts` → Lógica de acceso a expedientes
+- `apps/web/components/layout/sidebar.tsx` → Menú por rol (counts reales)
+- `apps/web/lib/role-access.ts` → Permisos de herramientas (frontend)
 
 **Comandos**:
 ```bash
-# Ver roles
-grep "enum Role" packages/shared/src/index.ts -A 10
-
 # Ver permisos de un módulo
 grep "@Roles" apps/api/src/modules/MODULO/*.controller.ts
-
-# Ver guards en frontend
-grep -r "AccesoRestringido" apps/web/app --include="*.tsx"
 ```
 
 ---
 
-**Última actualización**: 2026-08-01  
-**Próximo nivel**: Lee `docs/agentes-ia/INSTRUCCIONES-AGENTES.md` para detalles técnicos
-
+**Última actualización**: 2026-08-04
