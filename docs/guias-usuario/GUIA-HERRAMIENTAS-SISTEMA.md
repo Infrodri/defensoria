@@ -45,7 +45,8 @@ Las herramientas del sistema se dividen en 3 categorías de ejecución:
 
 ### 1.3. Vencimientos y Plazos Procesales (Deadlines Tracker)
 - **Tipo**: ⚙️ **Determinística (TypeScript Puro - Sin IA)**.
-- **Para qué es**: Calcula con precisión matemática los plazos legales imperativos establecidos por la Ley 548 y Ley 1168 (ej. 24 horas para comunicar acogimiento circunstancial, 10 días para informe pericial), generando alertas automáticas en la agenda institucional.
+- **Para qué es**: Calcula con precisión matemática los plazos legales establecidos por la Ley 548 y Ley 1168 (ej. 24 horas para comunicar acogimiento circunstancial, 10 días para informe pericial), generando alertas automáticas en la agenda institucional.
+- **Nota**: Los valores de plazo configurados (`DEADLINE_RULES`) están pendientes de validación legal por un abogado; la herramienta calcula con los valores cargados, no con una interpretación jurídica definitiva.
 - **Cómo se usa**:
   1. Se activa automáticamente al registrar un Acogimiento Circunstancial o una Medida de Protección.
   2. El abogado también puede ingresar manualmente la fecha/hora de notificación para recalcular la fecha límite.
@@ -98,7 +99,7 @@ Las herramientas del sistema se dividen en 3 categorías de ejecución:
 
 ---
 
-### 2.4. Análisis de Evolución y Afectación (Trauma Analysis)
+### 2.4. Análisis de Trauma (Trauma Analysis)
 - **Tipo**: IA Generativa + RAG Longitudinal.
 - **Para qué es**: Compara la evolución del estado psicológico del NNA a través del tiempo, comparando la primera sesión de ingesta con las sesiones de seguimiento posteriores.
 - **Cómo se usa**:
@@ -124,7 +125,7 @@ Las herramientas del sistema se dividen en 3 categorías de ejecución:
 
 ---
 
-### 3.2. Evaluación de Vulnerabilidad (Vulnerability Assessment)
+### 3.2. Evaluación Vulnerabilidad (Vulnerability Assessment)
 - **Tipo**: ⚙️ **Determinística (TypeScript Puro - Sin IA)**.
 - **Para qué es**: Evalúa de manera matemática y objetiva las condiciones socioeconómicas, de vivienda y de acceso a derechos, calculando un índice de vulnerabilidad estandarizado.
 - **Cómo se usa**:
@@ -180,7 +181,7 @@ Las herramientas del sistema se dividen en 3 categorías de ejecución:
   - **Fotografías / Imágenes**: Procesadas con **Ollama Vision** (modelo de visión configurable desde el panel de administración; valor por defecto `gemma4-tasks:latest`, no un modelo fijo) en 2 pasos:
     1. *OCR / Extracción de texto*: Transcribe todo texto visible en la imagen (manuscritos, cartas, capturas de pantalla de chats de WhatsApp, certificados, letreros).
     2. *Análisis pericial visual*: Registra objetivamente el entorno, objetos y posibles marcas o indicadores de violencia.
-  - **Documentos PDF / DOCX**: Extraídos con `pdf-parse` y fragmentados en bloques indexados en `case_chunks`.
+  - **Documentos PDF**: Extraídos con `pdf-parse` y fragmentados en bloques indexados en `case_chunks`. **DOCX y otros formatos de texto**: solo se indexa la descripción cargada al subir la evidencia, no el contenido del archivo.
 
 ---
 
@@ -221,7 +222,7 @@ Las herramientas del sistema se dividen en 3 categorías de ejecución:
 - **Para qué es**: Procesa las fotografías e imágenes subidas como evidencia en dos pasos: OCR/extracción de texto visible (manuscritos, capturas de WhatsApp, certificados) y análisis pericial visual del entorno. El modelo de visión es **configurable** desde la Configuración de IA (valor por defecto `gemma4-tasks:latest`).
 
 ### 7.3. Procesos IA (`/panel/admin/ia-procesos`)
-- **Para qué es**: Panel exclusivo del **Administrador** para monitorear la cola de tareas de IA (transcripciones de audio y análisis de imágenes): estado de cada tarea (`PENDIENTE` → `PROCESANDO` → `COMPLETADA` / `ERROR`), posición en cola y estado del worker. Permite reintentar o cancelar tareas.
+- **Para qué es**: Panel exclusivo del **Administrador** para monitorear la cola de tareas de IA (transcripciones de audio y análisis de imágenes): estado de cada tarea (`PENDING` → `PROCESSING` → `COMPLETED` / `ERROR`), posición en cola y estado del worker. Permite reintentar o cancelar tareas.
 
 ### 7.4. Configuración IA (`/panel/admin/ia`)
 - **Para qué es**: Panel exclusivo del **Administrador** para configurar los modelos de IA local (Ollama/Whisper): modelo de texto, modelo de embeddings, endpoint y modelo de Whisper, y **modelo de visión** (`AI_MODEL_VISION`, valor por defecto `gemma4-tasks:latest`).
