@@ -26,7 +26,7 @@ interface Evidence {
 interface Report {
   id: string;
   title: string;
-  reportType: string;
+  disciplineReportType?: { category: string; name: string } | null;
   status: string;
   version: number;
 }

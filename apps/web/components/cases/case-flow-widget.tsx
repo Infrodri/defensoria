@@ -29,7 +29,7 @@ interface TeamMember {
 
 interface Report {
   id: string;
-  reportType: string;
+  disciplineReportType?: { category: string } | null;
   authorId: string;
   isSigned: boolean;
   createdAt: string;
@@ -105,7 +105,7 @@ export function CaseFlowWidget({
     const allowedTypes = INITIAL_REPORT_TYPES[member.role] ?? [];
     const hasReport = reports.some(
       (r) =>
-        allowedTypes.includes(r.reportType) && r.authorId === member.user.id,
+        allowedTypes.includes(r.disciplineReportType?.category ?? '') && r.authorId === member.user.id,
     );
     return { member, hasReport };
   });

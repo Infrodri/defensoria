@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye } from 'lucide-react';
@@ -15,8 +15,8 @@ interface ReportEditorProps {
 export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdated }: ReportEditorProps) {
   const { user } = useAuth();
 
-  // Tipo de informe por defecto según rol
-  const defaultReportTypeByRole: Record<string, string> = {
+  // Categoría de informe por defecto según rol (ReportCategory).
+  const defaultCategoryByRole: Record<string, string> = {
     ABOGADO:   'INFORME_JURIDICO',
     PSICOLOGO: 'INFORME_PSICOLOGICO',
     SOCIAL:    'INFORME_SOCIAL',
@@ -24,13 +24,65 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
     ADMINISTRADOR: 'INFORME_PSICOSOCIAL',
   };
 
-  const [reportType, setReportType] = useState(
-    defaultReportTypeByRole[user?.role ?? ''] || 'INFORME_JURIDICO'
+  const CATEGORY_EMOJI: Record<string, string> = {
+    INFORME_JURIDICO: '⚖️',
+    INFORME_PSICOLOGICO: '🧠',
+    INFORME_SOCIAL: '👥',
+    INFORME_PSICOSOCIAL: '🔗',
+    INFORME_SESION_SEGUIMIENTO: '📋',
+    INFORME_FINAL_CONCILIACION: '🤝',
+    INFORME_COMPLEMENTARIO: '📄',
+  };
+
+  // Categorías que el rol puede redactar (espejo de checkReportRolePermission en el backend).
+  const allowedCategoriesForRole = (role?: string): string[] => {
+    const allowed: string[] = [];
+    if (role === 'ABOGADO' || role === 'JEFATURA' || role === 'ADMINISTRADOR') allowed.push('INFORME_JURIDICO');
+    if (role === 'PSICOLOGO' || role === 'JEFATURA' || role === 'ADMINISTRADOR') allowed.push('INFORME_PSICOLOGICO');
+    if (role === 'SOCIAL' || role === 'JEFATURA' || role === 'ADMINISTRADOR') allowed.push('INFORME_SOCIAL');
+    if (role === 'JEFATURA' || role === 'ADMINISTRADOR') allowed.push('INFORME_PSICOSOCIAL');
+    return allowed;
+  };
+
+  const [selectedCategory, setSelectedCategory] = useState(
+    defaultCategoryByRole[user?.role ?? ''] || 'INFORME_JURIDICO'
   );
+  // Catálogo real de DisciplineReportType (id + category) para mapear categoría -> id.
+  const [reportTypes, setReportTypes] = useState<{ id: string; code: string; name: string; category: string }[]>([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [riskAssessment, setRiskAssessment] = useState<'BAJO' | 'MEDIO' | 'ALTO'>('MEDIO');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchApi('/disciplines')
+      .then((disciplines: any[]) => {
+        const all = (disciplines ?? []).flatMap((d) =>
+          (d.reportTypes ?? []).map((rt: any) => ({
+            id: rt.id,
+            code: rt.code,
+            name: rt.name,
+            category: rt.category,
+          })),
+        );
+        setReportTypes(all);
+      })
+      .catch(() => {
+        // Sin catálogo no se puede mapear categoría -> id; el form lo indicará.
+      });
+  }, []);
+
+  const availableOptions = useMemo(() => {
+    const allowed = new Set(allowedCategoriesForRole(user?.role));
+    return reportTypes.filter((rt) => allowed.has(rt.category));
+  }, [reportTypes, user?.role]);
+
+  // Si la categoría por defecto no está disponible en el catálogo del rol, usar la primera.
+  useEffect(() => {
+    if (availableOptions.length > 0 && !availableOptions.some((rt) => rt.category === selectedCategory)) {
+      setSelectedCategory(availableOptions[0].category);
+    }
+  }, [availableOptions, selectedCategory]);
 
   // Complementary report modal
   const [complementaryParentId, setComplementaryParentId] = useState<string | null>(null);
@@ -52,14 +104,19 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
         });
         toast.success('Informe complementario redactado en borrador');
       } else {
+        const selected = reportTypes.find((rt) => rt.category === selectedCategory);
+        if (!selected) {
+          toast.error('No hay un tipo de informe configurado para esta categoría en el catálogo');
+          return;
+        }
         await fetchApi('/reports', {
           method: 'POST',
           body: JSON.stringify({
             caseId,
-            reportType,
+            disciplineReportTypeId: selected.id,
             title,
             content,
-            riskAssessment: reportType === 'INFORME_PSICOLOGICO' ? riskAssessment : undefined,
+            riskAssessment: selectedCategory === 'INFORME_PSICOLOGICO' ? riskAssessment : undefined,
           }),
         });
         toast.success('Borrador de informe guardado correctamente');
@@ -130,7 +187,7 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       {rep.parentReportId && <CornerDownRight size={16} color="var(--tierra-calida)" />}
                       <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '12px', backgroundColor: 'var(--bosque-profundo)', color: 'white', fontWeight: 700 }}>
-                        {rep.reportType} (v{rep.version})
+                        {rep.disciplineReportType?.name ?? rep.disciplineReportType?.category ?? 'Informe'} (v{rep.version})
                       </span>
                       <span
                         style={{
@@ -288,7 +345,7 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   Defensoría de la Niñez y Adolescencia (DNA)
                 </h3>
                 <div style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', marginTop: '0.5rem', color: '#111827' }}>
-                  {previewReport.reportType.replace(/_/g, ' ')} (Versión {previewReport.version})
+                  {(previewReport.disciplineReportType?.name ?? previewReport.disciplineReportType?.category ?? '').replace(/_/g, ' ')} (Versión {previewReport.version})
                 </div>
               </div>
 
@@ -411,28 +468,24 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Informe</label>
                 <select
-                  value={reportType}
-                  onChange={(e) => setReportType(e.target.value)}
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                 >
-                  {/* Mostrar solo los tipos correspondientes al rol */}
-                  {(user?.role === 'ABOGADO' || user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
-                    <option value="INFORME_JURIDICO">⚖️ Informe Jurídico (Área Legal)</option>
+                  {/* Categorías permitidas para el rol, mapeadas al catálogo de DisciplineReportType */}
+                  {availableOptions.length === 0 && (
+                    <option value="">No hay tipos de informe configurados para su área (contacte al administrador)</option>
                   )}
-                  {(user?.role === 'PSICOLOGO' || user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
-                    <option value="INFORME_PSICOLOGICO">🧠 Informe Psicológico (Área Psicología)</option>
-                  )}
-                  {(user?.role === 'SOCIAL' || user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
-                    <option value="INFORME_SOCIAL">👥 Informe Social (Trabajo Social)</option>
-                  )}
-                  {(user?.role === 'JEFATURA' || user?.role === 'ADMINISTRADOR') && (
-                    <option value="INFORME_PSICOSOCIAL">🔗 Informe Psicosocial Interdisciplinario</option>
-                  )}
+                  {availableOptions.map((rt) => (
+                    <option key={rt.id} value={rt.category}>
+                      {CATEGORY_EMOJI[rt.category] ?? '📄'} {rt.name} ({rt.code})
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
 
-            {reportType === 'INFORME_PSICOLOGICO' && !complementaryParentId && (              <div>
+            {selectedCategory === 'INFORME_PSICOLOGICO' && !complementaryParentId && (              <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Evaluación de Nivel de Riesgo del NNA</label>
                 <select
                   value={riskAssessment}
