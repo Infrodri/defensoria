@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { EvidenceRagService } from '../evidences/evidence-rag.service';
@@ -13,7 +13,6 @@ export class TranscriptionService {
   constructor(
     private prisma: PrismaService,
     private minioService: MinioService,
-    @Inject(forwardRef(() => EvidenceRagService))
     private evidenceRag: EvidenceRagService,
   ) {}
 

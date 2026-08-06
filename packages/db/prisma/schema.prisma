@@ -848,33 +848,34 @@ model DisciplineReportType {
 }
 
 model DocumentTemplate {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code         String   @unique
-  name         String
-  documentType String   @unique
-  targetRole   Role
-  requiresCoAuthor Boolean @default(false)
-  structure    Json
-  version      Int      @default(1)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code              String        @unique
+  name              String
+  documentType      String        @unique
+  targetRole        Role
+  requiresCoAuthor  Boolean       @default(false)
+  structure         Json
+  version           Int           @default(1)
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
+
+  instruments       Instrument[]
 
   @@map("document_templates")
 }
 
 model Instrument {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  disciplineId      String   @db.Uuid
-  instrumentType    String
-  name              String
-  version           Int      @default(1)
-  isActive          Boolean  @default(true)
-  structuredContent Json
-  createdAt         DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
-
-  discipline Discipline @relation(fields: [disciplineId], references: [id])
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  disciplineId          String          @db.Uuid
+  instrumentType        String
+  name                  String
+  version               Int             @default(1)
+  isActive              Boolean         @default(true)
+  structuredContent     Json
+  documentTemplateId    String?         @db.Uuid
+  documentTemplate      DocumentTemplate? @relation(fields: [documentTemplateId], references: [id])
+  discipline            Discipline      @relation(fields: [disciplineId], references: [id])
 
   @@map("instruments")
 }

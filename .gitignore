@@ -80,3 +80,7 @@ minio-data/
 docs/marco-legal/legal/
 *.pdf
 *.docx
+
+# Playwright artifacts
+apps/web/playwright-report/
+apps/web/test-results/

@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { InstrumentsService } from './instruments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -21,8 +21,15 @@ export class InstrumentsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar instrumentos' })
+  @ApiOperation({ summary: 'Listar todos los instrumentos' })
   findAll() {
     return this.instrumentsService.findAll();
+  }
+
+  @Get('by-discipline/:disciplineCode')
+  @ApiOperation({ summary: 'Listar instrumentos filtrados por disciplina' })
+  @ApiParam({ name: 'disciplineCode', description: 'Código de disciplina (TRABAJO_SOCIAL, PSICOLOGIA, DERECHO)' })
+  findByDiscipline(@Param('disciplineCode') disciplineCode: string) {
+    return this.instrumentsService.findByDiscipline(disciplineCode);
   }
 }

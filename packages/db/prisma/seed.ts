@@ -730,6 +730,261 @@ async function main() {
   }
   console.log(`✅ Seeded ${templates.length} document templates successfully!`);
 
+  // 8. Seed Instruments de Evaluación (Herramientas de campo/clínicas por disciplina)
+  console.log('🔬 Seeding instrumentos de evaluación por disciplina...');
+  
+  // Primero obtener (o crear si faltan) las disciplinas
+  const disciplineMap: Record<string, any> = {};
+  const disciplineCodes = ['TRABAJO_SOCIAL', 'PSICOLOGIA', 'DERECHO'];
+  const disciplineDefinitions: Record<string, { name: string; description: string }> = {
+    TRABAJO_SOCIAL: { name: 'Trabajo Social', description: 'Área de diagnóstico del entorno familiar y social del NNA — factores de riesgo y protección' },
+    PSICOLOGIA: { name: 'Psicología', description: 'Área de evaluación clínica, pericial y de contención emocional del NNA' },
+    DERECHO: { name: 'Derecho', description: 'Área legal — patrocinio de oficio y defensa socio-jurídica del NNA' },
+  };
+  for (const code of disciplineCodes) {
+    const def = disciplineDefinitions[code];
+    const d = await prisma.discipline.upsert({
+      where: { code },
+      update: { name: def.name, description: def.description },
+      create: { code, name: def.name, description: def.description },
+    });
+    disciplineMap[code] = d;
+  }
+
+  // Mapear plantillas a códigos para vincular
+  const templateMap: Record<string, any> = {};
+  for (const t of templates) {
+    const tmpl = await prisma.documentTemplate.findUnique({ where: { code: t.code } });
+    if (tmpl) templateMap[t.code] = tmpl;
+  }
+
+  const instruments = [
+    // TRABAJO SOCIAL
+    {
+      code: 'INST-TS-01',
+      name: 'Ficha Social SID/MID',
+      instrumentType: 'FICHA_SOCIAL_SID_MID',
+      disciplineCode: 'TRABAJO_SOCIAL',
+      templateCode: 'TS-01', // Ficha Social
+      structuredContent: {
+        description: 'Ficha de Identificación y Diagnóstico Social (SID/MID) según estándares DNA Bolivia',
+        campos: [
+          'Datos de identificación del NNA y grupo familiar',
+          'Composición familiar y dinámica relacional',
+          'Situación habitacional y socioeconómica',
+          'Red de apoyo familiar y comunitaria',
+          'Factores de riesgo y protección (Ley 548 Art. 14)',
+          'Impresión diagnóstica social preliminar'
+        ],
+        instrucciones: 'Completar en visita domiciliaria y entrevista familiar. Base para Informe Social Inicial (TS-02).'
+      }
+    },
+    {
+      code: 'INST-TS-02',
+      name: 'Ficha de Visita Domiciliaria Socioeconómica',
+      instrumentType: 'VISITA_DOMICILIARIA_SOCIOECONOMICA',
+      disciplineCode: 'TRABAJO_SOCIAL',
+      templateCode: 'TS-01', // Ficha Social
+      structuredContent: {
+        description: 'Registro sistemático de visita domiciliaria para evaluación de condiciones de vida',
+        campos: [
+          'Fecha, hora y duración de la visita',
+          'Personas presentes y su relación con el NNA',
+          'Condiciones habitacionales (servicios básicos, hacinamiento, salubridad)',
+          'Ingresos económicos y seguridad alimentaria',
+          'Red de apoyo vecinal/comunitaria',
+          'Observaciones de riesgo ambiental'
+        ],
+        instrucciones: 'Registrar in situ con georreferencia y firma de testigos. Adjuntar al informe social.'
+      }
+    },
+    {
+      code: 'INST-TS-03',
+      name: 'Genograma Familiar ESTRUCTURADO',
+      instrumentType: 'GENOGRAMA_FAMILIAR',
+      disciplineCode: 'TRABAJO_SOCIAL',
+      templateCode: 'TS-02', // Informe Social Inicial
+      structuredContent: {
+        description: 'Construcción gráfica y análisis de estructura familiar multigeneracional',
+        campos: [
+          'Mínimo 3 generaciones (abuelos, padres, NNA y hermanos)',
+          'Símbolos estandarizados: sexo, fallecimientos, separaciones',
+          'Patrones de vínculo: alianzas, coaliciones, conflictos',
+          'Indicadores de riesgo: violencia, adicciones, abandono, migración',
+          'Recursos de resiliencia: figuras de apego seguro, redes extendidas'
+        ],
+        instrucciones: 'Construir en entrevista conjunta con cuidadores. Anotar fecha y responsable. Base para diagnóstico social.'
+      }
+    },
+
+    // PSICOLOGÍA
+    {
+      code: 'INST-PSI-01',
+      name: 'Cuestionario de Perfil CASIC',
+      instrumentType: 'CUESTIONARIO_PERFIL_CASIC',
+      disciplineCode: 'PSICOLOGIA',
+      templateCode: 'PSI-02', // Informe Psicológico Inicial
+      structuredContent: {
+        description: 'Cuestionario de Autoinforme de Síntomas e Indicadores Clínicos (CASIC) adaptado Bolivia',
+        campos: [
+          'Área emocional: ansiedad, depresión, ira, miedos',
+          'Área conductual: agresividad, aislamiento, impulsividad',
+          'Área cognitiva: concentración, memoria, creencias disfuncionales',
+          'Área relacional: apego, confianza, habilidades sociales',
+          'Escala de riesgo suicida/autoagresivo (ítems críticos)',
+          'Recursos de afrontamiento y resiliencia'
+        ],
+        instrucciones: 'Aplicar en sesión individual (30-45 min). Puntuación estandarizada percentiles Bolivia. Requiere consentimiento informado.'
+      }
+    },
+    {
+      code: 'INST-PSI-02',
+      name: 'Protocolo de Entrevista NICHD',
+      instrumentType: 'ENTREVISTA_NICHD',
+      disciplineCode: 'PSICOLOGIA',
+      templateCode: 'PSI-01', // Intervención en Crisis
+      structuredContent: {
+        description: 'Entrevista forense estructurada NICHD para NNA víctimas de abuso sexual/violencia',
+        campos: [
+          'Fase 1: Rapport y reglas de la entrevista',
+          'Fase 2: Entrenamiento en reporte de detalles',
+          'Fase 3: Narrativa libre ("Cuéntame todo lo que pasó")',
+          'Fase 4: Preguntas abiertas de seguimiento (quién, qué, dónde, cuándo, cómo)',
+          'Fase 5: Cierre y verificación de comprensión',
+          'Registro de indicadores de credibilidad (consistencia, detalle sensorial, afecto congruente)'
+        ],
+        instrucciones: 'Aplicar en cámara Gesell o sala amigable. Grabada en audio/video. Solo psicólogo/a forense certificado/a NICHD.'
+      }
+    },
+    {
+      code: 'INST-PSI-03',
+      name: 'Test de Daño Emocional / Batería Psicométrica',
+      instrumentType: 'BATERIA_PSICOMETRICA_DANO_EMOCIONAL',
+      disciplineCode: 'PSICOLOGIA',
+      templateCode: 'PSI-02', // Informe Psicológico Inicial
+      structuredContent: {
+        description: 'Batería para cuantificación de daño emocional en NNA (adaptación Bolivia)',
+        campos: [
+          'Escala de Impacto Traumático (ITE-R adaptada)',
+          'Inventario de Depresión Infantil (CDI-2)',
+          'Escala de Ansiedad Manifiesta Infantil (CMAS-R)',
+          'Test de Apego (AQC / ECR-R según edad)',
+          'Evaluación de Funcionamiento Global (Escala GAF / WHODAS 2.0)',
+          'Indicadores de estrés postraumático (CPSS / UCLA PTSD RI)'
+        ],
+        instrucciones: 'Aplicar en 2-3 sesiones. Corrección y reporte con percentiles poblacionales Bolivia. Informe técnico para pericia judicial.'
+      }
+    },
+
+    // DERECHO
+    {
+      code: 'INST-LEG-01',
+      name: 'Módulo de Tipicidad y Subsunción Penal',
+      instrumentType: 'MODULO_TIPICIDAD_SUBSUNCION',
+      disciplineCode: 'DERECHO',
+      templateCode: 'LEG-01', // Dictamen de Tipicidad
+      structuredContent: {
+        description: 'Matriz estructurada para análisis de tipicidad objetiva y subjetiva (Código Penal Bolivia)',
+        campos: [
+          'Identificación del tipo penal base (Art. CP / Ley 348 / Ley 548)',
+          'Tipicidad objetiva: conducta, resultado, nexo causal, bien jurídico tutelado',
+          'Tipicidad subjetiva: dolo (directo/eventual) / culpa (consciente/inconsciente)',
+          'Autoría y participación (Art. 27-30 CP): autor, coautor, partícipe, instigador',
+          'Causas de justificación (Art. 30-34 CP): legítima defensa, estado de necesidad, cumplimiento deber',
+          'Causas de inculpabilidad (Art. 35-38 CP): inimputabilidad, error de tipo, coacción irresistible',
+          'Concurso de delitos y unidad de acción (Art. 55-59 CP)'
+        ],
+        instrucciones: 'Completar por cada tipo penal imputado. Base para Dictamen de Tipicidad (LEG-01) y Memorial (LEG-02). Citar jurisprudencia TSJ/TCP.'
+      }
+    },
+    {
+      code: 'INST-LEG-02',
+      name: 'Matriz de Análisis de Discrepancias',
+      instrumentType: 'MATRIZ_ANALISIS_DISCREPANCIAS',
+      disciplineCode: 'DERECHO',
+      templateCode: 'LEG-02', // Memorial Denuncia Penal
+      structuredContent: {
+        description: 'Herramienta para detectar inconsistencias entre declaraciones, pruebas y calificaciones jurídicas',
+        campos: [
+          'Comparativa: denuncia inicial vs. declaración ampliatoria vs. prueba pericial',
+          'Identificación de omisiones, contradicciones, evoluciones en el relato',
+          'Cotejo con evidencia física/documental (informes médicos, psicológicos, sociales)',
+          'Evaluación de credibilidad según criterios: consistencia interna, detalle sensorial, persistencia, ausencia de sugestión',
+          'Impacto en calificación jurídica y petición fiscal'
+        ],
+        instrucciones: 'Completar tras cada acto de investigación. Base para fundamentar tipicidad y petitum en Memorial (LEG-02).'
+      }
+    },
+
+    // DUPLA INTERDISCIPLINARIA
+    {
+      code: 'INST-IPS-01',
+      name: 'Matriz Dual de Valoración Técnica Psicosocial',
+      instrumentType: 'MATRIZ_DUAL_VALORACION_PSICOSOCIAL',
+      disciplineCode: 'PSICOLOGIA',
+      templateCode: 'IPS-01', // Informe Psicosocial
+      structuredContent: {
+        description: 'Instrumento unificado para valoración conjunta Psicología + Trabajo Social (Informe Psicosocial IPS-01)',
+        campos: [
+          'ÁMBITO PSICOLÓGICO (responsable: Psicólogo/a): estado emocional, indicadores trauma, apego, funcionamiento cognitivo, diagnóstico provisional CIE-11',
+          'ÁMBITO SOCIAL (responsable: T.S.): dinámica familiar, red apoyo, condiciones habitacionales, riesgo social, factores protectores comunitarios',
+          'SÍNTESIS INTEGRADA: interacción factores psicológicos-sociales, diagnóstico psicosocial compartido, nivel de riesgo integral (ALTO/MEDIO/BAJO Ley 548 Art. 14)',
+          'PRONÓSTICO CONJUNTO: factibilidad de reintegración familiar, necesidad medidas protección (Art. 50 Ley 548)',
+          'RECOMENDACIONES INTERDISCIPLINARIAS: plan de intervención psicosocial, derivaciones, criterios seguimiento, responsables y plazos'
+        ],
+        instrucciones: 'Completar EN CONJUNTO por Psicólogo/a y Trabajador/a Social. Requiere FIRMA DE AMBOS profesionales. Consenso obligatorio en diagnóstico y nivel de riesgo. Base para Informe Psicosocial (IPS-01).'
+      }
+    },
+  ];
+
+  let instrumentsCreated = 0;
+  for (const inst of instruments) {
+    const discipline = disciplineMap[inst.disciplineCode];
+    const template = templateMap[inst.templateCode];
+    
+    if (!discipline) {
+      console.warn(`⚠️ Disciplina no encontrada: ${inst.disciplineCode} para instrumento ${inst.code}`);
+      continue;
+    }
+
+    // Generar ID determinista válido UUID v4 usando namespace DNS
+    const { createHash } = await import('crypto');
+    const namespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // UUID namespace DNS
+    const idHash = createHash('sha256').update(namespace + inst.code).digest('hex');
+    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuid = [
+      idHash.slice(0, 8),
+      idHash.slice(8, 12),
+      '4' + idHash.slice(12, 15),
+      '8' + idHash.slice(15, 18),
+      idHash.slice(18, 30)
+    ].join('-');
+
+    await prisma.instrument.upsert({
+      where: { id: uuid },
+      update: {
+        name: inst.name,
+        instrumentType: inst.instrumentType,
+        disciplineId: discipline.id,
+        documentTemplateId: template?.id,
+        structuredContent: inst.structuredContent,
+        isActive: true,
+      },
+      create: {
+        id: uuid,
+        name: inst.name,
+        instrumentType: inst.instrumentType,
+        disciplineId: discipline.id,
+        documentTemplateId: template?.id,
+        structuredContent: inst.structuredContent,
+        isActive: true,
+      },
+    });
+    instrumentsCreated++;
+  }
+
+  console.log(`✅ Seeded ${instrumentsCreated} instrumentos de evaluación exitosamente!`);
+
 }
 
 main()

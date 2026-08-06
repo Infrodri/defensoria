@@ -12,6 +12,26 @@ export class InstrumentsService {
   }
 
   findAll() {
-    return this.prisma.instrument.findMany();
+    return this.prisma.instrument.findMany({
+      include: {
+        discipline: true,
+        documentTemplate: true,
+      },
+      orderBy: { instrumentType: 'asc' },
+    });
+  }
+
+  findByDiscipline(disciplineCode: string) {
+    return this.prisma.instrument.findMany({
+      where: {
+        discipline: { code: disciplineCode },
+        isActive: true,
+      },
+      include: {
+        discipline: true,
+        documentTemplate: true,
+      },
+      orderBy: { instrumentType: 'asc' },
+    });
   }
 }

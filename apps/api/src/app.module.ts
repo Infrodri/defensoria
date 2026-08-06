@@ -25,6 +25,7 @@ import { TemplatesModule } from './modules/templates/templates.module';
 import { InstrumentsModule } from './modules/instruments/instruments.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { AiConfigModule } from './modules/ai-config/ai-config.module';
+import { AiModule } from './modules/ai/ai.module';
 import { CatalogsModule } from './modules/catalogs/catalogs.module';
 import { SystemBackupModule } from './modules/system-backup/system-backup.module';
 import { QuestionnairesModule } from './modules/questionnaires/questionnaires.module';
@@ -72,6 +73,7 @@ import { ConciliationAgreementsModule } from './modules/conciliation-agreements/
     InstrumentsModule,
     KnowledgeModule,
     AiConfigModule,
+    AiModule,
     CatalogsModule,
     SystemBackupModule,
     QuestionnairesModule,
