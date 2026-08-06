@@ -743,7 +743,7 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Template Selector (IPS-01) */}
+            {/* Template Selector (IPS-01) — solo mostrar si hay plantillas reales cargadas */}
             {!complementaryParentId && templates.length > 0 && (
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Plantilla de Informe</label>
@@ -757,11 +757,12 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   }}
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                 >
+                  <option value="">— Sin plantilla (redacción libre) —</option>
                   {templates
                     .filter(t => t.targetRole === user?.role || user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA')
                     .map((t) => (
                       <option key={t.code} value={t.code}>
-                        {t.name} ({t.documentType}) {t.requiresCoAuthor && '🔗'}
+                        {t.name} {t.requiresCoAuthor && '🔗'}
                       </option>
                     ))}
                 </select>
@@ -779,18 +780,38 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                 >
-                  {/* Categorías permitidas para el rol, mapeadas al catálogo de DisciplineReportType */}
                   {availableOptions.length === 0 && (
                     <option value="">No hay tipos de informe configurados para su área (contacte al administrador)</option>
                   )}
                   {availableOptions.map((rt) => (
                     <option key={rt.id} value={rt.category}>
-                      {CATEGORY_EMOJI[rt.category] ?? '📄'} {rt.name} ({rt.code})
+                      {CATEGORY_EMOJI[rt.category] ?? '📄'} {rt.name}
                     </option>
                   ))}
                 </select>
               </div>
             )}
+
+            {/* Campo Título — siempre visible */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+                Título del Informe <span style={{ color: 'var(--riesgo-alto)' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={
+                  selectedCategory === 'INFORME_JURIDICO'    ? 'Ej: Informe Jurídico Inicial — Caso DNA-2026-0001' :
+                  selectedCategory === 'INFORME_PSICOLOGICO' ? 'Ej: Informe de Entrevista Psicológica — Evaluación Inicial' :
+                  selectedCategory === 'INFORME_SOCIAL'      ? 'Ej: Diagnóstico Social — Visita Domiciliaria' :
+                  selectedCategory === 'INFORME_PSICOSOCIAL' ? 'Ej: Informe Psicosocial Unificado — Medidas de Protección' :
+                  'Título del informe...'
+                }
+                required
+                style={{ ...inputStyle }}
+              />
+            </div>
 
             {selectedCategory === 'INFORME_PSICOLOGICO' && !complementaryParentId && (              <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Evaluación de Nivel de Riesgo del NNA</label>
