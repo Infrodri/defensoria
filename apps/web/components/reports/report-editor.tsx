@@ -1,8 +1,36 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye } from 'lucide-react';
+import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface Template {
+  code: string;
+  name: string;
+  documentType: string;
+  targetRole: string;
+  requiresCoAuthor: boolean;
+  structure: {
+    sections: Section[];
+  };
+}
+
+interface Section {
+  key: string;
+  title: string;
+  required: boolean;
+  promptTemplate: {
+    template: string;
+    systemPrompt: string;
+    ragQuery: string;
+    ragInstruction: string;
+  };
+}
+
+interface AIDraftResponse {
+  suggestedContent: string;
+  citations: string[];
+}
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -162,6 +190,37 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
   const [riskAssessment, setRiskAssessment] = useState<'BAJO' | 'MEDIO' | 'ALTO'>('MEDIO');
   const [submitting, setSubmitting] = useState(false);
 
+  // ── Template system (IPS-01) ──
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateCode, setSelectedTemplateCode] = useState<string>('');
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+  const [generatingSection, setGeneratingSection] = useState<string | null>(null);
+  const [sectionContents, setSectionContents] = useState<Record<string, string>>({});
+
+  // Fetch templates based on user role
+  useEffect(() => {
+    if (!user?.role) return;
+    fetchApi<Template[]>(`/templates?role=${user.role}`)
+      .then(setTemplates)
+      .catch(() => {
+        // Silently fail - templates are optional
+      });
+  }, [user?.role]);
+
+  // Reset template selection when templates change
+  useEffect(() => {
+    if (templates.length > 0) {
+      const filtered = templates.filter(t => 
+        t.targetRole === user?.role || user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA'
+      );
+      if (filtered.length > 0 && !filtered.some(t => t.code === selectedTemplateCode)) {
+        setSelectedTemplateCode(filtered[0].code);
+        setActiveSectionIndex(0);
+        setSectionContents({});
+      }
+    }
+  }, [templates, user?.role]);
+
   useEffect(() => {
     fetchApi('/disciplines')
       .then((disciplines: any[]) => {
@@ -227,14 +286,57 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
 
   const handleCreateReport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    
+    // Validate required fields
+    if (!title.trim()) {
+      toast.error('El título es obligatorio');
+      return;
+    }
+
+    // When template is selected, validate sections and co-author
+    let finalContent = content;
+    if (selectedTemplateCode && !complementaryParentId) {
+      const template = templates.find(t => t.code === selectedTemplateCode);
+      if (template) {
+        // Check co-author requirement
+        if (template.requiresCoAuthor && !coauthorId) {
+          toast.error('Esta plantilla requiere seleccionar un coautor antes de guardar');
+          return;
+        }
+        
+        // Check required sections have content
+        const emptyRequiredSections = template.structure.sections
+          .filter(s => s.required && !sectionContents[s.key]?.trim());
+        if (emptyRequiredSections.length > 0) {
+          toast.error(`Las siguientes secciones obligatorias están vacías: ${emptyRequiredSections.map(s => s.title).join(', ')}`);
+          return;
+        }
+        
+        // Combine sections into content
+        finalContent = template.structure.sections
+          .map(s => {
+            const sectionContent = sectionContents[s.key]?.trim();
+            return sectionContent ? `## ${s.title}\n\n${sectionContent}` : '';
+          })
+          .filter(Boolean)
+          .join('\n\n---\n\n');
+        
+        if (!finalContent.trim()) {
+          toast.error('El informe debe tener al menos una sección con contenido');
+          return;
+        }
+      }
+    } else if (!content.trim()) {
+      toast.error('El contenido es obligatorio');
+      return;
+    }
 
     setSubmitting(true);
     try {
       if (complementaryParentId) {
         await fetchApi(`/reports/${complementaryParentId}/complementary`, {
           method: 'POST',
-          body: JSON.stringify({ title, content }),
+          body: JSON.stringify({ title, content: finalContent }),
         });
         toast.success('Informe complementario redactado en borrador');
       } else {
@@ -249,7 +351,7 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
             caseId,
             disciplineReportTypeId: selected.id,
             title,
-            content,
+            content: finalContent,
             riskAssessment: selectedCategory === 'INFORME_PSICOLOGICO' ? riskAssessment : undefined,
           }),
         }).then(async (created: any) => {
@@ -262,6 +364,17 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
               body: JSON.stringify({ coAuthorId: coauthorId }),
             }).catch(() => undefined);
           }
+          
+          // Also assign co-author if template requires it (IPS-01)
+          if (created?.id && selectedTemplateCode) {
+            const template = templates.find(t => t.code === selectedTemplateCode);
+            if (template?.requiresCoAuthor && coauthorId) {
+              await fetchApi(`/reports/${created.id}/coauthor`, {
+                method: 'PATCH',
+                body: JSON.stringify({ coAuthorId: coauthorId }),
+              }).catch(() => undefined);
+            }
+          }
           return created;
         });
         toast.success('Borrador de informe guardado correctamente');
@@ -269,6 +382,8 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
 
       setTitle('');
       setContent('');
+      setSectionContents({});
+      setSelectedTemplateCode('');
       setComplementaryParentId(null);
       onReportUpdated();
     } catch (err: any) {
@@ -628,6 +743,34 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Template Selector (IPS-01) */}
+            {!complementaryParentId && templates.length > 0 && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Plantilla de Informe</label>
+                <select
+                  value={selectedTemplateCode}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setSelectedTemplateCode(code);
+                    setActiveSectionIndex(0);
+                    setSectionContents({});
+                  }}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  {templates
+                    .filter(t => t.targetRole === user?.role || user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA')
+                    .map((t) => (
+                      <option key={t.code} value={t.code}>
+                        {t.name} ({t.documentType}) {t.requiresCoAuthor && '🔗'}
+                      </option>
+                    ))}
+                </select>
+                <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                  Seleccione una plantilla para estructurar el informe por secciones.
+                </p>
+              </div>
+            )}
+
             {!complementaryParentId && (
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Informe</label>
@@ -663,67 +806,175 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
               </div>
             )}
 
-            {selectedCategory === 'INFORME_PSICOSOCIAL' && !complementaryParentId && (
-              <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                  Coautor del Informe Psicosocial (obligatorio para emitir)
-                </label>
-                {complementaryRoleFor(user?.role) === null && (
-                  <select
-                    value={coauthorRole}
-                    onChange={(e: any) => {
-                      setCoauthorRole(e.target.value);
-                      setCoauthorId('');
-                    }}
-                    style={{ ...inputStyle, marginBottom: '0.5rem' }}
-                  >
-                    <option value="PSICOLOGO">🧠 Psicólogo/a</option>
-                    <option value="SOCIAL">👥 Trabajador/a Social</option>
-                  </select>
-                )}
-                <select
-                  value={coauthorId}
-                  onChange={(e) => setCoauthorId(e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">-- Seleccionar profesional coautor --</option>
-                  {professionalsByRole[coauthorRole]
-                    .filter((u: any) => u.id !== user?.id)
-                    .map((u: any) => (
-                      <option key={u.id} value={u.id}>
-                        {u.firstName} {u.lastName} — {u.email} {u.office?.name ? `(${u.office.name})` : ''}
-                      </option>
+            {/* Co-author requirement for template (IPS-01) */}
+            {selectedTemplateCode && !complementaryParentId && (() => {
+              const template = templates.find(t => t.code === selectedTemplateCode);
+              if (template?.requiresCoAuthor) {
+                const complement = user?.role === 'PSICOLOGO' ? 'SOCIAL' : user?.role === 'SOCIAL' ? 'PSICOLOGO' : null;
+                return (
+                  <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
+                      🔗 Coautor Requerido para esta Plantilla
+                    </div>
+                    {complement ? (
+                      <select
+                        value={coauthorId}
+                        onChange={(e) => setCoauthorId(e.target.value)}
+                        style={inputStyle}
+                      >
+                        <option value="">-- Seleccionar {complement === 'PSICOLOGO' ? 'Psicólogo/a' : 'Trabajador/a Social'} coautor --</option>
+                        {professionalsByRole[complement]
+                          .filter((u: any) => u.id !== user?.id)
+                          .map((u: any) => (
+                            <option key={u.id} value={u.id}>
+                              {u.firstName} {u.lastName} — {u.email} {u.office?.name ? `(${u.office.name})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                    ) : (
+                      <p style={{ fontSize: '0.75rem', opacity: 0.7, margin: 0 }}>
+                        Esta plantilla requiere un coautor de la disciplina complementaria (equipo PSICOLOGO + SOCIAL). Solicítelo a Jefatura.
+                      </p>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Section-based editor when template is selected */}
+            {selectedTemplateCode && !complementaryParentId && (() => {
+              const template = templates.find(t => t.code === selectedTemplateCode);
+              if (!template) return null;
+              const sections = template.structure.sections;
+              
+              return (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>
+                    Secciones del Informe ({sections.length})
+                  </div>
+                  
+                  {/* Section tabs */}
+                  <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.25rem' }}>
+                    {sections.map((section, index) => (
+                      <button
+                        key={section.key}
+                        type="button"
+                        onClick={() => setActiveSectionIndex(index)}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          borderRadius: 'var(--radius) var(--radius) 0 0',
+                          border: '1px solid var(--border)',
+                          borderBottom: 'none',
+                          backgroundColor: activeSectionIndex === index ? 'var(--bosque-profundo)' : 'var(--card)',
+                          color: activeSectionIndex === index ? 'white' : 'var(--grafito)',
+                          fontWeight: activeSectionIndex === index ? 700 : 500,
+                          fontSize: '0.8125rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.375rem',
+                        }}
+                      >
+                        {section.required && <AlertTriangle size={12} />}
+                        {section.title}
+                      </button>
                     ))}
-                </select>
-                <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
-                  El informe psicosocial requiere un equipo PSICOLOGO + SOCIAL (autor y coautor).
-                </p>
+                  </div>
+
+                  {/* Active section content */}
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', backgroundColor: 'var(--card)' }}>
+                    {sections.map((section, index) => (
+                      activeSectionIndex === index && (
+                        <div key={section.key}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                            <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)', margin: 0 }}>
+                              {section.title} {section.required && <span style={{ color: 'var(--riesgo-alto)', marginLeft: '0.5rem' }}>(obligatoria)</span>}
+                            </h4>
+                          </div>
+                          
+                          <textarea
+                            rows={10}
+                            value={sectionContents[section.key] || ''}
+                            onChange={(e) => setSectionContents(prev => ({ ...prev, [section.key]: e.target.value }))}
+                            placeholder={`Redacte la sección: ${section.title}...`}
+                            required={section.required}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem', fontFamily: 'inherit', minHeight: '200px' }}
+                          />
+                          
+                          {/* AI Generation Button */}
+                          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setGeneratingSection(section.key);
+                                try {
+                                  const response = await fetchApi<AIDraftResponse>('/ai/draft-section', {
+                                    method: 'POST',
+                                    body: JSON.stringify({
+                                      caseId,
+                                      templateCode: selectedTemplateCode,
+                                      sectionKey: section.key,
+                                    }),
+                                  });
+                                  setSectionContents(prev => ({
+                                    ...prev,
+                                    [section.key]: (prev[section.key] || '') + (prev[section.key] ? '\n\n' : '') + response.suggestedContent,
+                                  }));
+                                  if (response.citations && response.citations.length > 0) {
+                                    toast.success(`Sección generada con ${response.citations.length} cita(s) sugerida(s)`);
+                                  } else {
+                                    toast.success('Sección generada con IA');
+                                  }
+                                } catch (err: any) {
+                                  toast.error('Error al generar sección con IA', { description: err.message });
+                                } finally {
+                                  setGeneratingSection(null);
+                                }
+                              }}
+                              disabled={generatingSection === section.key}
+                              style={{
+                                backgroundColor: 'var(--salvia)',
+                                color: 'white',
+                                padding: '0.5rem 1rem',
+                                borderRadius: 'var(--radius)',
+                                fontWeight: 600,
+                                fontSize: '0.8125rem',
+                                border: 'none',
+                                cursor: generatingSection === section.key ? 'not-allowed' : 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.375rem',
+                              }}
+                            >
+                              <Zap size={14} />
+                              {generatingSection === section.key ? 'Generando...' : 'Generar con IA'}
+                            </button>
+                            
+                            {/* Citations display - would need to store citations per section */}
+                          </div>
+                        </div>
+                      )
+                    ))}
+</div>
+                </div>
+              );
+            })()}
+
+            {/* Fallback single content field when no template selected */}
+            {!selectedTemplateCode && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Contenido y Dictamen Técnico</label>
+                <textarea
+                  rows={8}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Redacte el cuerpo del informe técnico, metodología, hallazgos y recomendaciones..."
+                  required
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                />
               </div>
             )}
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Título del Informe</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Evaluación Psicológica Inicial..."
-                required
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Contenido y Dictamen Técnico</label>
-              <textarea
-                rows={8}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Redacte el cuerpo del informe técnico, metodología, hallazgos y recomendaciones..."
-                required
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
-              />
-            </div>
 
             <button
               type="submit"

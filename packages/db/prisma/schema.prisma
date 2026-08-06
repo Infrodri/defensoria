@@ -169,6 +169,7 @@ enum QuestionnaireResponseStatus {
 
 enum TranscriptionTaskStatus {
   PENDIENTE
+  PROCESSING
   COMPLETADA
   ERROR
 }
@@ -848,7 +849,11 @@ model DisciplineReportType {
 
 model DocumentTemplate {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code         String   @unique
+  name         String
   documentType String   @unique
+  targetRole   Role
+  requiresCoAuthor Boolean @default(false)
   structure    Json
   version      Int      @default(1)
   isActive     Boolean  @default(true)
