@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AiConfigService, AiConfigDto } from './ai-config.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -36,5 +36,11 @@ export class AiConfigController {
   @ApiOperation({ summary: 'Verificar estado de los servicios de IA' })
   getHealth() {
     return this.configService.getHealth();
+  }
+
+  @Post('start-services')
+  @ApiOperation({ summary: 'Iniciar servicios de IA (solo producción)' })
+  startServices() {
+    return this.configService.startServices();
   }
 }

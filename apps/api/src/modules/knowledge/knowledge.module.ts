@@ -6,8 +6,10 @@ import { RAGService } from './rag.service';
 import { TranscriptionService } from './transcription.service';
 import { ToolsAdminService } from './tools-admin.service';
 import { ToolsAdminController } from './tools-admin.controller';
+import { MinioModule } from '../minio/minio.module';
 
 @Module({
+  imports: [MinioModule],
   controllers: [KnowledgeController, ToolsAdminController],
   providers: [KnowledgeService, EmbeddingsService, RAGService, TranscriptionService, ToolsAdminService],
   exports: [RAGService, EmbeddingsService, TranscriptionService, ToolsAdminService],

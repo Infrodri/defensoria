@@ -141,7 +141,25 @@ export class KnowledgeController {
 
   @Post('transcribe')
   @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
-  @ApiOperation({ summary: 'Subir audio para transcribir y generar análisis' })
+  @ApiOperation({ summary: 'Transcribir una evidencia ya almacenada (por ID)' })
+  async transcribeByEvidenceId(
+    @Body('caseId') caseId: string,
+    @Body('evidenceId') evidenceId: string,
+    @CurrentUser() user?: any,
+  ) {
+    if (!caseId) throw new BadRequestException('Se requiere caseId');
+    if (!evidenceId) throw new BadRequestException('Se requiere evidenceId');
+
+    try {
+      return await this.transcriptionService.transcribeByEvidenceId(caseId, evidenceId, user?.id);
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al transcribir el audio');
+    }
+  }
+
+  @Post('transcribe-upload')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Subir archivo de audio para transcribir (multipart)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -163,19 +181,17 @@ export class KnowledgeController {
     if (!file) throw new BadRequestException('Se requiere un archivo de audio');
     if (!caseId) throw new BadRequestException('Se requiere caseId');
 
-    // Validar que el archivo es audio
-    const audioMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg', 'audio/webm'];
+    const audioMimeTypes = [
+      'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/x-m4a',
+      'audio/ogg', 'audio/webm', 'audio/mp4', 'audio/aac',
+      'video/mp4', 'video/quicktime',
+    ];
     if (!audioMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException(`Tipo de audio no soportado: ${file.mimetype}`);
     }
 
     try {
-      return await this.transcriptionService.transcribeAudioFile(
-        caseId,
-        evidenceId,
-        file,
-        user?.id,
-      );
+      return await this.transcriptionService.transcribeAudioFile(caseId, evidenceId, file, user?.id);
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Error al transcribir el audio');
     }

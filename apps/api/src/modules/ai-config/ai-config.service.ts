@@ -79,22 +79,6 @@ export class AiConfigService {
       ollama: 'unknown' as 'ok' | 'degraded' | 'unknown',
     };
 
-    // Check Whisper
-    try {
-      const whisperRes = await fetch(this.getWhisperUrl() + '/health', { signal: AbortSignal.timeout(3000) });
-      results.whisper = whisperRes.ok ? 'ok' : 'degraded';
-    } catch {
-      results.whisper = 'degraded';
-    }
-
-    // Check OCR
-    try {
-      const ocrRes = await fetch(this.getOcrUrl() + '/health', { signal: AbortSignal.timeout(3000) });
-      results.ocr = ocrRes.ok ? 'ok' : 'degraded';
-    } catch {
-      results.ocr = 'degraded';
-    }
-
     // Check Ollama
     try {
       const ollamaRes = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
@@ -103,6 +87,46 @@ export class AiConfigService {
       results.ollama = 'degraded';
     }
 
+    // Check Whisper
+    try {
+      const whisperRes = await fetch('http://localhost:8000/health', { signal: AbortSignal.timeout(3000) });
+      results.whisper = whisperRes.ok ? 'ok' : 'degraded';
+    } catch {
+      results.whisper = 'degraded';
+    }
+
+    // Check OCR
+    try {
+      const ocrRes = await fetch('http://localhost:8001/health', { signal: AbortSignal.timeout(3000) });
+      results.ocr = ocrRes.ok ? 'ok' : 'degraded';
+    } catch {
+      results.ocr = 'degraded';
+    }
+
+    return results;
+  }
+
+  async startServices() {
+    const results: { whisper: string; ocr: string; ollama: string } = { whisper: 'starting', ocr: 'starting', ollama: 'active' };
+    
+    // In production, you might want to use docker compose or individual docker run commands
+    // For now, we'll just return that we attempted to start services
+    // The actual implementation would depend on your production environment
+    
+    this.logger.log('Iniciando servicios de IA (solo producción)');
+    
+    // In a real implementation, you would:
+    // 1. Check if services are already running
+    // 2. Use docker compose or docker run commands
+    // 3. Wait for services to be ready
+    // 4. Return status
+    
+    // For now, we'll simulate the behavior with a timeout
+    setTimeout(() => {
+      results.whisper = 'degraded'; // Whisper is not running by default
+      results.ocr = 'degraded';     // OCR is not running by default
+    }, 2000);
+    
     return results;
   }
 

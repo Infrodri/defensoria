@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { PhaseRail } from '@/components/cases/phase-rail';
@@ -15,8 +16,9 @@ import { formatCaseType, formatInterventionPath, formatActionType, formatAppoint
 import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin, ShieldAlert, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 
-export default function CasoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function CasoDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { id: caseId } = use(params);
+  const sp = use(searchParams);
   const { user } = useAuth();
   const [caseData, setCaseData] = useState<any | null>(null);
   const [actionLogs, setActionLogs] = useState<any[]>([]);
@@ -24,7 +26,33 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
   const [reports, setReports] = useState<any[]>([]);
   const [evidences, setEvidences] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'resumen' | 'equipo' | 'bitacora' | 'informes' | 'evidencias' | 'agenda' | 'narrativa' | 'lineatiempo' | 'tramites'>('resumen');
+
+  // Read initial tab/subtab from query params for deep-linking from
+  // administrative procedure creation (e.g. ?tab=tramites&subtab=permiso-viaje)
+  const VALID_TABS = ['resumen', 'equipo', 'bitacora', 'informes', 'evidencias', 'agenda', 'narrativa', 'lineatiempo', 'tramites'] as const;
+  const initialTab = (sp?.tab && typeof sp.tab === 'string' && VALID_TABS.includes(sp.tab as any))
+    ? sp.tab as typeof VALID_TABS[number]
+    : 'resumen';
+  const initialSubtab = (sp?.subtab && typeof sp.subtab === 'string')
+    ? sp.subtab as string
+    : undefined;
+
+  const [activeTab, setActiveTab] = useState<typeof VALID_TABS[number]>(initialTab);
+  const router = useRouter();
+
+  // Helper: verifica si el tipo de caso corresponde a un trámite administrativo
+  const isAdministrativeCase = (caseType: string | undefined): boolean => {
+    if (!caseType) return false;
+    return ['PERMISO_VIAJE', 'NNATS', 'OPERATIVO'].includes(caseType);
+  };
+
+  // Resetear a "resumen" si el tipo de caso cambia a no administrativo
+  // y la pestaña activa era "tramites"
+  useEffect(() => {
+    if (activeTab === 'tramites' && caseData && !isAdministrativeCase(caseData.caseType)) {
+      setActiveTab('resumen');
+    }
+  }, [caseData?.caseType, activeTab]);
 
   // Assignment State
   const [assignUserId, setAssignUserId] = useState('');
@@ -129,6 +157,14 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
     window.addEventListener('case-tab-navigate', handler);
     return () => window.removeEventListener('case-tab-navigate', handler);
   }, []);
+
+  // Clean up URL query params after they have been consumed for initial state.
+  // This prevents stale ?tab= ?subtab= params lingering after navigation.
+  useEffect(() => {
+    if (sp?.tab || sp?.subtab) {
+      router.replace(`/casos/${caseId}`, { scroll: false });
+    }
+  }, [caseId, router, sp?.tab, sp?.subtab]);
 
   const handleAssignTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -483,20 +519,22 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
           Línea de Tiempo
         </button>
 
-        <button
-          onClick={() => setActiveTab('tramites')}
-          style={{
-            padding: '0.75rem 1.25rem',
-            border: 'none',
-            borderBottom: activeTab === 'tramites' ? '3px solid var(--tierra-calida)' : '3px solid transparent',
-            backgroundColor: 'transparent',
-            fontWeight: activeTab === 'tramites' ? 700 : 500,
-            color: activeTab === 'tramites' ? 'var(--bosque-profundo)' : 'var(--grafito)',
-            cursor: 'pointer',
-          }}
-        >
-          Trámites Especiales
-        </button>
+        {isAdministrativeCase(caseData?.caseType) && (
+          <button
+            onClick={() => setActiveTab('tramites')}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              borderBottom: activeTab === 'tramites' ? '3px solid var(--tierra-calida)' : '3px solid transparent',
+              backgroundColor: 'transparent',
+              fontWeight: activeTab === 'tramites' ? 700 : 500,
+              color: activeTab === 'tramites' ? 'var(--bosque-profundo)' : 'var(--grafito)',
+              cursor: 'pointer',
+            }}
+          >
+            Trámites Especiales
+          </button>
+        )}
       </div>
 
       {/* TAB CONTENT: Resumen */}
@@ -1278,9 +1316,13 @@ export default function CasoDetailPage({ params }: { params: Promise<{ id: strin
         <CaseTimeline caseId={caseId} />
       )}
 
-      {/* TAB CONTENT: Trámites Especiales (Fase 3) */}
-      {activeTab === 'tramites' && (
-        <SpecialProceduresTabs caseId={caseId} userRole={user?.role ?? ''} />
+      {/* TAB CONTENT: Trámites Especiales (Fase 3) — solo para casos administrativos */}
+      {isAdministrativeCase(caseData?.caseType) && activeTab === 'tramites' && (
+        <SpecialProceduresTabs
+          caseId={caseId}
+          userRole={user?.role ?? ''}
+          defaultTab={initialSubtab && activeTab === 'tramites' ? (initialSubtab as any) : undefined}
+        />
       )}
 
       {/* AI Copilot Widget */}

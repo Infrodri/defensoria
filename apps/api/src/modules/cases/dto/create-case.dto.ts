@@ -182,4 +182,23 @@ export class CreateCaseDto {
   @IsOptional()
   @IsString()
   nnaAddress?: string;
+
+  // ===== CAMPOS DE AUDITORÍA NORMATIVA =====
+  @ApiProperty({
+    description: 'Distrito de origen del caso (1-9, Ley 548)',
+    example: '1',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @ApiProperty({
+    description: 'Indica que el agresor se desconoce',
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  aggressorUnknown?: boolean;
 }

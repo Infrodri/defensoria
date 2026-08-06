@@ -22,7 +22,12 @@ export async function fetchApi<T = any>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'Error en la petición' }));
-    throw new Error(errorData.message || `Error ${response.status}`);
+    const message = errorData.message || `Error ${response.status}`;
+    // Attach HTTP status so callers can distinguish 404 (resource not yet
+    // created) from genuine failures without parsing the message string.
+    const err = new Error(message) as Error & { status: number };
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();

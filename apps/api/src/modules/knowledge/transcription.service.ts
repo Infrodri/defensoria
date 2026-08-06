@@ -1,13 +1,18 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MinioService } from '../minio/minio.service';
 import axios from 'axios';
 import FormData from 'form-data';
+import { Readable } from 'stream';
 
 @Injectable()
 export class TranscriptionService {
   private readonly logger = new Logger(TranscriptionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private minioService: MinioService,
+  ) {}
 
   /**
    * Buscar dentro de una transcripción
@@ -96,6 +101,53 @@ export class TranscriptionService {
         createdAt: 'desc',
       },
     });
+  }
+
+  /**
+   * Transcribir una evidencia ya almacenada en MinIO, identificada por su ID.
+   * El frontend solo manda { caseId, evidenceId } — el archivo se descarga internamente.
+   */
+  async transcribeByEvidenceId(caseId: string, evidenceId: string, userId?: string) {
+    const evidence = await this.prisma.evidence.findUnique({ where: { id: evidenceId } });
+    if (!evidence) {
+      throw new BadRequestException('Evidencia no encontrada');
+    }
+    if (evidence.caseId !== caseId) {
+      throw new BadRequestException('La evidencia no pertenece al expediente indicado');
+    }
+
+    const audioMimeTypes = [
+      'audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/x-m4a',
+      'audio/ogg', 'audio/webm', 'audio/mp4', 'audio/aac',
+      'video/mp4', 'video/quicktime', 'video/x-msvideo',
+    ];
+    if (!audioMimeTypes.includes(evidence.mimeType)) {
+      throw new BadRequestException(`Tipo de archivo no soportado para transcripción: ${evidence.mimeType}`);
+    }
+
+    // Descargar el archivo desde MinIO como buffer
+    const stream = await this.minioService.getFileStream(evidence.storagePath);
+    const buffer = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      (stream as Readable).on('data', (chunk: Buffer) => chunks.push(chunk));
+      (stream as Readable).on('end', () => resolve(Buffer.concat(chunks)));
+      (stream as Readable).on('error', reject);
+    });
+
+    const multerLike: Express.Multer.File = {
+      buffer,
+      originalname: evidence.fileName,
+      mimetype: evidence.mimeType,
+      size: buffer.length,
+      fieldname: 'file',
+      encoding: '7bit',
+      stream: Readable.from(buffer),
+      destination: '',
+      filename: evidence.fileName,
+      path: '',
+    };
+
+    return this.transcribeAudioFile(caseId, evidenceId, multerLike, userId);
   }
 
   /**

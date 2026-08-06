@@ -38,9 +38,16 @@ export default function InicioCasoPage() {
   const [nnaPhone, setNnaPhone] = useState('');
   const [nnaAddress, setNnaAddress] = useState('');
 
-  // Case Details
+   // Case Details
   const [caseType, setCaseType] = useState('');
   const [intakeNarrative, setIntakeNarrative] = useState('');
+  
+   // Tipo de Solicitud / Atención — determina el flujo (denuncia vs. trámite admin)
+   const [requestType, setRequestType] = useState<'DENUNCIA' | 'PERMISO_VIAJE' | 'NNATS' | 'OPERATIVO'>('DENUNCIA');
+
+   // Auditoría normativa (Ley 548 / OM 136)
+   const [district, setDistrict] = useState('');
+   const [aggressorUnknown, setAggressorUnknown] = useState(false);
   
   // Audio Recording
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
@@ -131,8 +138,7 @@ export default function InicioCasoPage() {
   };
 
   // Búsqueda opcional de la persona denunciada (accusedId)
-  const handleSearchAccused = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchAccused = async () => {
     if (!accusedQuery.trim()) return;
     setAccusedSearching(true);
     setAccusedSearched(true);
@@ -170,24 +176,35 @@ export default function InicioCasoPage() {
       }
 
       // Prepare case payload
+      // Decision: para trámites administrativos se usa DENUNCIA_VULNERACION como
+      // CaseType (el enum del backend no incluye tipos administrativos). El caso
+      // es el contenedor; la semántica del trámite se gestiona en la pestaña
+      // de Trámites Especiales. Ver detalle en el reporte de salida.
+      const effectiveCaseType = requestType === 'DENUNCIA' ? caseType : 'DENUNCIA_VULNERACION';
+      const isAdministrative = requestType !== 'DENUNCIA';
+
       const casePayload: any = {
         nnaId: finalNnaId,
-        caseType,
-        intakeNarrative,
-        isThirdPartyComplainant,
-        // Banderas de situación especial de la denuncia
-        menorAutodenuncia,
-        denunciaAnonima,
-        involucraFuncionario,
+        caseType: effectiveCaseType,
+        intakeNarrative: intakeNarrative || undefined,
+        // Campos específicos de denuncia: se envían como falsos/undefined para
+        // trámites administrativos (no aplican, pero el DTO los acepta).
+        isThirdPartyComplainant: isAdministrative ? false : isThirdPartyComplainant,
+        menorAutodenuncia: isAdministrative ? false : menorAutodenuncia,
+        denunciaAnonima: isAdministrative ? false : denunciaAnonima,
+        involucraFuncionario: isAdministrative ? false : involucraFuncionario,
         // Persona denunciada (opcional)
         accusedId: selectedAccused?.id || undefined,
         // Datos demográficos NNA
         nnaBirthDate: nnaBirthDate || undefined,
         nnaGender: nnaGender || undefined,
         nnaCity: nnaCity || undefined,
-        nnaPhone: nnaPhone || undefined,
-        nnaAddress: nnaAddress || undefined,
-      };
+         nnaPhone: nnaPhone || undefined,
+         nnaAddress: nnaAddress || undefined,
+         // Auditoría normativa (Ley 548 / OM 136)
+         district: district || undefined,
+         aggressorUnknown: aggressorUnknown,
+       };
 
       // Add third party complainant fields if applicable
       if (isThirdPartyComplainant) {
@@ -248,7 +265,20 @@ export default function InicioCasoPage() {
 
       // NO crear cita automática — la secretaria asigna citas manualmente desde Agenda y Citas
 
-      router.push(`/casos/${newCase.id}`);
+      // Redirección según tipo de solicitud:
+      // - Denuncia: flujo actual (expediente en pestaña de resumen)
+      // - Trámites administrativos: abrir pestaña "Trámites Especiales" con la
+      //   sub-pestaña correspondiente preseleccionada
+      if (requestType === 'DENUNCIA') {
+        router.push(`/casos/${newCase.id}`);
+      } else if (requestType === 'PERMISO_VIAJE') {
+        router.push(`/casos/${newCase.id}?tab=tramites&subtab=permiso-viaje`);
+      } else if (requestType === 'NNATS') {
+        router.push(`/casos/${newCase.id}?tab=tramites&subtab=nnats`);
+      } else {
+        // OPERATIVO — abrir pestaña de trámites sin subtab específica
+        router.push(`/casos/${newCase.id}?tab=tramites`);
+      }
     } catch (err: any) {
       setError(err.message || 'Error al registrar el expediente');
     } finally {
@@ -577,38 +607,113 @@ export default function InicioCasoPage() {
             </div>
           )}
 
-          {/* Case Details */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+           {/* Selector de Tipo de Solicitud / Atención */}
+           <div>
+             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+               Tipo de Solicitud / Atención
+             </label>
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+               {[
+                 { value: 'DENUNCIA' as const, emoji: '🚨', label: 'Denuncia de Vulneración / Delito' },
+                 { value: 'PERMISO_VIAJE' as const, emoji: '✈️', label: 'Solicitud de Permiso de Viaje' },
+                 { value: 'NNATS' as const, emoji: '💼', label: 'Registro / Autorización de Trabajo Adolescente (NNATS)' },
+                 { value: 'OPERATIVO' as const, emoji: '🔍', label: 'Operativo / Inspección Territorial' },
+               ].map((opt) => (
+                 <button
+                   key={opt.value}
+                   type="button"
+                   onClick={() => {
+                     setRequestType(opt.value);
+                     if (opt.value !== 'DENUNCIA') {
+                       setCaseType('DENUNCIA_VULNERACION');
+                     }
+                   }}
+                   style={{
+                     padding: '0.75rem',
+                     border: requestType === opt.value
+                       ? '2px solid var(--bosque-profundo)'
+                       : '1px solid var(--border)',
+                     borderRadius: 'var(--radius)',
+                     backgroundColor: requestType === opt.value ? 'var(--papel)' : 'var(--card)',
+                     textAlign: 'center',
+                     cursor: 'pointer',
+                   }}
+                 >
+                   <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{opt.emoji}</div>
+                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--bosque-profundo)' }}>
+                     {opt.label}
+                   </div>
+                 </button>
+               ))}
+             </div>
+           </div>
+
+            {/* Selector de Distrito de Origen (Ley 548 / OM 136) */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Trámite / Caso</label>
-              {catalogsLoading ? (
-                <div style={{ padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--grafito)', opacity: 0.6 }}>
-                  Cargando tipos de caso...
-                </div>
-              ) : (
-                <select
-                  value={caseType}
-                  onChange={(e) => setCaseType(e.target.value)}
-                  style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                >
-                  <option value="">Seleccionar tipo...</option>
-                  {caseTypeCatalog?.items?.map((item: any) => (
-                    <option key={item.id} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+                Distrito de Origen
+              </label>
+              <select
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+              >
+                <option value="">Seleccionar distrito...</option>
+                <option value="1">1. Centro</option>
+                <option value="2">2. Norte</option>
+                <option value="3">3. Sur</option>
+                <option value="4">4. Este</option>
+                <option value="5">5. Oeste</option>
+                <option value="6">6. Noroeste</option>
+                <option value="7">7. Sucre</option>
+                <option value="8">8. La Plata</option>
+                <option value="9">9. Otro</option>
+              </select>
             </div>
 
+            {/* Case Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Tipo de Trámite / Caso — solo para denuncias */}
+              {requestType === 'DENUNCIA' ? (
+               <div>
+                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Tipo de Trámite / Caso</label>
+                 {catalogsLoading ? (
+                   <div style={{ padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--grafito)', opacity: 0.6 }}>
+                     Cargando tipos de caso...
+                   </div>
+                 ) : (
+                   <select
+                     value={caseType}
+                     onChange={(e) => setCaseType(e.target.value)}
+                     style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                   >
+                     <option value="">Seleccionar tipo...</option>
+                     {caseTypeCatalog?.items?.map((item: any) => (
+                       <option key={item.id} value={item.value}>
+                         {item.label}
+                       </option>
+                     ))}
+                   </select>
+                 )}
+               </div>
+             ) : (
+               <div style={{ padding: '0.75rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                 <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--bosque-profundo)' }}>
+                   Tipo de Caso: DENUNCIA_VULNERACION (contenedor — el trámite se gestiona en la pestaña de Trámites Especiales)
+                 </div>
+               </div>
+             )}
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Narrativa Inicial / Hechos de la Denuncia</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+                {requestType === 'DENUNCIA' ? 'Narrativa Inicial / Hechos de la Denuncia' : 'Observaciones / Detalles del Trámite'}
+              </label>
               <textarea
                 rows={5}
                 value={intakeNarrative}
                 onChange={(e) => setIntakeNarrative(e.target.value)}
-                placeholder="Describa objetivamente los hechos reportados durante la primera recepción..."
-                required
+                placeholder={requestType === 'DENUNCIA' ? 'Describa objetivamente los hechos reportados durante la primera recepción...' : 'Ingrese observaciones o detalles relevantes para este trámite...'}
+                required={requestType === 'DENUNCIA'}
                 style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
               />
             </div>
@@ -633,7 +738,9 @@ export default function InicioCasoPage() {
               )}
             </div>
 
-            {/* Denunciante / Third Party Section */}
+            {/* Denunciante / Third Party Section — solo para denuncias */}
+            {requestType === 'DENUNCIA' && (
+            <>
             <div style={{ padding: '1.25rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                 <input
@@ -767,39 +874,69 @@ export default function InicioCasoPage() {
               </div>
             </div>
 
-            {/* Persona Denunciada (opcional) */}
-            <div style={{ padding: '1.25rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
-                Persona Denunciada <span style={{ fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>(opcional)</span>
-              </div>
+             {/* Persona Denunciada (opcional) */}
+             <div style={{ padding: '1.25rem', backgroundColor: 'var(--papel)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+               <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
+                 Persona Denunciada <span style={{ fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>(opcional)</span>
+               </div>
 
-              {!selectedAccused ? (
-                <>
-                  <form onSubmit={handleSearchAccused} style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                    <input
-                      type="text"
-                      value={accusedQuery}
-                      onChange={(e) => setAccusedQuery(e.target.value)}
-                      placeholder="Buscar por nombre o documento del denunciado..."
-                      style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={accusedSearching}
-                      style={{
-                        backgroundColor: 'var(--bosque-profundo)',
-                        color: 'white',
-                        padding: '0.5rem 1rem',
-                        borderRadius: 'var(--radius)',
-                        fontWeight: 600,
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                      }}
-                    >
-                      {accusedSearching ? 'Buscando...' : 'Buscar'}
-                    </button>
-                  </form>
+               {/* SE DESCONOCE checkbox */}
+               <div style={{ marginBottom: '1rem' }}>
+                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                   <input
+                     type="checkbox"
+                     checked={aggressorUnknown}
+                     onChange={(e) => {
+                       setAggressorUnknown(e.target.checked);
+                       if (e.target.checked) {
+                         setSelectedAccused(null);
+                         setAccusedQuery('');
+                         setAccusedResults([]);
+                         setAccusedSearched(false);
+                       }
+                     }}
+                     style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--salvia)' }}
+                   />
+                   SE DESCONOCE
+                 </label>
+               </div>
+
+                {!selectedAccused ? (
+                 <>
+                   <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                     <input
+                       type="text"
+                       value={accusedQuery}
+                       onChange={(e) => setAccusedQuery(e.target.value)}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter') {
+                           e.preventDefault();
+                           handleSearchAccused();
+                         }
+                       }}
+                       placeholder="Buscar por nombre o documento del denunciado..."
+                       disabled={aggressorUnknown}
+                       style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem', opacity: aggressorUnknown ? 0.5 : 1 }}
+                     />
+                     <button
+                       type="button"
+                       onClick={handleSearchAccused}
+                       disabled={accusedSearching || aggressorUnknown}
+                       style={{
+                         backgroundColor: aggressorUnknown ? 'var(--border)' : 'var(--bosque-profundo)',
+                         color: 'white',
+                         padding: '0.5rem 1rem',
+                         borderRadius: 'var(--radius)',
+                         fontWeight: 600,
+                         border: 'none',
+                         cursor: aggressorUnknown ? 'not-allowed' : 'pointer',
+                         fontSize: '0.875rem',
+                         opacity: aggressorUnknown ? 0.6 : 1,
+                       }}
+                     >
+                       {accusedSearching ? 'Buscando...' : 'Buscar'}
+                     </button>
+                   </div>
 
                   {accusedSearched && accusedResults.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -867,6 +1004,8 @@ export default function InicioCasoPage() {
                 </div>
               )}
             </div>
+            </>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
               <button
@@ -886,16 +1025,16 @@ export default function InicioCasoPage() {
 
               <button
                 type="submit"
-                disabled={submitting || !caseType || !intakeNarrative}
+                disabled={submitting || !caseType || (requestType === 'DENUNCIA' && !intakeNarrative)}
                 style={{
-                  backgroundColor: (caseType && intakeNarrative) ? 'var(--bosque-profundo)' : 'var(--border)',
+                  backgroundColor: (caseType && (requestType !== 'DENUNCIA' || intakeNarrative)) ? 'var(--bosque-profundo)' : 'var(--border)',
                   color: 'white',
                   border: 'none',
                   padding: '0.75rem 2rem',
                   borderRadius: 'var(--radius)',
                   fontWeight: 700,
-                  cursor: (caseType && intakeNarrative) ? 'pointer' : 'not-allowed',
-                  opacity: (caseType && intakeNarrative) ? 1 : 0.6,
+                  cursor: (caseType && (requestType !== 'DENUNCIA' || intakeNarrative)) ? 'pointer' : 'not-allowed',
+                  opacity: (caseType && (requestType !== 'DENUNCIA' || intakeNarrative)) ? 1 : 0.6,
                 }}
               >
                 {submitting ? 'Creando Expediente...' : '✅ Completar y Crear Expediente'}

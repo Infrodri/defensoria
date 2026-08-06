@@ -30,8 +30,14 @@ export function useCaseRecord({ getEndpoint, createEndpoint, updateEndpoint }: U
       const res = await fetchApi(getEndpoint);
       setData(res ?? null);
     } catch (err: any) {
-      setData(null);
-      setError(err?.message || 'No se pudo cargar el registro');
+      // A 404 means the record has not been created yet — treat it as an
+      // empty form so the creation UI shows immediately, not an error banner.
+      if (err?.status === 404) {
+        setData(null);
+      } else {
+        setData(null);
+        setError(err?.message || 'No se pudo cargar el registro');
+      }
     } finally {
       setLoading(false);
     }

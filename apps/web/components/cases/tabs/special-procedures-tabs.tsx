@@ -31,6 +31,8 @@ const TABS: { key: TabKey; label: string; emoji: string }[] = [
 interface Props {
   caseId: string;
   userRole: string;
+  /** Sub-pestaña inicial a activar (ej. "permiso-viaje" proveniente de query param). */
+  defaultTab?: TabKey;
 }
 
 /**
@@ -38,8 +40,8 @@ interface Props {
  * consume los endpoints de Fase 2 vía fetchApi. El guardado usa POST (crear)
  * o PATCH (actualizar) con los paths exactos de los controllers NestJS.
  */
-export function SpecialProceduresTabs({ caseId, userRole }: Props) {
-  const [active, setActive] = useState<TabKey>('violencia-digital');
+export function SpecialProceduresTabs({ caseId, userRole, defaultTab }: Props) {
+  const [active, setActive] = useState<TabKey>(defaultTab ?? 'violencia-digital');
 
   return (
     <div>

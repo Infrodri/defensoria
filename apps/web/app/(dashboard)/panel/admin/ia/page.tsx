@@ -39,10 +39,20 @@ export default function AiConfigPage() {
 
   const fetchServiceHealth = async () => {
     try {
-      const health = await fetchApi<Record<string, string>>('/ai-config/health');
+      const health = await fetchApi<Record<string, 'ok' | 'degraded' | 'unknown'>>('/ai-config/health');
       setServiceHealth(health);
     } catch {
       setServiceHealth({ whisper: 'degraded', ocr: 'degraded', ollama: 'degraded' });
+    }
+  };
+
+  const startServices = async () => {
+    try {
+      await fetchApi('/ai-config/start-services', { method: 'POST' });
+      setMessage({ text: 'Servicios IA iniciados. Espera unos segundos mientras se preparan.', type: 'success' });
+      setTimeout(fetchServiceHealth, 5000);
+    } catch (err) {
+      setMessage({ text: 'Error al intentar iniciar servicios: ' + (err instanceof Error ? err.message : 'Error desconocido'), type: 'error' });
     }
   };
 

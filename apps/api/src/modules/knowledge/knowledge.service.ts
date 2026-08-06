@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingsService } from './embeddings.service';
+import { TranscriptionService } from './transcription.service';
 
 @Injectable()
 export class KnowledgeService {
@@ -9,6 +10,7 @@ export class KnowledgeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly embeddings: EmbeddingsService,
+    private readonly transcriptionService: TranscriptionService,
   ) {}
 
   async ingestDocument(title: string, chunks: { content: string; metadata: any }[]) {
@@ -1099,5 +1101,65 @@ export class KnowledgeService {
       });
       return restored.trim();
     }).filter(s => s.length > 10);
+  }
+
+  /**
+   * Buscar chunks vectoriales de un caso específico usando RAG con aislamiento por caseId.
+   * Utiliza la tabla case_chunks que tiene embeddings y caseId.
+   */
+  async searchByCase(caseId: string, query: string, limit: number = 5) {
+    this.logger.log(`Búsqueda RAG para caseId=${caseId}, query: "${query}"`);
+
+    try {
+      // 1. Generar embedding de la consulta
+      const queryEmbedding = await this.embeddings.getEmbedding(query);
+      const embeddingStr = `[${queryEmbedding.join(',')}]`;
+
+      // 2. Buscar chunks similares del caso usando pgvector (cosine similarity)
+      //    con aislamiento estricto por caseId
+      const results = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          content: string;
+          caseId: string;
+          sourceType: string;
+          metadata: any;
+          similarity: number;
+        }>
+      >`
+        SELECT
+          cc.id,
+          cc.content,
+          cc."caseId",
+          cc."sourceType",
+          cc.metadata,
+          (cc.embedding <=> ${embeddingStr}::vector) as similarity
+        FROM case_chunks cc
+        WHERE cc."caseId" = ${caseId}::uuid
+        ORDER BY similarity ASC
+        LIMIT ${limit}
+      `;
+
+      return results.map((r) => ({
+        id: r.id,
+        content: r.content,
+        caseId: r.caseId,
+        sourceType: r.sourceType,
+        metadata: r.metadata,
+        similarity: r.similarity,
+      }));
+    } catch (error) {
+      this.logger.error(`Error en búsqueda RAG por caso: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Retorna transcripciones asociadas a un caseId específico.
+   * Reutiliza TranscriptionService para el aislamiento por caseId.
+   */
+  async getTranscriptionsForCase(caseId: string) {
+    this.logger.log(`Obteniendo transcripciones para caseId=${caseId}`);
+    return this.transcriptionService.getTranscriptionsForCase(caseId);
   }
 }

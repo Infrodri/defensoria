@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useCaseRecord } from './use-case-record';
 import { Field, Toggle, EmptyState, ErrorBanner, SaveButton, formatValue, formatDateOnly, inputStyle } from './ui';
 
@@ -47,6 +47,9 @@ export function TravelPermissionTab({ caseId, userRole }: Props) {
   const [issuedAt, setIssuedAt] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [showBigCode, setShowBigCode] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   const record = data as any;
   React.useEffect(() => {
@@ -68,6 +71,22 @@ export function TravelPermissionTab({ caseId, userRole }: Props) {
   }, [record]);
 
   const canEdit = EDITOR_ROLES.includes(userRole);
+
+  // Genera un código QR en SVG a partir del authorizationCode.
+  // Usa import dinámico para que la librería qrcode no entre en el bundle
+  // principal hasta que el usuario lo solicite.
+  const generateQrCode = useCallback(async (text: string) => {
+    try {
+      setQrError(null);
+      const QRCode = (await import('qrcode')).default;
+      const svg = await QRCode.toString(text, { type: 'svg', margin: 1, scale: 4 });
+      setQrSvg(svg);
+      setShowQrCode(true);
+    } catch (err: any) {
+      setQrError(err?.message || 'Error al generar el código QR');
+      setShowQrCode(false);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +181,88 @@ export function TravelPermissionTab({ caseId, userRole }: Props) {
                 {showBigCode && (
                   <div style={{ marginTop: '1rem', fontSize: '3.5rem', fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.1em', color: 'var(--bosque-profundo)' }}>
                     {record.authorizationCode}
+                  </div>
+                )}
+
+                {/* Código QR del authorizationCode */}
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {!showQrCode ? (
+                    <button
+                      type="button"
+                      onClick={() => generateQrCode(record.authorizationCode)}
+                      style={{
+                        marginTop: '0.5rem',
+                        backgroundColor: 'var(--bosque-profundo)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.375rem 0.875rem',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Ver Código QR
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowQrCode(false)}
+                      style={{
+                        marginTop: '0.5rem',
+                        backgroundColor: 'var(--salvia)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.375rem 0.875rem',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Ocultar QR
+                    </button>
+                  )}
+                </div>
+                {qrError && <ErrorBanner message={qrError} />}
+                {showQrCode && qrSvg && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <div
+                      dangerouslySetInnerHTML={{ __html: qrSvg }}
+                      style={{ display: 'inline-block', backgroundColor: 'white', padding: '0.5rem', borderRadius: 'var(--radius)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const printWnd = window.open('', '_blank');
+                        if (printWnd) {
+                          printWnd.document.write(`<!DOCTYPE html><html><head><title>Certificado QR - Permiso de Viaje</title></head><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:monospace;">
+                            <div style="text-align:center">
+                              <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;margin-bottom:1rem;">Código de Autorización</div>
+                              <div style="font-size:2rem;font-weight:800;margin-bottom:1.5rem;">${record.authorizationCode}</div>
+                              ${qrSvg}
+                            </div>
+                          </body></html>`);
+                          printWnd.document.close();
+                          printWnd.focus();
+                          printWnd.print();
+                        }
+                      }}
+                      style={{
+                        marginTop: '0.75rem',
+                        display: 'block',
+                        backgroundColor: 'var(--tierra-calida)',
+                        color: 'var(--bosque-profundo)',
+                        border: 'none',
+                        padding: '0.375rem 0.875rem',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Imprimir Certificado QR
+                    </button>
                   </div>
                 )}
               </div>
