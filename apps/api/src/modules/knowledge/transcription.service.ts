@@ -1,6 +1,7 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
+import { EvidenceRagService } from '../evidences/evidence-rag.service';
 import axios from 'axios';
 import FormData from 'form-data';
 import { Readable } from 'stream';
@@ -12,6 +13,8 @@ export class TranscriptionService {
   constructor(
     private prisma: PrismaService,
     private minioService: MinioService,
+    @Inject(forwardRef(() => EvidenceRagService))
+    private evidenceRag: EvidenceRagService,
   ) {}
 
   /**
@@ -204,9 +207,22 @@ export class TranscriptionService {
         data: {
           text: transcribedText,
           status: 'COMPLETADA',
-          confidence: 0.85, // Placeholder confidence
+          confidence: 0.85,
         },
       });
+
+      // Indexar en case_chunks para que el RAG del expediente pueda leerla
+      if (transcribedText.trim().length > 10 && !transcribedText.startsWith('[Transcripción no disponible')) {
+        this.evidenceRag
+          .indexChunkPublic(caseId, evidenceId || null, 'audio_transcript', transcribedText, {
+            transcriptionId: updated.id,
+            fileName: file.originalname,
+            source: 'manual_transcription',
+          })
+          .catch((err) =>
+            this.logger.warn(`[RAG] No se pudo indexar transcripción ${updated.id}: ${err.message}`),
+          );
+      }
 
       return {
         id: updated.id,

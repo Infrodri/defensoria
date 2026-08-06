@@ -186,6 +186,19 @@ Sé objetivo y profesional, como un perito forense.`,
     }
   }
 
+  /**
+   * Método público para indexar un chunk desde otros servicios (ej. TranscriptionService).
+   */
+  async indexChunkPublic(
+    caseId: string,
+    evidenceId: string | null,
+    sourceType: string,
+    content: string,
+    metadata: Record<string, any> = {},
+  ) {
+    return this.indexChunk(caseId, evidenceId, sourceType, content, metadata);
+  }
+
   // ── Método central de indexación ──────────────────────────────────────────
 
   /**

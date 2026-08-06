@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nes
 import { FileInterceptor } from '@nestjs/platform-express';
 import { KnowledgeService } from './knowledge.service';
 import { TranscriptionService } from './transcription.service';
+import { EvidenceRagService } from '../evidences/evidence-rag.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -18,6 +19,7 @@ export class KnowledgeController {
   constructor(
     private readonly knowledgeService: KnowledgeService,
     private readonly transcriptionService: TranscriptionService,
+    private readonly evidenceRag: EvidenceRagService,
   ) {}
 
   @Post('ingest')
@@ -211,6 +213,25 @@ export class KnowledgeController {
       return await this.transcriptionService.searchInCaseTranscriptions(caseId, query);
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Error al buscar en transcripciones');
+    }
+  }
+
+  @Post('case-search')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Búsqueda semántica en el RAG del expediente (transcripciones, PDFs, imágenes, informes previos)' })
+  async searchCaseContext(
+    @Body('caseId') caseId: string,
+    @Body('query') query: string,
+    @Body('limit') limit?: number,
+  ) {
+    if (!caseId) throw new BadRequestException('Se requiere caseId');
+    if (!query) throw new BadRequestException('Se requiere query');
+
+    try {
+      const context = await this.evidenceRag.searchCaseContext(caseId, query, limit || 8);
+      return { caseId, query, context, hasContext: context.trim().length > 0 };
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al buscar en el expediente');
     }
   }
 }
