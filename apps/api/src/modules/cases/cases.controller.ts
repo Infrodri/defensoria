@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CasesService } from './cases.service';
 import { CreateCaseDto } from './dto/create-case.dto';
@@ -128,5 +128,26 @@ export class CasesController {
   @ApiOperation({ summary: 'Obtener estado de avance de intervenciones de cada profesional asignado en la fase de Seguimiento' })
   async getInterventionStatus(@Param('id') caseId: string) {
     return this.casesService.getInterventionStatus(caseId);
+  }
+
+  @Patch(':id/phase/advance')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Verificar y avanzar la fase del expediente si se cumplen los requisitos' })
+  async advancePhase(
+    @Param('id') caseId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    await this.casesService.advancePhaseIfReady(caseId, userId);
+    return this.casesService.findOne(caseId, { id: userId, role: 'ADMINISTRADOR' as any, officeId: null });
+  }
+
+  @Get(':id/timeline')
+  @UseGuards(CaseAccessGuard)
+  @ApiOperation({ summary: 'Línea de tiempo procesal del expediente — todos los eventos ordenados por fecha' })
+  async getTimeline(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.casesService.getTimeline(id, user);
   }
 }

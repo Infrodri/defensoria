@@ -17,8 +17,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Listar profesionales disponibles para asignación (accesible a todos)' })
   async listProfessionals(
     @Query('role') role?: string,
+    @Query('officeId') officeId?: string,
   ) {
-    return this.usersService.listProfessionals(role as Role);
+    return this.usersService.listProfessionals(role as Role, officeId);
   }
 
   @Get()

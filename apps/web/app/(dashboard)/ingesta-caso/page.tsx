@@ -201,11 +201,10 @@ export default function InicioCasoPage() {
       }
 
       // Prepare case payload
-      // Decision: para trámites administrativos se usa DENUNCIA_VULNERACION como
-      // CaseType (el enum del backend no incluye tipos administrativos). El caso
-      // es el contenedor; la semántica del trámite se gestiona en la pestaña
-      // de Trámites Especiales. Ver detalle en el reporte de salida.
-      const effectiveCaseType = requestType === 'DENUNCIA' ? caseType : 'DENUNCIA_VULNERACION';
+      // Decision: for administrative procedures the caseType IS the requestType
+      // (e.g. PERMISO_VIAJE, NNATS, OPERATIVO). For standard DENUNCIA flows the
+      // caseType comes from the catalog dropdown selection.
+      const effectiveCaseType = requestType !== 'DENUNCIA' ? requestType : caseType;
       const isAdministrative = requestType !== 'DENUNCIA';
 
       const casePayload: any = {

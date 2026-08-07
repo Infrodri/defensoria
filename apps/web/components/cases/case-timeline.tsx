@@ -14,7 +14,55 @@ interface TimelineEvent {
   user?: { firstName: string; lastName: string; role: string };
 }
 
-export function CaseTimeline({ caseId }: { caseId: string }) {
+function getPendingSubsteps(
+  role: string,
+  userId?: string,
+  reports: any[] = [],
+  teamHistory: any[] = [],
+): { key: string; label: string; done: boolean }[] {
+  const myReports = reports.filter((r: any) => r.authorId === userId || r.coAuthorId === userId);
+
+  const hasReport = (categories: string[]) =>
+    myReports.some((r: any) => categories.includes(r.disciplineReportType?.category));
+
+  const isInTeam = teamHistory.some((m: any) => m.user?.id === userId && m.endDate === null);
+  const hasPlan = teamHistory.some((m: any) => m.user?.id === userId && (m.requiredSessions ?? 0) > 0);
+
+  if (role === 'ABOGADO') {
+    return [
+      { key: 'asignado', label: 'Asignado al equipo del expediente', done: isInTeam },
+      { key: 'informe-juridico', label: 'Informe Jurídico Inicial emitido', done: hasReport(['INFORME_JURIDICO']) },
+      { key: 'plan-sesiones', label: 'Plan de sesiones legales registrado', done: hasPlan },
+    ];
+  }
+
+  if (role === 'PSICOLOGO') {
+    return [
+      { key: 'asignado', label: 'Asignado al equipo del expediente', done: isInTeam },
+      { key: 'informe-psicologico', label: 'Informe Psicológico inicial emitido', done: hasReport(['INFORME_PSICOLOGICO', 'INFORME_PSICOSOCIAL']) },
+      { key: 'plan-sesiones', label: 'Plan de sesiones psicológicas registrado', done: hasPlan },
+    ];
+  }
+
+  if (role === 'SOCIAL') {
+    return [
+      { key: 'asignado', label: 'Asignado al equipo del expediente', done: isInTeam },
+      { key: 'ficha-social', label: 'Ficha Social Habilitante completada', done: hasReport(['INFORME_SOCIAL']) },
+      { key: 'informe-social', label: 'Informe Social Inicial emitido', done: hasReport(['INFORME_SOCIAL', 'INFORME_PSICOSOCIAL']) },
+      { key: 'plan-sesiones', label: 'Plan de seguimiento social registrado', done: hasPlan },
+    ];
+  }
+
+  return [];
+}
+
+export function CaseTimeline({ caseId, currentUserId, currentUserRole, reports, teamHistory }: {
+  caseId: string;
+  currentUserId?: string;
+  currentUserRole?: string;
+  reports?: any[];
+  teamHistory?: any[];
+}) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -89,6 +137,27 @@ export function CaseTimeline({ caseId }: { caseId: string }) {
           </div>
         ))}
       </div>
+
+      {/* Pending substeps for the current professional */}
+      {currentUserRole && ['ABOGADO', 'PSICOLOGO', 'SOCIAL'].includes(currentUserRole) && (
+        <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', backgroundColor: 'oklch(0.97 0.02 175)', borderRadius: 'var(--radius)', border: '1px solid oklch(0.88 0.04 175)' }}>
+          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>
+            📋 Mis subpasos pendientes — {currentUserRole === 'ABOGADO' ? 'Área Legal' : currentUserRole === 'PSICOLOGO' ? 'Psicología' : 'Trabajo Social'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {getPendingSubsteps(currentUserRole, currentUserId, reports ?? [], teamHistory ?? []).map((step) => (
+              <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem' }}>
+                <span style={{ color: step.done ? 'var(--salvia)' : 'var(--tierra-calida)', fontSize: '1rem' }}>
+                  {step.done ? '✅' : '⏳'}
+                </span>
+                <span style={{ color: step.done ? 'var(--grafito)' : 'var(--bosque-profundo)', fontWeight: step.done ? 400 : 600 }}>
+                  {step.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

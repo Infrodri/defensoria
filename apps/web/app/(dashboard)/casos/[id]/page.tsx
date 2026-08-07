@@ -128,6 +128,21 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
         setStaffUsers(uList);
       }
 
+      // Load professionals filtered by the case's office (overrides global list if results exist)
+      if (cData?.currentOfficeId && (user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA' || user?.role === 'SECRETARIA')) {
+        fetchApi(`/users/professionals/list?officeId=${cData.currentOfficeId}`)
+          .then((filtered: any[]) => {
+            if (filtered && filtered.length > 0) {
+              setStaffUsers(filtered);
+            }
+            // If nobody in that office, keep the global uList loaded above
+          })
+          .catch(() => {});
+      }
+
+      // Check automatic phase advance after data reload
+      fetchApi(`/cases/${caseId}/phase/advance`, { method: 'PATCH' }).catch(() => {});
+
       // Auto-seleccionar el primer profesional activo del equipo del caso
       if (cData?.teamHistory) {
         const activeMembers = cData.teamHistory.filter((t: any) => !t.endDate);
@@ -195,6 +210,9 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
           reason: assignReason,
         }),
       });
+
+      // Trigger automatic phase advance after team assignment
+      fetchApi(`/cases/${caseId}/phase/advance`, { method: 'PATCH' }).catch(() => {});
 
       await loadCaseDetails();
       setAssignUserId('');
@@ -707,7 +725,19 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                     <>
                       {filteredStaff.length === 0 && assignRole ? (
                         <div style={{ padding: '0.75rem', backgroundColor: 'oklch(0.95 0.08 85)', border: '1px solid oklch(0.85 0.08 85)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--tierra-calida)' }}>
-                          ⚠️ No hay profesionales activos con el rol <strong>{assignRole === 'ABOGADO' ? 'ABOGADO' : assignRole === 'PSICOLOGO' ? 'PSICÓLOGO' : 'TRABAJADOR SOCIAL'}</strong>
+                          ⚠️ No hay profesionales de <strong>{assignRole}</strong> en esta oficina.
+                          {staffUsers.filter((u: any) => u.role === assignRole).length > 0 && (
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem' }}>
+                              Hay {staffUsers.filter((u: any) => u.role === assignRole).length} profesional(es) disponible(s) en otras oficinas.
+                              <button
+                                type="button"
+                                onClick={() => fetchApi('/users/professionals/list').then((all: any[]) => setStaffUsers(all)).catch(() => {})}
+                                style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', backgroundColor: 'var(--tierra-calida)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 700 }}
+                              >
+                                Ver todos (asignación excepcional)
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <select
@@ -1361,7 +1391,13 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
         );
       })()}
       {activeTab === 'lineatiempo' && (
-        <CaseTimeline caseId={caseId} />
+        <CaseTimeline
+          caseId={caseId}
+          currentUserId={user?.id}
+          currentUserRole={user?.role}
+          reports={reports}
+          teamHistory={caseData?.teamHistory}
+        />
       )}
 
       {/* TAB CONTENT: Trámites Especiales (Fase 3) — solo para casos administrativos */}

@@ -806,4 +806,162 @@ export class CasesService {
       })),
     };
   }
+
+  /**
+   * Advance the case phase automatically when requirements are met.
+   * Rules:
+   *   DERIVACION → EVALUACION: when the first professional is assigned to the team
+   *   EVALUACION → SEGUIMIENTO: when all active professionals have at least 1 initial report
+   * Only advances if the current phase is exactly the expected previous phase.
+   */
+  async advancePhaseIfReady(caseId: string, changedBy: string): Promise<void> {
+    const caseData = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: { currentPhase: true, isClosed: true },
+    });
+
+    if (!caseData || caseData.isClosed) return;
+
+    const currentPhase = caseData.currentPhase;
+    let nextPhase: string | null = null;
+    let reason = '';
+
+    if (currentPhase === 'DERIVACION') {
+      // Verify at least 1 active professional
+      const activeTeam = await this.prisma.caseTeamHistory.count({
+        where: { caseId, endDate: null },
+      });
+      if (activeTeam > 0) {
+        nextPhase = 'EVALUACION';
+        reason = 'Equipo interdisciplinario asignado — caso pasa a Evaluación';
+      }
+    } else if (currentPhase === 'EVALUACION') {
+      // Verify all active professionals have at least 1 report
+      const activeTeam = await this.prisma.caseTeamHistory.findMany({
+        where: { caseId, endDate: null },
+        select: { userId: true, role: true },
+      });
+
+      if (activeTeam.length > 0) {
+        const REPORT_TYPES_BY_ROLE: Record<string, string[]> = {
+          ABOGADO:   ['INFORME_JURIDICO'],
+          PSICOLOGO: ['INFORME_PSICOLOGICO', 'INFORME_PSICOSOCIAL'],
+          SOCIAL:    ['INFORME_SOCIAL', 'INFORME_PSICOSOCIAL'],
+        };
+
+        const allHaveReport = await Promise.all(
+          activeTeam.map(async (member) => {
+            const allowedCategories = REPORT_TYPES_BY_ROLE[member.role] ?? [];
+            if (allowedCategories.length === 0) return true;
+            const count = await this.prisma.report.count({
+              where: {
+                caseId,
+                authorId: member.userId,
+                disciplineReportType: { category: { in: allowedCategories as any[] } },
+              },
+            });
+            return count > 0;
+          }),
+        );
+
+        if (allHaveReport.every(Boolean)) {
+          nextPhase = 'SEGUIMIENTO';
+          reason = 'Todos los informes iniciales presentados — caso pasa a Seguimiento';
+        }
+      }
+    }
+
+    if (nextPhase) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.case.update({
+          where: { id: caseId },
+          data: { currentPhase: nextPhase as any },
+        });
+        await tx.actionLog.create({
+          data: {
+            caseId,
+            authorId: changedBy,
+            actionType: 'OTRO',
+            title: `🔄 Avance de Fase: ${nextPhase}`,
+            content: reason,
+            isSigned: true,
+            signedAt: new Date(),
+          },
+        });
+      });
+    }
+  }
+
+  /**
+   * Procedural timeline of the case — all relevant events ordered by date.
+   */
+  async getTimeline(caseId: string, user: any) {
+    await this.caseAccessService.assertUserHasAccess(caseId, user);
+
+    const [caseData, actionLogs, appointments, reports, evidences] = await Promise.all([
+      this.prisma.case.findUnique({ where: { id: caseId }, select: { id: true, createdAt: true, caseCode: true, caseType: true } }),
+      this.prisma.actionLog.findMany({ where: { caseId }, include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.appointment.findMany({ where: { caseId }, include: { creator: { select: { id: true, firstName: true, lastName: true, role: true } } }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.report.findMany({ where: { caseId }, include: { author: { select: { id: true, firstName: true, lastName: true, role: true } }, disciplineReportType: { select: { name: true, category: true } } }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.evidence.findMany({ where: { caseId }, include: { uploader: { select: { id: true, firstName: true, lastName: true, role: true } } }, orderBy: { createdAt: 'asc' } }),
+    ]);
+
+    const events: any[] = [];
+
+    if (caseData) {
+      events.push({
+        id: `case-${caseData.id}`,
+        type: 'CASE_OPENED',
+        title: `Apertura del Expediente ${caseData.caseCode}`,
+        description: `Expediente registrado. Tipo: ${caseData.caseType}`,
+        date: caseData.createdAt,
+      });
+    }
+
+    actionLogs.forEach((log) => {
+      events.push({
+        id: `log-${log.id}`,
+        type: 'ACTION_LOG',
+        title: log.title,
+        description: log.content?.substring(0, 200) ?? '',
+        date: log.createdAt,
+        user: log.author,
+      });
+    });
+
+    appointments.forEach((app) => {
+      events.push({
+        id: `app-${app.id}`,
+        type: 'APPOINTMENT',
+        title: app.title,
+        description: `${app.appointmentType} — Estado: ${app.status}${app.location ? ` · ${app.location}` : ''}`,
+        date: app.scheduledAt ?? app.createdAt,
+        user: app.creator,
+      });
+    });
+
+    reports.forEach((rep) => {
+      events.push({
+        id: `rep-${rep.id}`,
+        type: 'REPORT',
+        title: rep.title,
+        description: `${rep.disciplineReportType?.name ?? rep.disciplineReportType?.category} — Estado: ${rep.status}`,
+        date: rep.createdAt,
+        user: rep.author,
+      });
+    });
+
+    evidences.forEach((ev) => {
+      events.push({
+        id: `ev-${ev.id}`,
+        type: 'EVIDENCE',
+        title: `Evidencia: ${ev.fileName}`,
+        description: `${ev.mimeType} — ${(ev.fileSize / 1024).toFixed(1)} KB${ev.description ? ` · ${ev.description}` : ''}`,
+        date: ev.createdAt,
+        user: ev.uploader,
+      });
+    });
+
+    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
 }

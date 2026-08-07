@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { fetchApi } from '@/lib/api';
 import {
   CheckCircle2,
   Circle,
@@ -454,6 +455,24 @@ export function CaseFlowWidget({
               .
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Automatic phase advance button */}
+      {!isClosed && (
+        <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await fetchApi(`/cases/${caseId}/phase/advance`, { method: 'PATCH' });
+                window.location.reload();
+              } catch {}
+            }}
+            style={{ padding: '0.5rem 1rem', backgroundColor: 'transparent', border: '1px solid var(--salvia)', color: 'var(--salvia)', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            🔄 Verificar avance de fase
+          </button>
         </div>
       )}
     </div>

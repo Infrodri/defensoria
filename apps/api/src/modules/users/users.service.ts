@@ -24,7 +24,7 @@ export interface UpdateUserDto {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async listProfessionals(roleFilter?: Role) {
+  async listProfessionals(roleFilter?: Role, officeId?: string) {
     const professionalRoles = [Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL];
     
     const where: any = {
@@ -33,6 +33,11 @@ export class UsersService {
         in: roleFilter ? [roleFilter] : professionalRoles,
       },
     };
+
+    // Filter by office if specified
+    if (officeId) {
+      where.officeId = officeId;
+    }
 
     const professionals = await this.prisma.user.findMany({
       where,
