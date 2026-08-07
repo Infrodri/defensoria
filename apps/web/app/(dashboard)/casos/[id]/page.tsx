@@ -982,13 +982,11 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
         const canSchedule = canManageCase || isProfessionalInTeam;
 
         const APPOINTMENT_TYPES = [
-          { value: 'ENTREVISTA',          label: '🗣️ Entrevista Psicología/Social' },
+          { value: 'ENTREVISTA',          label: '🗣️ Entrevista / Sesión' },
           { value: 'AUDIENCIA',           label: '⚖️ Audiencia Judicial' },
           { value: 'VISITA_DOMICILIARIA', label: '🏠 Visita Domiciliaria' },
           { value: 'SEGUIMIENTO',         label: '📋 Sesión de Seguimiento' },
-          { value: 'PERICIA',             label: '🔬 Peritaje / Evaluación Técnica' },
-          { value: 'CONCILIACION',        label: '🤝 Sesión de Conciliación' },
-          { value: 'OTRO',                label: '✏️ Otro (escribir descripción)' },
+          { value: 'OTRO',                label: '✏️ Otro (describir)' },
         ];
 
         return (

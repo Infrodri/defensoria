@@ -115,7 +115,13 @@ export function CaseTimeline({ caseId, currentUserId, currentUserRole, reports, 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--tierra-calida)', textTransform: 'uppercase' }}>
-                  {event.type.replace('_', ' ')}
+                  {{
+                    CASE_OPENED: '📂 Apertura de Expediente',
+                    ACTION_LOG:  '📝 Actuación Registrada',
+                    APPOINTMENT: '📅 Cita / Audiencia',
+                    REPORT:      '📋 Informe Profesional',
+                    EVIDENCE:    '📎 Evidencia',
+                  }[event.type] ?? event.type.replace('_', ' ')}
                 </span>
                 <h4 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginTop: '0.25rem' }}>
                   {event.title}
