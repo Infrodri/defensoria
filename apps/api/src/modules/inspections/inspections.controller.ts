@@ -54,7 +54,6 @@ export class InspectionsController {
   }
 
   @Get()
-  @UseGuards(CaseAccessGuard)
   @ApiOperation({ summary: 'Listar operativos de inspección' })
   async listInspections(@Query('caseId') caseId?: string) {
     return this.inspectionsService.listInspections(caseId);
