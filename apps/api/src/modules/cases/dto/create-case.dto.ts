@@ -20,14 +20,15 @@ export class CreateCaseDto {
   nnaId: string;
 
   @ApiProperty({
-    description: 'Narrativa inicial de los hechos denunciados',
+    description: 'Narrativa inicial de los hechos denunciados (opcional — puede completarse después desde la bitácora)',
     example: 'Se reporta que el NNA ha sido vulnerado en sus derechos...',
     minLength: 20,
+    required: false,
   })
+  @IsOptional()
   @IsString()
   @MinLength(20, { message: 'La narrativa debe tener al menos 20 caracteres' })
-  @IsNotEmpty()
-  intakeNarrative: string;
+  intakeNarrative?: string;
 
   // ===== BANDERAS DE SITUACIÓN ESPECIAL DE LA DENUNCIA =====
   @ApiProperty({

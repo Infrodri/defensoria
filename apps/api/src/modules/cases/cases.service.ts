@@ -64,7 +64,7 @@ export class CasesService {
           caseType: dto.caseType,
           currentPhase: Phase.DERIVACION,
           currentInterventionPath: InterventionPath.GESTION_ADMINISTRATIVA,
-          intakeNarrative: dto.intakeNarrative,
+          intakeNarrative: dto.intakeNarrative || '',
           currentOfficeId: officeId,
           createdBy: userId,
           // Denunciante tercero
