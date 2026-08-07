@@ -953,6 +953,40 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
         return (
           <div style={{ display: 'grid', gridTemplateColumns: !caseData?.isClosed && canSchedule ? '2fr 1fr' : '1fr', gap: '1.5rem' }}>
 
+            {/* Banner de propuestas pendientes para el usuario actual */}
+            {appointments.filter((a: any) =>
+              a.status === 'PROPUESTA' &&
+              a.assignedProfessionalId === user?.id
+            ).length > 0 && (
+              <div style={{ backgroundColor: 'oklch(0.96 0.08 85)', border: '1px solid oklch(0.85 0.1 85)', borderRadius: 'var(--radius)', padding: '1rem 1.25rem', marginBottom: '1.5rem', gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>
+                  📬 Tenés {appointments.filter((a: any) => a.status === 'PROPUESTA' && a.assignedProfessionalId === user?.id).length} propuesta(s) de cita pendiente(s) de respuesta
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                  {appointments
+                    .filter((a: any) => a.status === 'PROPUESTA' && a.assignedProfessionalId === user?.id)
+                    .map((a: any) => (
+                      <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '0.75rem 1rem', borderRadius: 'var(--radius)', border: '1px solid oklch(0.88 0.06 85)' }}>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{a.title}</div>
+                          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                            {a.appointmentType} — {a.scheduledAt ? new Date(a.scheduledAt).toLocaleString('es-BO') : 'Fecha a confirmar'}
+                            {a.location ? ` · ${a.location}` : ''}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openRespondModal(a)}
+                          style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bosque-profundo)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Responder
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Lista de citas ── */}
             <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
@@ -1112,14 +1146,28 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                           <select
                             value={appAssignedProfessionalId}
                             onChange={(e) => setAppAssignedProfessionalId(e.target.value)}
-                            style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                           >
-                            <option value="">— Sin asignar (primer miembro del equipo) —</option>
-                            {activeTeam.map((t: any) => (
-                              <option key={t.user?.id} value={t.user?.id}>
-                                {t.user?.firstName} {t.user?.lastName} ({t.user?.role})
-                              </option>
-                            ))}
+                            <option value="">-- Sin profesional asignado (cita general) --</option>
+                            {/* Primero los del equipo activo del caso */}
+                            {caseData?.teamHistory
+                              ?.filter((m: any) => m.endDate === null)
+                              .map((m: any) => (
+                                <option key={m.user.id} value={m.user.id}>
+                                  {m.user.firstName} {m.user.lastName} ({m.role}) — Equipo del caso
+                                </option>
+                              ))}
+                            {/* Separador visual si también hay otros staff */}
+                            {staffUsers.filter((u: any) => !caseData?.teamHistory?.some((m: any) => m.endDate === null && m.user.id === u.id)).length > 0 && (
+                              <option disabled>── Otros profesionales ──</option>
+                            )}
+                            {staffUsers
+                              .filter((u: any) => !caseData?.teamHistory?.some((m: any) => m.endDate === null && m.user.id === u.id))
+                              .map((u: any) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.firstName} {u.lastName} ({u.role})
+                                </option>
+                              ))}
                           </select>
                         </div>
                       );

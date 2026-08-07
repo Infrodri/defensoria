@@ -14,6 +14,7 @@ export default function InicioCasoPage() {
   // Catalogs State
   const [caseTypeCatalog, setCaseTypeCatalog] = useState<any>(null);
   const [catalogsLoading, setCatalogsLoading] = useState(true);
+  const [offices, setOffices] = useState<any[]>([]);
 
   // Wizard Step State
   const [step, setStep] = useState<1 | 2>(1);
@@ -41,6 +42,7 @@ export default function InicioCasoPage() {
    // Case Details
   const [caseType, setCaseType] = useState('');
   const [intakeNarrative, setIntakeNarrative] = useState('');
+  const [secretariaTomaNarrativa, setSecretariaTomaNarrativa] = useState(true);
   
    // Tipo de Solicitud / Atención — determina el flujo (denuncia vs. trámite admin)
    const [requestType, setRequestType] = useState<'DENUNCIA' | 'PERMISO_VIAJE' | 'NNATS' | 'OPERATIVO'>('DENUNCIA');
@@ -60,6 +62,12 @@ export default function InicioCasoPage() {
   const [complainantRelation, setComplainantRelation] = useState('MADRE');
   const [complainantPhone, setComplainantPhone] = useState('');
   const [complainantAddress, setComplainantAddress] = useState('');
+
+  const [complainantSearchQuery, setComplainantSearchQuery] = useState('');
+  const [complainantSearchResults, setComplainantSearchResults] = useState<any[]>([]);
+  const [complainantSearching, setComplainantSearching] = useState(false);
+  const [complainantSearchExecuted, setComplainantSearchExecuted] = useState(false);
+  const [complainantFromExisting, setComplainantFromExisting] = useState(false);
 
   // Banderas de situación especial de la denuncia (CreateCaseDto Fase 2)
   const [menorAutodenuncia, setMenorAutodenuncia] = useState(false);
@@ -88,6 +96,9 @@ export default function InicioCasoPage() {
         if (catalog?.items && catalog.items.length > 0) {
           setCaseType(catalog.items[0].value);
         }
+
+        const officesList = await fetchApi('/offices').catch(() => []);
+        setOffices(Array.isArray(officesList) ? officesList : []);
       } catch (err) {
         console.error('Error loading catalogs:', err);
       } finally {
@@ -149,6 +160,20 @@ export default function InicioCasoPage() {
       setAccusedResults([]);
     } finally {
       setAccusedSearching(false);
+    }
+  };
+
+  const handleSearchComplainant = async () => {
+    if (!complainantSearchQuery.trim()) return;
+    setComplainantSearching(true);
+    setComplainantSearchExecuted(true);
+    try {
+      const results = await fetchApi(`/persons/search?query=${encodeURIComponent(complainantSearchQuery)}`);
+      setComplainantSearchResults(Array.isArray(results) ? results : []);
+    } catch {
+      setComplainantSearchResults([]);
+    } finally {
+      setComplainantSearching(false);
     }
   };
 
@@ -658,16 +683,15 @@ export default function InicioCasoPage() {
                 onChange={(e) => setDistrict(e.target.value)}
                 style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
               >
-                <option value="">Seleccionar distrito...</option>
-                <option value="1">1. Centro</option>
-                <option value="2">2. Norte</option>
-                <option value="3">3. Sur</option>
-                <option value="4">4. Este</option>
-                <option value="5">5. Oeste</option>
-                <option value="6">6. Noroeste</option>
-                <option value="7">7. Sucre</option>
-                <option value="8">8. La Plata</option>
-                <option value="9">9. Otro</option>
+                <option value="">Seleccionar distrito u oficina...</option>
+                {offices.map((office: any) => (
+                  <option key={office.id} value={office.id}>
+                    {office.name} {office.code ? `(${office.code})` : ''}
+                  </option>
+                ))}
+                {offices.length === 0 && (
+                  <option value="" disabled>Cargando oficinas...</option>
+                )}
               </select>
             </div>
 
@@ -705,6 +729,23 @@ export default function InicioCasoPage() {
              )}
 
             <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.5rem', padding: '0.625rem 0.75rem', backgroundColor: 'oklch(0.97 0.02 85)', borderRadius: 'var(--radius)', border: '1px solid oklch(0.88 0.05 85)' }}>
+                <input
+                  type="checkbox"
+                  id="secretariaTomaNarrativa"
+                  checked={secretariaTomaNarrativa}
+                  onChange={(e) => setSecretariaTomaNarrativa(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="secretariaTomaNarrativa" style={{ fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', color: 'var(--bosque-profundo)' }}>
+                  La secretaría recibe y registra la narrativa ahora
+                </label>
+              </div>
+              {!secretariaTomaNarrativa && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--tierra-calida)', marginBottom: '0.5rem', fontWeight: 600 }}>
+                  ⚠️ La narrativa será completada por el profesional desde la Bitácora del expediente una vez asignado el equipo.
+                </p>
+              )}
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
                 {requestType === 'DENUNCIA' ? 'Narrativa Inicial / Hechos de la Denuncia' : 'Observaciones / Detalles del Trámite'}
               </label>
@@ -713,8 +754,9 @@ export default function InicioCasoPage() {
                 value={intakeNarrative}
                 onChange={(e) => setIntakeNarrative(e.target.value)}
                 placeholder={requestType === 'DENUNCIA' ? 'Describa objetivamente los hechos reportados durante la primera recepción...' : 'Ingrese observaciones o detalles relevantes para este trámite...'}
-                required={requestType === 'DENUNCIA'}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                required={secretariaTomaNarrativa}
+                disabled={!secretariaTomaNarrativa}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem', opacity: secretariaTomaNarrativa ? 1 : 0.5 }}
               />
             </div>
 
@@ -767,6 +809,64 @@ export default function InicioCasoPage() {
 
               {isThirdPartyComplainant && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Búsqueda de denunciante en registros anteriores */}
+                  <div style={{ padding: '0.75rem', backgroundColor: 'oklch(0.97 0.02 200)', borderRadius: 'var(--radius)', border: '1px solid oklch(0.88 0.04 200)', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.5rem' }}>
+                      🔍 Buscar denunciante en registros anteriores
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        value={complainantSearchQuery}
+                        onChange={(e) => setComplainantSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchComplainant())}
+                        placeholder="Buscar por CI, nombre o apellido..."
+                        style={{ flex: 1, padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSearchComplainant}
+                        disabled={complainantSearching}
+                        style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bosque-profundo)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}
+                      >
+                        {complainantSearching ? 'Buscando...' : 'Buscar'}
+                      </button>
+                    </div>
+
+                    {complainantSearchExecuted && complainantSearchResults.length > 0 && (
+                      <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                        {complainantSearchResults.map((p: any) => (
+                          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.8125rem' }}>
+                            <span>{p.firstName} {p.lastName} — CI: {p.documentNumber || 'S/D'}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setComplainantFullName(`${p.firstName} ${p.lastName}`);
+                                setComplainantDocumentId(p.documentNumber || '');
+                                setComplainantPhone(p.phone || '');
+                                setComplainantAddress(p.address || '');
+                                setComplainantFromExisting(true);
+                                setComplainantSearchResults([]);
+                                setComplainantSearchExecuted(false);
+                              }}
+                              style={{ padding: '0.25rem 0.625rem', backgroundColor: 'var(--salvia)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
+                              Seleccionar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {complainantSearchExecuted && complainantSearchResults.length === 0 && !complainantSearching && (
+                      <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.375rem' }}>No se encontraron registros. Complete los datos manualmente.</p>
+                    )}
+
+                    {complainantFromExisting && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--salvia)', marginTop: '0.375rem', fontWeight: 600 }}>✅ Datos cargados desde registro existente. Podés editarlos si cambiaron.</p>
+                    )}
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Nombre Completo del Denunciante *</label>

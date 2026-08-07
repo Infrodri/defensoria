@@ -140,6 +140,19 @@ export class CasesService {
         },
       });
 
+      // 7. Registro automático de apertura en bitácora
+      await tx.actionLog.create({
+        data: {
+          caseId: newCase.id,
+          authorId: userId,
+          actionType: 'OTRO',
+          title: '📂 Apertura del Expediente',
+          content: `Expediente ${caseCode} creado y registrado en el sistema. Tipo de caso: ${dto.caseType}. Fase inicial: Derivación / Recepción. Vía de intervención: Gestión Administrativa.`,
+          isSigned: true,
+          signedAt: new Date(),
+        },
+      });
+
       return newCase;
     });
   }
