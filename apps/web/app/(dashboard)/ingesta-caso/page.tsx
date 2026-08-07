@@ -1131,16 +1131,16 @@ export default function InicioCasoPage() {
 
               <button
                 type="submit"
-                disabled={submitting || !caseType || (requestType === 'DENUNCIA' && !intakeNarrative)}
+                disabled={submitting || !caseType || (requestType === 'DENUNCIA' && secretariaTomaNarrativa && !intakeNarrative)}
                 style={{
-                  backgroundColor: (caseType && (requestType !== 'DENUNCIA' || intakeNarrative)) ? 'var(--bosque-profundo)' : 'var(--border)',
+                  backgroundColor: (caseType && (requestType !== 'DENUNCIA' || !secretariaTomaNarrativa || intakeNarrative)) ? 'var(--bosque-profundo)' : 'var(--border)',
                   color: 'white',
                   border: 'none',
                   padding: '0.75rem 2rem',
                   borderRadius: 'var(--radius)',
                   fontWeight: 700,
-                  cursor: (caseType && (requestType !== 'DENUNCIA' || intakeNarrative)) ? 'pointer' : 'not-allowed',
-                  opacity: (caseType && (requestType !== 'DENUNCIA' || intakeNarrative)) ? 1 : 0.6,
+                  cursor: (caseType && (requestType !== 'DENUNCIA' || !secretariaTomaNarrativa || intakeNarrative)) ? 'pointer' : 'not-allowed',
+                  opacity: (caseType && (requestType !== 'DENUNCIA' || !secretariaTomaNarrativa || intakeNarrative)) ? 1 : 0.6,
                 }}
               >
                 {submitting ? 'Creando Expediente...' : '✅ Completar y Crear Expediente'}
