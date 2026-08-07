@@ -48,8 +48,10 @@ interface TranscriptionButtonProps {
 function TranscriptionButton({ evidence, transcriptionState, onTranscribe, onToggle }: TranscriptionButtonProps) {
   const cat = getMimeCategory(evidence.mimeType);
   const isAudioVideo = cat === 'audio' || cat === 'video';
-  const isImageDoc = cat === 'image' || cat === 'document';
-  if (!isAudioVideo && !isImageDoc) return null;
+
+  // Solo audio/video puede transcribirse manualmente.
+  // Imágenes y PDFs se procesan automáticamente al subir (pipeline RAG).
+  if (!isAudioVideo) return null;
 
   const ts = transcriptionState;
   const isLoading = ts?.loading ?? false;
