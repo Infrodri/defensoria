@@ -611,6 +611,17 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                 <span style={{ opacity: 0.6, display: 'block' }}>Vía de Intervención:</span>
                 <strong>{formatInterventionPath(caseData.currentInterventionPath)}</strong>
               </div>
+
+              {caseData.currentOffice && (
+                <div>
+                  <span style={{ opacity: 0.6, display: 'block' }}>Oficina de Registro:</span>
+                  <strong>{caseData.currentOffice.name} {caseData.currentOffice.code ? `(${caseData.currentOffice.code})` : ''}</strong>
+                </div>
+              )}
+              <div>
+                <span style={{ opacity: 0.6, display: 'block' }}>Fecha de Ingreso:</span>
+                <strong>{caseData.createdAt ? new Date(caseData.createdAt).toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' }) : 'N/D'}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -1326,15 +1337,82 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                   {/* Fecha y hora */}
                   <div>
                     <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                      📅 Fecha y Hora
+                      Fecha y Hora <span style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.7 }}>(requerido)</span>
                     </label>
+                    {/* Accesos rápidos */}
+                    <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                      {[
+                        { label: 'Hoy', days: 0 },
+                        { label: 'Mañana', days: 1 },
+                        { label: 'En 2 días', days: 2 },
+                        { label: 'Próx. semana', days: 7 },
+                      ].map(({ label, days }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + days);
+                            // Redondear a la próxima hora entera
+                            d.setMinutes(0, 0, 0);
+                            d.setHours(d.getHours() + (days === 0 ? 1 : 8));
+                            // Formatear como datetime-local: YYYY-MM-DDTHH:mm
+                            const pad = (n: number) => String(n).padStart(2, '0');
+                            const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+                            setAppScheduledAt(formatted);
+                          }}
+                          style={{
+                            padding: '0.25rem 0.625rem',
+                            backgroundColor: 'var(--papel)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            color: 'var(--bosque-profundo)',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      {appScheduledAt && (
+                        <button
+                          type="button"
+                          onClick={() => setAppScheduledAt('')}
+                          style={{
+                            padding: '0.25rem 0.625rem',
+                            backgroundColor: 'transparent',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius)',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            color: 'var(--riesgo-alto)',
+                          }}
+                        >
+                          ✕ Limpiar
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="datetime-local"
                       value={appScheduledAt}
                       onChange={(e) => setAppScheduledAt(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        fontSize: '0.875rem',
+                        backgroundColor: 'var(--card)',
+                        color: 'var(--grafito)',
+                        boxSizing: 'border-box' as const,
+                      }}
                     />
+                    {appScheduledAt && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--salvia)', marginTop: '0.25rem', fontWeight: 600 }}>
+                        📅 {new Date(appScheduledAt).toLocaleString('es-BO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Lugar */}

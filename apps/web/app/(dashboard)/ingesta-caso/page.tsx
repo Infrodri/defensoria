@@ -753,7 +753,7 @@ export default function InicioCasoPage() {
                 value={intakeNarrative}
                 onChange={(e) => setIntakeNarrative(e.target.value)}
                 placeholder={requestType === 'DENUNCIA' ? 'Describa objetivamente los hechos reportados durante la primera recepción...' : 'Ingrese observaciones o detalles relevantes para este trámite...'}
-                required={secretariaTomaNarrativa}
+                required={secretariaTomaNarrativa && requestType === 'DENUNCIA'}
                 disabled={!secretariaTomaNarrativa}
                 style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem', opacity: secretariaTomaNarrativa ? 1 : 0.5 }}
               />
@@ -761,7 +761,14 @@ export default function InicioCasoPage() {
 
             {/* Audio Recording Optional */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Grabar Primera Entrevista (Opcional)</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Grabar Primera Entrevista (Opcional)</label>
+                {!secretariaTomaNarrativa && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--salvia)', fontWeight: 600 }}>
+                    💡 Podés grabar aunque no tomes la narrativa escrita
+                  </span>
+                )}
+              </div>
               <p style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.5rem' }}>
                 Si graba audio, debe confirmar la grabación para que se incluya automáticamente como evidencia del expediente.
               </p>

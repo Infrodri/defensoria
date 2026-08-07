@@ -63,8 +63,12 @@ npm run db:generate         # Genera el cliente de Prisma
 npm run db:push             # Aplica el esquema de la base de datos
 npm run dev                 # Inicia todos los servicios (frontend y backend)
 ```
+cd c:\dev\defensoria
+npm run dev --workspace=apps/api
 
-## 6. Scripts disponibles
+cd c:\dev\defensoria
+npm run dev --workspace=apps/web
+
 
 Desde la raíz del proyecto, puedes utilizar los comandos definidos en el `package.json` utilizando Turborepo.
 
