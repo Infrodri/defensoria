@@ -58,10 +58,12 @@ export class AiAssistantService {
   }
 
   async draftLegalDocument(caseContext: string) {
-    const systemPrompt = `Eres un asistente legal experto en la Ley 548 (Código Niña, Niño y Adolescente) de Bolivia. 
+    const systemPrompt = `Sos un asistente legal experto en la Ley 548 (Código Niña, Niño y Adolescente) de Bolivia.
+IMPORTANTE: Respondé SIEMPRE en español. Nunca uses otro idioma.
 Tu tarea es redactar un borrador formal de un escrito legal o memorial dirigido a una autoridad competente (ej. Juez de la Niñez y Adolescencia o Fiscal).
-Usa lenguaje jurídico formal boliviano. Estructura el documento con Suma, Autoridad dirigida, Generales de ley (omitir nombres, usar "NNA", "Denunciante"), Relación de hechos, Petitorio y Otrosíes. 
-Nunca inventes datos que no estén en el contexto. Termina siempre indicando que es un borrador generado por IA y requiere revisión.`;
+Usá lenguaje jurídico formal boliviano. Estructurá el documento con Suma, Autoridad dirigida, Generales de ley (omitir nombres, usar "NNA", "Denunciante"), Relación de hechos, Petitorio y Otrosíes.
+Solo usá la información que esté en el contexto proporcionado. Si no hay datos suficientes, indicalo explícitamente en el borrador.
+Terminá siempre indicando que es un borrador generado por IA y requiere revisión profesional.`;
 
     const prompt = `Basado en el siguiente contexto del expediente, redacta un borrador de escrito legal inicial para presentar el caso ante las autoridades correspondientes.
     
@@ -73,16 +75,28 @@ ${caseContext}
   }
 
   async analyzeRisk(narrative: string) {
-    const systemPrompt = `Eres un trabajador social y psicólogo experto en protección infantil en Bolivia (Ley 548).
+    const systemPrompt = `Sos un trabajador social y psicólogo experto en protección infantil en Bolivia (Ley 548 - Código Niña, Niño y Adolescente).
+IMPORTANTE: Respondé SIEMPRE en español. Nunca uses otro idioma.
 Tu tarea es analizar la narrativa de una denuncia y extraer de forma objetiva posibles indicadores de vulnerabilidad o riesgo para el NNA.
-Presenta una lista breve (bullet points) de factores de riesgo identificados y sugiere si amerita valoración urgente.
-No des diagnósticos clínicos, solo identifica riesgos evidentes en el texto.
-Termina indicando que es una sugerencia generada por IA local y el dictamen final depende del equipo psicosocial.`;
 
-    const prompt = `Analiza la siguiente narrativa de denuncia e identifica indicadores de riesgo:
-    
+Reglas estrictas:
+- Solo mencioná riesgos que estén EXPLÍCITAMENTE descritos en la narrativa proporcionada
+- Si la narrativa no menciona un factor de riesgo específico, NO lo incluyas ni lo infieras
+- Si la narrativa está vacía o es muy breve, indicá que no hay suficiente información para el análisis
+- No hagas diagnósticos clínicos
+- No inventes situaciones que no estén en el texto
+
+Formato de respuesta:
+1. Lista de indicadores de riesgo identificados (solo los que aparecen en el texto)
+2. Nivel de urgencia sugerido: BAJO / MEDIO / ALTO
+3. Recomendación general
+
+Terminá indicando: "Esta es una sugerencia generada por IA local. El dictamen final depende del equipo psicosocial."`;
+
+    const prompt = `Analizá la siguiente narrativa de denuncia e identificá indicadores de riesgo presentes en el texto:
+
 Narrativa:
-${narrative}
+${narrative || '(Sin narrativa registrada)'}
 `;
 
     return this.queryOllama(prompt, systemPrompt);

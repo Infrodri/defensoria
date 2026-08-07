@@ -709,9 +709,24 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
 
           {canManageCase && (
             <form onSubmit={handleAssignTeam} style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
-                Asignar Profesional
-              </h3>
+              {(() => {
+                const currentActive = caseData?.teamHistory?.find(
+                  (m: any) => m.role === assignRole && m.endDate === null
+                );
+                const isReassign = !!currentActive;
+                return (
+                  <>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.25rem' }}>
+                      {isReassign ? '🔄 Reasignar Profesional' : '➕ Asignar Profesional'}
+                    </h3>
+                    {isReassign && (
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--tierra-calida)', fontWeight: 600, marginBottom: '1rem', padding: '0.5rem 0.75rem', backgroundColor: 'oklch(0.97 0.03 65)', borderRadius: 'var(--radius)', border: '1px solid oklch(0.88 0.06 65)' }}>
+                        ⚠️ Actualmente asignado: <strong>{currentActive.user?.firstName} {currentActive.user?.lastName}</strong> · Al guardar, su asignación se cerrará automáticamente.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
@@ -808,7 +823,11 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                     opacity: assignUserId && assignReason.length >= 10 ? 1 : 0.6,
                   }}
                 >
-                  {assigning ? 'Asignando...' : 'Asignar al Equipo'}
+                  {assigning ? 'Asignando...' : (
+                    caseData?.teamHistory?.find((m: any) => m.role === assignRole && m.endDate === null)
+                      ? 'Reasignar al Equipo'
+                      : 'Asignar al Equipo'
+                  )}
                 </button>
               </div>
             </form>
