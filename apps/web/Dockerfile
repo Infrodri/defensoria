@@ -6,6 +6,7 @@ COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 
 RUN npm ci
+RUN npm run build --workspace=@defensoria/shared
 RUN npm run build --workspace=@defensoria/web
 
 FROM node:20-alpine AS runner
