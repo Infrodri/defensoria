@@ -1,21 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@defensoria/db';
+import { calculateAge } from '@defensoria/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingsService } from '../knowledge/embeddings.service';
-import axios from 'axios';
-import FormData from 'form-data';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // EvidenceRagService
-// Procesa cada evidencia subida al expediente y la indexa en el RAG del caso.
-//
-// PIPELINE por tipo de archivo:
-//  audio/video  → Whisper transcribe → embedding → case_chunks
-//  image        → Ollama vision (llava) describe → embedding → case_chunks
-//  pdf/docx     → pdf-parse extrae texto → embedding → case_chunks
-//  report       → contenido del informe → embedding → case_chunks
-//
-// Todos los métodos son fire-and-forget: la carga de evidencia responde
-// inmediatamente y el procesamiento RAG ocurre en segundo plano.
+// Servicios RAG para consulta de contexto, indexación manual y estado del pipeline.
+// Nota: El parsing e indexación de evidencias de archivos es procesado por EvidenceWorker.
 // ──────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -26,165 +18,6 @@ export class EvidenceRagService {
     private readonly prisma: PrismaService,
     private readonly embeddings: EmbeddingsService,
   ) {}
-
-  // ── Punto de entrada principal ─────────────────────────────────────────────
-
-  /**
-   * Dispara el pipeline RAG de forma asíncrona.
-   * Llamar con .catch() para no bloquear la respuesta HTTP.
-   */
-  async processEvidenceAsync(
-    caseId: string,
-    evidenceId: string,
-    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-    description?: string,
-  ): Promise<void> {
-    this.logger.log(`[RAG] Iniciando pipeline para evidencia ${evidenceId} (${file.mimetype})`);
-
-    try {
-      const mime = file.mimetype.toLowerCase();
-
-      if (mime.startsWith('audio/') || mime.startsWith('video/')) {
-        await this.processAudioVideo(caseId, evidenceId, file, description);
-      } else if (mime.startsWith('image/')) {
-        await this.processImage(caseId, evidenceId, file, description);
-      } else if (mime === 'application/pdf') {
-        await this.processPdf(caseId, evidenceId, file, description);
-      } else {
-        // Para DOCX y otros formatos de texto: indexar la descripción
-        await this.indexChunk(caseId, evidenceId, 'document_text',
-          description || `Documento adjunto: ${file.originalname}`,
-          { fileName: file.originalname, mimeType: file.mimetype },
-        );
-      }
-    } catch (err: any) {
-      this.logger.warn(`[RAG] Pipeline falló para evidencia ${evidenceId}: ${err.message}`);
-      // No relanzar — es un proceso en segundo plano, no debe afectar la respuesta
-    }
-  }
-
-  // ── Audio y Video → Transcripción Whisper ─────────────────────────────────
-
-  private async processAudioVideo(
-    caseId: string,
-    evidenceId: string,
-    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-    description?: string,
-  ) {
-    this.logger.log(`[RAG] Transcribiendo audio/video: ${file.originalname}`);
-
-    const whisperUrl = process.env.WHISPER_API_URL || 'http://localhost:8000/v1/audio/transcriptions';
-    let transcribedText = '';
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'es');
-
-      const response = await axios.post(whisperUrl, formData, {
-        headers: formData.getHeaders(),
-        timeout: 60_000,
-      });
-      transcribedText = response.data.text || response.data.result?.text || '';
-    } catch (whisperErr: any) {
-      this.logger.warn(`[RAG] Whisper no disponible: ${whisperErr.message}`);
-      transcribedText = description
-        ? `Grabación de audio: ${description}`
-        : `Archivo de audio adjunto al expediente: ${file.originalname}`;
-    }
-
-    if (transcribedText.trim().length > 10) {
-      // Solo indexamos en case_chunks — no duplicamos en la tabla Transcription
-      // ya que esa tabla tiene su propio flujo con evidenceId y createdBy requeridos
-      await this.indexChunk(caseId, evidenceId, 'audio_transcript', transcribedText, {
-        fileName: file.originalname,
-        description,
-        source: 'whisper_transcription',
-      });
-    }
-  }
-
-  // ── Imagen → Descripción por IA Vision ────────────────────────────────────
-
-  private async processImage(
-    caseId: string,
-    evidenceId: string,
-    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-    description?: string,
-  ) {
-    this.logger.log(`[RAG] Analizando imagen: ${file.originalname}`);
-
-    const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-    let imageDescription = '';
-
-    try {
-      const base64Image = file.buffer.toString('base64');
-      const response = await axios.post(`${ollamaUrl}/api/generate`, {
-        model: 'llava',
-        prompt: `Describí en detalle esta imagen en español. 
-Contexto: es una evidencia de un caso de la Defensoría de la Niñez y Adolescencia de Bolivia.
-Identificá: personas visibles (sin nombrar), objetos, ambiente, posibles indicadores de violencia o vulneración de derechos, condiciones del lugar.
-Sé objetivo y profesional, como un perito forense.`,
-        images: [base64Image],
-        stream: false,
-      }, { timeout: 30_000 });
-
-      imageDescription = response.data.response || '';
-    } catch (visionErr: any) {
-      this.logger.warn(`[RAG] Ollama vision no disponible: ${visionErr.message}`);
-      imageDescription = description
-        ? `Imagen adjunta: ${description}`
-        : `Imagen fotográfica adjunta al expediente: ${file.originalname}`;
-    }
-
-    if (imageDescription.trim().length > 10) {
-      await this.indexChunk(caseId, evidenceId, 'image_description', imageDescription, {
-        fileName: file.originalname,
-        description,
-        source: 'vision_analysis',
-      });
-    }
-  }
-
-  // ── PDF → Extracción de texto ──────────────────────────────────────────────
-
-  private async processPdf(
-    caseId: string,
-    evidenceId: string,
-    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-    description?: string,
-  ) {
-    this.logger.log(`[RAG] Extrayendo texto de PDF: ${file.originalname}`);
-
-    let pdfText = '';
-
-    try {
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(file.buffer);
-      pdfText = data.text?.replace(/\x00/g, '').trim() || '';
-    } catch (pdfErr: any) {
-      this.logger.warn(`[RAG] pdf-parse falló: ${pdfErr.message}`);
-      pdfText = description
-        ? `Documento PDF: ${description}`
-        : `Documento PDF adjunto al expediente: ${file.originalname}`;
-    }
-
-    if (pdfText.length > 20) {
-      // Dividir en chunks de ≤2000 chars para no superar el límite de embedding
-      const chunks = this.splitIntoChunks(pdfText, 2000, 200);
-
-      for (let i = 0; i < chunks.length; i++) {
-        await this.indexChunk(caseId, evidenceId, 'pdf_text', chunks[i], {
-          fileName: file.originalname,
-          description,
-          chunkIndex: i,
-          totalChunks: chunks.length,
-          source: 'pdf_extract',
-        });
-      }
-    }
-  }
 
   /**
    * Método público para indexar un chunk desde otros servicios (ej. TranscriptionService).
@@ -197,6 +30,86 @@ Sé objetivo y profesional, como un perito forense.`,
     metadata: Record<string, any> = {},
   ) {
     return this.indexChunk(caseId, evidenceId, sourceType, content, metadata);
+  }
+
+  /**
+   * Estado del pipeline RAG — estadísticas de chunks indexados por expediente.
+   * Usado por el panel de monitoreo del administrador.
+   */
+  async getPipelineStatus(caseId?: string) {
+    const caseWhereClause = caseId ? Prisma.sql`WHERE "caseId" = ${caseId}::uuid` : Prisma.empty;
+    const caseAndClause = caseId ? Prisma.sql`AND "caseId" = ${caseId}::uuid` : Prisma.empty;
+
+    // Total de chunks indexados
+    const totalChunks = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint as count FROM case_chunks
+      ${caseWhereClause}
+    `;
+
+    // Chunks con embedding vs sin embedding
+    const withEmbedding = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint as count FROM case_chunks
+      WHERE embedding IS NOT NULL
+      ${caseAndClause}
+    `;
+
+    // Chunks por tipo de fuente
+    const bySourceType = await this.prisma.$queryRaw<{ sourceType: string; count: bigint }[]>`
+      SELECT "sourceType", COUNT(*)::bigint as count
+      FROM case_chunks
+      ${caseWhereClause}
+      GROUP BY "sourceType"
+      ORDER BY count DESC
+    `;
+
+    // Últimos 10 chunks procesados
+    const recentChunks = await this.prisma.$queryRaw<{
+      id: string; caseId: string; sourceType: string;
+      createdAt: Date; hasEmbedding: boolean;
+    }[]>`
+      SELECT id, "caseId", "sourceType", "createdAt",
+             (embedding IS NOT NULL) as "hasEmbedding"
+      FROM case_chunks
+      ${caseWhereClause}
+      ORDER BY "createdAt" DESC
+      LIMIT 10
+    `;
+
+    // Expedientes con chunks
+    const casesWithChunks = caseId ? 1 : (await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(DISTINCT "caseId")::bigint as count FROM case_chunks
+    `)[0]?.count ?? 0n;
+
+    const sourceLabels: Record<string, string> = {
+      audio_transcript:  '🎙️ Transcripciones de audio',
+      image_description: '🖼️ Descripciones de imagen',
+      pdf_text:          '📄 Texto extraído de PDF',
+      document_text:     '📎 Documentos adjuntos',
+      report:            '📋 Informes profesionales',
+      action_log:        '📝 Actuaciones registradas',
+    };
+
+    return {
+      summary: {
+        totalChunks: Number((totalChunks[0] as any)?.count ?? 0n),
+        withEmbedding: Number((withEmbedding[0] as any)?.count ?? 0n),
+        withoutEmbedding: Number((totalChunks[0] as any)?.count ?? 0n) - Number((withEmbedding[0] as any)?.count ?? 0n),
+        casesWithChunks: Number(casesWithChunks),
+      },
+      bySourceType: bySourceType.map(r => ({
+        sourceType: r.sourceType,
+        label: sourceLabels[r.sourceType] || r.sourceType,
+        count: Number(r.count),
+      })),
+      recentActivity: recentChunks.map(r => ({
+        id: r.id,
+        caseId: r.caseId,
+        sourceType: r.sourceType,
+        label: sourceLabels[r.sourceType] ?? r.sourceType,
+        hasEmbedding: r.hasEmbedding,
+        processedAt: r.createdAt,
+      })),
+    };
   }
 
   // ── Método central de indexación ──────────────────────────────────────────
@@ -225,13 +138,14 @@ Sé objetivo y profesional, como un perito forense.`,
     }
 
     try {
+      const evidenceUuidParam = evidenceId ? Prisma.sql`${evidenceId}::uuid` : Prisma.sql`NULL`;
       if (vectorStr) {
         await this.prisma.$executeRaw`
           INSERT INTO case_chunks (id, "caseId", "evidenceId", "sourceType", content, metadata, embedding, "createdAt")
           VALUES (
             gen_random_uuid(),
             ${caseId}::uuid,
-            ${evidenceId ? `${evidenceId}::uuid` : null},
+            ${evidenceUuidParam},
             ${sourceType},
             ${content},
             ${JSON.stringify(metadata)}::jsonb,
@@ -245,7 +159,7 @@ Sé objetivo y profesional, como un perito forense.`,
           VALUES (
             gen_random_uuid(),
             ${caseId}::uuid,
-            ${evidenceId},
+            ${evidenceUuidParam},
             ${sourceType},
             ${content},
             ${JSON.stringify(metadata)}::jsonb,
@@ -260,42 +174,195 @@ Sé objetivo y profesional, como un perito forense.`,
     }
   }
 
+  // ── Mapa de Actores (Tagging Semántico RAG) ───────────────────────────────
+
+  /**
+   * Construye el bloque XML <mapa_actores> para un expediente a partir de Case.parties (Person).
+   * Evita alucinaciones del LLM local sobre los roles de víctima y presunto agresor.
+   */
+  async getCaseActorMap(caseId: string): Promise<string> {
+    try {
+      const caseRecord = await this.prisma.case.findUnique({
+        where: { id: caseId },
+        include: {
+          parties: {
+            include: {
+              person: true,
+              nnaContext: true,
+            },
+          },
+        },
+      });
+
+      if (!caseRecord || !caseRecord.parties || caseRecord.parties.length === 0) {
+        return '<mapa_actores>\n</mapa_actores>';
+      }
+
+      const roleTagMap: Record<string, string> = {
+        NNA: 'victima',
+        DENUNCIADO: 'denunciado_presunto_agresor',
+        DENUNCIANTE: 'denunciante',
+        TUTOR: 'tutor',
+        TESTIGO: 'testigo',
+      };
+
+      const lines: string[] = ['<mapa_actores>'];
+
+      for (const party of caseRecord.parties) {
+        const person = party.person;
+        if (!person) continue;
+
+        const tagName = roleTagMap[party.roleInCase] || party.roleInCase.toLowerCase();
+        const fullName = `${person.firstName || ''} ${person.lastName || ''}`.trim();
+
+        lines.push(`  <${tagName}>`);
+        lines.push(`    <nombre>${fullName}</nombre>`);
+
+        if (person.birthDate) {
+          const age = calculateAge(new Date(person.birthDate));
+          if (age !== null && age !== undefined && !isNaN(age) && age >= 0) {
+            lines.push(`    <edad>${age}</edad>`);
+          }
+        }
+
+        if (party.roleInCase === 'NNA') {
+          if (party.nnaContext) {
+            const schoolGrade = party.nnaContext.schoolGrade;
+            const schoolName = party.nnaContext.schoolName;
+            const schooling = [schoolGrade, schoolName].filter(Boolean).join(' - ');
+            if (schooling) {
+              lines.push(`    <escolaridad>${schooling}</escolaridad>`);
+            }
+            if (party.nnaContext.livesWithDescription) {
+              lines.push(`    <vive_con>${party.nnaContext.livesWithDescription}</vive_con>`);
+            }
+          }
+        }
+
+        if (party.roleInCase === 'DENUNCIADO' || party.roleInCase === 'DENUNCIANTE') {
+          if (party.relationship) {
+            lines.push(`    <vinculo_con_victima>${party.relationship}</vinculo_con_victima>`);
+          }
+          if (party.occupation) {
+            lines.push(`    <ocupacion>${party.occupation}</ocupacion>`);
+          }
+        }
+
+        lines.push(`  </${tagName}>`);
+      }
+
+      lines.push('</mapa_actores>');
+
+      return lines.join('\n');
+    } catch (error: any) {
+      this.logger.warn(`[RAG] Error al generar mapa_actores para caso ${caseId}: ${error.message}`);
+      return '<mapa_actores>\n</mapa_actores>';
+    }
+  }
+
+  /**
+   * Construye el bloque XML <evidencias_cargadas> con la lista directa de evidencias del expediente
+   * y sus transcripciones o textos OCR extraídos.
+   */
+  async getCaseEvidencesSummary(caseId: string): Promise<string> {
+    try {
+      const evidences = await this.prisma.evidence.findMany({
+        where: { caseId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          transcriptions: true,
+        },
+      });
+
+      if (evidences.length === 0) {
+        return '<evidencias_cargadas>\n  Sin evidencias adjuntas en el expediente.\n</evidencias_cargadas>';
+      }
+
+      const lines: string[] = ['<evidencias_cargadas>'];
+
+      for (const ev of evidences) {
+        lines.push(`  <evidencia id="${ev.id}" archivo="${ev.fileName}" tipo="${ev.mimeType}">`);
+        if (ev.description) {
+          lines.push(`    <descripcion>${ev.description}</descripcion>`);
+        }
+        if (ev.transcriptions && ev.transcriptions.length > 0) {
+          for (const tr of ev.transcriptions) {
+            if (tr.text && tr.text.trim()) {
+              lines.push(`    <texto_extraido status="${tr.status}">`);
+              lines.push(`      ${tr.text.trim()}`);
+              lines.push(`    </texto_extraido>`);
+            }
+          }
+        }
+        lines.push(`  </evidencia>`);
+      }
+
+      lines.push('</evidencias_cargadas>');
+      return lines.join('\n');
+    } catch (error: any) {
+      this.logger.warn(`[RAG] Error generando evidencias_cargadas: ${error.message}`);
+      return '<evidencias_cargadas></evidencias_cargadas>';
+    }
+  }
+
   // ── Búsqueda semántica en RAG del caso ────────────────────────────────────
 
   /**
    * Buscar chunks relevantes del expediente para contexto de análisis.
    * Usado por las herramientas y el AI assistant cuando se le pasa un caseId.
+   * Incluye automáticamente el mapa de actores (<mapa_actores>) y evidencias (<evidencias_cargadas>) al inicio.
    */
   async searchCaseContext(caseId: string, query: string, limit = 8): Promise<string> {
     try {
-      const queryEmbedding = await this.embeddings.getEmbedding(query);
-      const embeddingStr = `[${queryEmbedding.join(',')}]`;
+      const actorMap = await this.getCaseActorMap(caseId);
+      const evidencesSummary = await this.getCaseEvidencesSummary(caseId);
 
-      const results = await this.prisma.$queryRaw<Array<{ content: string; sourceType: string; metadata: any }>>`
-        SELECT content, "sourceType", metadata
-        FROM case_chunks
-        WHERE "caseId" = ${caseId}::uuid
-          AND embedding IS NOT NULL
-        ORDER BY embedding <=> ${embeddingStr}::vector
-        LIMIT ${limit}
-      `;
+      const caseRecord = await this.prisma.case.findUnique({
+        where: { id: caseId },
+        select: { intakeNarrative: true },
+      });
+      const narrative = caseRecord?.intakeNarrative || 'No hay relato disponible';
+      const relatoBlock = `<relato_hechos>\n  ${narrative}\n</relato_hechos>`;
+      const contextHeader = `${actorMap}\n\n${relatoBlock}\n\n${evidencesSummary}`;
 
-      if (results.length === 0) return '';
+      let chunksText = '';
+      try {
+        const queryEmbedding = await this.embeddings.getEmbedding(query);
+        const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-      return results
-        .map((r) => {
-          const label = {
-            audio_transcript:  '🎙️ Transcripción de audio',
-            image_description: '🖼️ Descripción de imagen',
-            pdf_text:          '📄 Texto de documento PDF',
-            document_text:     '📎 Documento adjunto',
-            report:            '📋 Informe profesional',
-            action_log:        '📝 Actuación registrada',
-          }[r.sourceType] || '📌 Material del caso';
+        const results = await this.prisma.$queryRaw<Array<{ content: string; sourceType: string; metadata: any }>>`
+          SELECT content, "sourceType", metadata
+          FROM case_chunks
+          WHERE "caseId" = ${caseId}::uuid
+            AND embedding IS NOT NULL
+          ORDER BY embedding <=> ${embeddingStr}::vector
+          LIMIT ${limit}
+        `;
 
-          return `${label}:\n${r.content}`;
-        })
-        .join('\n\n---\n\n');
+        if (results.length > 0) {
+          chunksText = results
+            .map((r) => {
+              const label = {
+                audio_transcript:  '🎙️ Transcripción de audio',
+                image_description: '🖼️ Descripción de imagen',
+                pdf_text:          '📄 Texto de documento PDF',
+                document_text:     '📎 Documento adjunto',
+                report:            '📋 Informe profesional',
+                action_log:        '📝 Actuación registrada',
+              }[r.sourceType] || '📌 Material del caso';
+
+              return `${label}:\n${r.content}`;
+            })
+            .join('\n\n---\n\n');
+        }
+      } catch (embedErr: any) {
+        this.logger.warn(`[RAG] Búsqueda de chunks fallida: ${embedErr.message}`);
+      }
+
+      if (chunksText) {
+        return `${contextHeader}\n\n${chunksText}`;
+      }
+      return contextHeader;
     } catch (err: any) {
       this.logger.warn(`[RAG] Búsqueda fallida: ${err.message}`);
       return '';
@@ -337,5 +404,59 @@ Sé objetivo y profesional, como un perito forense.`,
     }
 
     return chunks.filter((c) => c.trim().length > 20);
+  }
+
+  /**
+   * Obtiene el digest (resumen) actual del caso.
+   * Busca el chunk especial con sourceType 'digest' que se actualiza por evento.
+   */
+  async getCaseDigest(caseId: string): Promise<string> {
+    const chunk = await this.prisma.caseChunk.findFirst({
+      where: {
+        caseId,
+        sourceType: 'digest',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return chunk?.content || '';
+  }
+
+  /**
+   * Regenera el digest (resumen) del caso y lo guarda.
+   */
+  async refreshCaseDigest(caseId: string): Promise<void> {
+    const caseData = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      include: {
+        parties: true,
+      },
+    });
+
+    if (!caseData) return;
+
+    const victima = caseData.parties.find(p => (p as any).roleInCase === 'VICTIMA');
+    const denunciado = caseData.parties.find(p => (p as any).roleInCase === 'DENUNCIADO');
+
+    const digest = `Estado del caso: ${caseData.currentPhase}
+Riesgo: ${caseData.riskLevel || 'NO DEFINIDO'}
+Víctima: ${victima ? 'Víctima Registrada' : 'Desconocida'}
+Presunto Agresor/Denunciado: ${denunciado ? (denunciado as any).relationship || 'Sin parentesco especificado' : 'Desconocido'}
+
+Narrativa inicial:
+${caseData.intakeNarrative}`;
+
+    await this.prisma.caseChunk.deleteMany({
+      where: { caseId, sourceType: 'digest' },
+    });
+
+    await this.prisma.caseChunk.create({
+      data: {
+        caseId,
+        sourceType: 'digest',
+        content: digest,
+        metadata: { isDigest: true },
+        // No embedding generated for digest chunk
+      },
+    });
   }
 }

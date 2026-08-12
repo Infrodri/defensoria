@@ -6,6 +6,7 @@ import { Prisma } from '@defensoria/db';
 import { CaseType, Role, RoleInCase, Phase, InterventionPath, RiskLevel } from '@defensoria/shared';
 import { AssignTeamDto } from './dto/assign-team.dto';
 import { CreateCaseDto } from './dto/create-case.dto';
+import { normalizeDocumentNumber } from '../persons/persons.service';
 
 export interface TransferOfficeDto {
   targetOfficeId: string;
@@ -47,14 +48,8 @@ export class CasesService {
   }
 
   async create(dto: CreateCaseDto, userId: string, officeId: string) {
-    // Verify NNA exists
-    const nna = await this.prisma.person.findUnique({ where: { id: dto.nnaId } });
-    if (!nna) {
-      throw new BadRequestException('El NNA titular no existe');
-    }
-
     return this.prisma.$transaction(async (tx) => {
-      // 0. Generar caseCode DENTRO de la transacción (secuencia atómica)
+      // 0. Generate caseCode atomically within transaction
       const caseCode = await this.generateCaseCode(tx);
 
       // 1. Create Case
@@ -67,60 +62,114 @@ export class CasesService {
           intakeNarrative: dto.intakeNarrative || '',
           currentOfficeId: officeId,
           createdBy: userId,
-          // Denunciante tercero
-          isThirdPartyComplainant: dto.isThirdPartyComplainant || false,
-          complainantFullName: dto.complainantFullName || null,
-          complainantDocumentId: dto.complainantDocumentId || null,
-          complainantRelation: dto.complainantRelation || null,
-          complainantPhone: dto.complainantPhone || null,
-          complainantAddress: dto.complainantAddress || null,
-          // Datos demográficos NNA
-          nnaBirthDate: dto.nnaBirthDate ? new Date(dto.nnaBirthDate) : null,
-          nnaGender: dto.nnaGender ? (dto.nnaGender as any) : null,
-          nnaCity: dto.nnaCity || null,
-          nnaPhone: dto.nnaPhone || null,
-          nnaAddress: dto.nnaAddress || null,
+          menorAutodenuncia: dto.menorAutodenuncia || false,
+          denunciaAnonima: dto.denunciaAnonima || false,
+          involucraFuncionario: dto.involucraFuncionario || false,
+          intakeChannel: dto.intakeChannel || undefined,
+          isUrgent: dto.isUrgent ?? false,
+          hasVisibleInjuries: dto.hasVisibleInjuries ?? false,
+          incidentFrequency: dto.incidentFrequency || undefined,
         },
       });
 
-      // 2. Add NNA as primary party
-      await tx.caseParty.create({
-        data: {
-          caseId: newCase.id,
-          personId: dto.nnaId,
-          roleInCase: RoleInCase.NNA,
-          isPrimary: true,
-          createdBy: userId,
-        },
-      });
+      // 2. Iterate over dto.parties for identity upsert and party linking
+      if (dto.parties && dto.parties.length > 0) {
+        for (const party of dto.parties) {
+          let personId: string | null = null;
 
-      // 3. Add Complainant if present
-      if (dto.complainantId) {
-        await tx.caseParty.create({
-          data: {
-            caseId: newCase.id,
-            personId: dto.complainantId,
-            roleInCase: RoleInCase.DENUNCIANTE,
-            isPrimary: false,
-            createdBy: userId,
-          },
-        });
+          // Step 1: If party.personId is provided, find the person by ID
+          if (party.personId) {
+            const person = await tx.person.findUnique({ where: { id: party.personId } });
+            if (person) {
+              personId = person.id;
+            } else {
+              throw new BadRequestException(`Person with ID ${party.personId} not found`);
+            }
+          }
+
+          // Step 2: If not found, check by document number
+          if (!personId && party.documentNumber && party.documentNumber.trim()) {
+            const rawDoc = party.documentNumber.trim();
+            const normalizedDoc = normalizeDocumentNumber(rawDoc);
+
+            if (normalizedDoc) {
+              let person = await tx.person.findFirst({ where: { documentNumber: normalizedDoc } });
+              if (!person && rawDoc !== normalizedDoc) {
+                person = await tx.person.findFirst({ where: { documentNumber: rawDoc } });
+              }
+              if (!person) {
+                const candidates = await tx.person.findMany({ where: { documentNumber: { not: null } } });
+                person = candidates.find(
+                  (p) => p.documentNumber && normalizeDocumentNumber(p.documentNumber) === normalizedDoc,
+                ) || null;
+              }
+              if (person) {
+                personId = person.id;
+              }
+            }
+          }
+
+          // Step 3: If not found by document, fallback to firstName + lastName (case-insensitive)
+          if (!personId && (party.firstName || party.lastName)) {
+            const firstName = (party.firstName || '').trim();
+            const lastName = (party.lastName || '').trim();
+
+            const person = await tx.person.findFirst({
+              where: {
+                firstName: { equals: firstName, mode: 'insensitive' },
+                lastName: { equals: lastName, mode: 'insensitive' },
+              },
+            });
+            if (person) {
+              personId = person.id;
+            }
+          }
+
+          // Step 4: If a person is found, reuse their ID. If not, tx.person.create them
+          if (!personId) {
+            const rawDoc = party.documentNumber ? party.documentNumber.trim() : '';
+            const normalizedDoc = rawDoc ? normalizeDocumentNumber(rawDoc) : null;
+            const newPerson = await tx.person.create({
+              data: {
+                firstName: (party.firstName || '').trim() || 'Desconocido',
+                lastName: (party.lastName || '').trim() || '',
+                documentType: rawDoc ? 'CI' : 'SIN_DOCUMENTO',
+                documentNumber: normalizedDoc || (rawDoc || null),
+                createdBy: userId,
+              },
+            });
+            personId = newPerson.id;
+          }
+
+          // Step 5: Create tx.caseParty linking caseId and personId
+          const caseParty = await tx.caseParty.create({
+            data: {
+              caseId: newCase.id,
+              personId,
+              roleInCase: party.roleInCase,
+              isPrimary: party.isPrimary ?? false,
+              relationship: party.relationship || null,
+              occupation: party.occupation || null,
+              createdBy: userId,
+            },
+          });
+
+          // Step 6: If party.roleInCase === RoleInCase.NNA and party has school data, create tx.caseNnaContext
+          const hasSchoolData = party.schoolGrade || party.schoolName || party.livesWithDescription;
+          if (party.roleInCase === RoleInCase.NNA && hasSchoolData) {
+            await tx.caseNnaContext.create({
+              data: {
+                casePartyId: caseParty.id,
+                schoolGrade: party.schoolGrade || null,
+                schoolName: party.schoolName || null,
+                livesWithDescription: party.livesWithDescription || null,
+              },
+            });
+          }
+        }
       }
 
-      // 4. Add Accused if present
-      if (dto.accusedId) {
-        await tx.caseParty.create({
-          data: {
-            caseId: newCase.id,
-            personId: dto.accusedId,
-            roleInCase: RoleInCase.DENUNCIADO,
-            isPrimary: false,
-            createdBy: userId,
-          },
-        });
-      }
-
-      // 5. Create initial office history
+      // 3. Create initial office history
       await tx.caseOfficeHistory.create({
         data: {
           caseId: newCase.id,
@@ -130,7 +179,7 @@ export class CasesService {
         },
       });
 
-      // 6. Create initial path history
+      // 4. Create initial path history
       await tx.interventionPathHistory.create({
         data: {
           caseId: newCase.id,
@@ -140,19 +189,22 @@ export class CasesService {
         },
       });
 
-      // 7. Registro automático de apertura en bitácora
-      await tx.actionLog.create({
-        data: {
-          caseId: newCase.id,
-          authorId: userId,
-          actionType: 'OTRO',
-          title: '📂 Apertura del Expediente',
-          content: `Expediente ${caseCode} creado y registrado en el sistema. Tipo de caso: ${dto.caseType}. Fase inicial: Derivación / Recepción. Vía de intervención: Gestión Administrativa.`,
-          isSigned: true,
-          signedAt: new Date(),
-        },
-      });
+      // 5. Automatic intake audit log
+      if (tx.actionLog) {
+        await tx.actionLog.create({
+          data: {
+            caseId: newCase.id,
+            authorId: userId,
+            actionType: 'OTRO',
+            title: '📂 Apertura del Expediente',
+            content: `Expediente ${caseCode} creado y registrado en el sistema. Tipo de caso: ${dto.caseType}. Fase inicial: Derivación / Recepción. Vía de intervención: Gestión Administrativa.`,
+            isSigned: true,
+            signedAt: new Date(),
+          },
+        });
+      }
 
+      // TODO: index intakeNarrative as case_narrative chunk for vector search
       return newCase;
     });
   }
@@ -323,6 +375,49 @@ export class CasesService {
           endDate: new Date(),
         },
       });
+
+      // --- Transfer pending appointments from previous professional to new one ---
+      // Find the previous active member for this role (the one we just closed)
+      const closedAssignment = await tx.caseTeamHistory.findFirst({
+        where: {
+          caseId,
+          role: dto.role,
+          endDate: { not: null },
+        },
+        orderBy: { endDate: 'desc' },
+        select: { userId: true },
+      });
+
+      if (closedAssignment && closedAssignment.userId !== dto.userId) {
+        const transferredCount = await tx.appointment.updateMany({
+          where: {
+            caseId,
+            assignedProfessionalId: closedAssignment.userId,
+            status: { in: ['PROPUESTA', 'PROGRAMADA'] },
+          },
+          data: {
+            assignedProfessionalId: dto.userId,
+            status: 'PROPUESTA',
+            professionalResponse: null,
+            professionalNotes: null,
+            respondedAt: null,
+          },
+        });
+
+        if (transferredCount.count > 0) {
+          await tx.actionLog.create({
+            data: {
+              caseId,
+              authorId: assignedByUserId,
+              actionType: 'NOTA',
+              title: 'Reasignación automática de citas',
+              content: `Se reasignaron ${transferredCount.count} cita(s) pendiente(s) del profesional anterior al nuevo profesional asignado (${dto.role}).`,
+              isSigned: true,
+              signedAt: new Date(),
+            },
+          });
+        }
+      }
 
       // Create new assignment entry
       return tx.caseTeamHistory.create({
@@ -751,7 +846,7 @@ export class CasesService {
     });
 
     if (!activeAssignment) {
-      throw new NotFoundException('No tenés una asignación activa en este expediente');
+      throw new NotFoundException('No tienes una asignación activa en este expediente');
     }
 
     const isFinished = activeAssignment.completedSessions >= requiredSessions;

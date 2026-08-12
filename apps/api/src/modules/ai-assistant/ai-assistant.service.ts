@@ -1,6 +1,9 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EvidenceRagService } from '../evidences/evidence-rag.service';
+import { RAGService } from '../knowledge/rag.service';
+import { CaseAccessService } from '../../common/case-access/case-access.service';
+import { Role } from '@defensoria/shared';
 
 @Injectable()
 export class AiAssistantService {
@@ -9,6 +12,8 @@ export class AiAssistantService {
   constructor(
     private prisma: PrismaService,
     private evidenceRag: EvidenceRagService,
+    private ragService: RAGService,
+    private caseAccessService: CaseAccessService,
   ) {}
 
   private async getOllamaConfig() {
@@ -102,25 +107,85 @@ ${narrative || '(Sin narrativa registrada)'}
     return this.queryOllama(prompt, systemPrompt);
   }
 
-  async chat(message: string, caseId?: string) {
-    // Buscar contexto real del expediente en case_chunks
-    let caseContext = '';
-    if (caseId) {
-      try {
-        caseContext = await this.evidenceRag.searchCaseContext(caseId, message, 8);
-      } catch (err: any) {
-        this.logger.warn(`[AI] No se pudo recuperar contexto del expediente ${caseId}: ${err.message}`);
-      }
+  private roleToCategory(role: string): string[] {
+    switch (role) {
+      case Role.ABOGADO: return ['LEGAL'];
+      case Role.PSICOLOGO: return ['PSICOSOCIAL', 'PLANTILLA_INFORME'];
+      case Role.SOCIAL: return ['SOCIAL', 'PLANTILLA_INFORME'];
+      default: return ['LEGAL', 'PSICOSOCIAL', 'SOCIAL'];
+    }
+  }
+
+  private buildGeneralSystemPrompt(role: string): string {
+    return `Eres el asistente experto de la Defensoría de la Niñez y Adolescencia de Bolivia.
+Tu rol es ${role}.
+REGLA ESTRICTA DE PRIVACIDAD: Operas en modo general. No tienes acceso a datos de ningún expediente específico. Si el usuario te pregunta por un caso, un NNA, o datos de un expediente puntual, responde categóricamente que esa consulta debe hacerse desde dentro del expediente correspondiente.
+INSTRUCCIONES DE ESTRUCTURA Y CITACIÓN:
+1. Cita SIEMPRE de manera explícita los títulos de los documentos, normas, planes o protocolos de los cuales extraes la información (ejemplo: [Fuente: Plan de Prevención de Embarazo en Adolescentes GAMS], [Fuente: Ley N° 548]).
+2. Desglosa la respuesta de forma clara, detallada y estructurada por ejes de acción (ej: Ámbito Educativo, Ámbito de Salud, Ámbito Social, Ámbito Comunitario) según la información disponible.
+3. Responde basándote ÚNICAMENTE en la normativa, planes y plantillas proporcionadas en el contexto. No inventes artículos ni procedimientos no fundamentados.
+4. Termina indicando que es una respuesta general generada por IA local.`;
+  }
+
+  private buildCaseSystemPrompt(role: string): string {
+    return `Eres el asistente de coordinación del equipo interdisciplinario de la Defensoría de la Niñez y Adolescencia de Bolivia.
+Tu rol es ${role}.
+REGLA ESTRICTA DE AISLAMIENTO DE EXPEDIENTE: Operas exclusivamente dentro del expediente actual. Si la pregunta del usuario menciona o solicita información sobre otro número o código de expediente (ejemplo: 'DNA-2026-0066', 'caso 66'), debes responder rotundamente que solo posees acceso a los datos del expediente actual y que NO tienes información de otros expedientes. JAMÁS atribuyas los datos o nombres del expediente actual a un código de caso distinto mencionado por el usuario.
+REGLA SOBRE ROLES (<mapa_actores>): En el contexto del expediente se incluye la etiqueta XML <mapa_actores>. Identifica estrictamente a la víctima en <victima> y al denunciado/presunto agresor en <denunciado_presunto_agresor>. No confundas ni inviertas sus roles.
+Responde cruzando los hechos del expediente (contexto del caso) con la normativa vigente aplicable proporcionada (contexto legal).
+Cita explícitamente las normas o fuentes legales aplicadas a los hechos.
+Usa lenguaje profesional y claro. No inventes datos que no estén en los contextos proporcionados.
+Termina indicando que es una respuesta generada por IA local y que la decisión final depende del equipo interdisciplinario.`;
+  }
+
+  async chatGeneral(message: string, userRole: string): Promise<string> {
+    const legalChunks = await this.ragService.searchSimilarChunks(
+      message,
+      8,
+      // @ts-ignore - categoryHint parameter
+      { categoryHint: this.roleToCategory(userRole) },
+    );
+
+    const contextText = legalChunks.map(c => `[Fuente Legal: ${c.documentTitle}] ${c.content}`).join('\n\n');
+
+    const prompt = `## Contexto Normativo\n\n${contextText || '(Sin resultados)'}\n\n---\n\n## Pregunta\n\n${message}`;
+    const systemPrompt = this.buildGeneralSystemPrompt(userRole);
+
+    return this.queryOllama(prompt, systemPrompt);
+  }
+
+  async chatCase(
+    message: string,
+    caseId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<string> {
+    // 1. Validar acceso al expediente en cada request
+    await this.caseAccessService.assertUserHasAccess(caseId, { id: userId, role: userRole as any, officeId: null });
+
+    // 2. Extraer digest (resumen)
+    let caseDigest = '';
+    try {
+      caseDigest = await this.evidenceRag.getCaseDigest(caseId);
+    } catch (err: any) {
+      this.logger.warn(`[AI] No se pudo recuperar digest del expediente ${caseId}: ${err.message}`);
     }
 
-    const systemPrompt = `Eres el asistente de coordinación del equipo interdisciplinario de la Defensoría de la Niñez y Adolescencia de Bolivia.
-Tu tarea es responder consultas y apoyar el análisis integral de expedientes combinando perspectivas legal, psicológica y social.
-Usa lenguaje profesional y claro. No inventes datos que no estén en el contexto proporcionado.
-Termina indicando que es una respuesta generada por IA local y que la decisión final depende del equipo interdisciplinario.`;
+    // 3. Extraer contexto crudo (Evidence RAG)
+    let caseContext = '';
+    try {
+      caseContext = await this.evidenceRag.searchCaseContext(caseId, message, 5);
+    } catch (err: any) {
+      this.logger.warn(`[AI] No se pudo recuperar contexto del expediente ${caseId}: ${err.message}`);
+    }
 
-    const prompt = caseContext
-      ? `## Contexto del expediente (material indexado)\n\n${caseContext}\n\n---\n\n## Pregunta del profesional\n\n${message}`
-      : message;
+    // 4. Extraer normativa (Legal RAG)
+    const legalChunks = await this.ragService.searchSimilarChunks(message, 5);
+    const legalContext = legalChunks.map(c => `[Fuente Legal: ${c.documentTitle}] ${c.content}`).join('\n\n');
+
+    const prompt = `## Resumen del Caso (Digest)\n\n${caseDigest || '(Sin resumen)'}\n\n---\n\n## Contexto del Expediente\n\n${caseContext || '(Sin evidencia)'}\n\n---\n\n## Contexto Normativo\n\n${legalContext || '(Sin normativa)'}\n\n---\n\n## Pregunta del profesional\n\n${message}`;
+    
+    const systemPrompt = this.buildCaseSystemPrompt(userRole);
 
     return this.queryOllama(prompt, systemPrompt);
   }
@@ -160,7 +225,7 @@ Estás ayudando a un profesional a redactar un ${reportLabel} según los estánd
 Tu rol es responder preguntas puntuales del profesional basándote ÚNICAMENTE en el contexto del expediente que se te proporciona.
 No inventes datos, no asumas información que no esté en el contexto.
 Sé conciso, claro y usa terminología profesional apropiada para el tipo de informe.
-Si no tenés información suficiente en el contexto para responder, decilo explícitamente.`;
+Si no tienes información suficiente en el contexto para responder, dilo explícitamente.`;
 
     const contextSection = caseContext
       ? `## Material del expediente relevante\n\n${caseContext}\n\n---\n\n`

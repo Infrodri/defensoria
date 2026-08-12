@@ -1,6 +1,15 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DocumentType, Gender } from '@defensoria/shared';
+
+export function normalizeDocumentNumber(doc: string): string {
+  if (!doc) return '';
+  return doc
+    .trim()
+    .replace(/[\s-]*(LP|SC|CB|OR|PT|TJ|BE|PD|CH)$/i, '')
+    .replace(/\./g, '')
+    .replace(/\D/g, '');
+}
 
 export interface CreatePersonDto {
   documentType: DocumentType;
@@ -16,23 +25,41 @@ export interface CreatePersonDto {
 
 @Injectable()
 export class PersonsService {
+  private readonly logger = new Logger(PersonsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async search(query: string) {
     if (!query || query.trim().length < 2) {
-      throw new BadRequestException('Ingrese al menos 2 caracteres para la búsqueda');
+      return [];
     }
 
     const cleanQuery = query.trim();
+    const terms = cleanQuery.split(/\s+/).filter(Boolean);
+
+    const baseWhere = {
+      OR: [
+        { documentNumber: { contains: cleanQuery, mode: 'insensitive' as const } },
+        { firstName: { contains: cleanQuery, mode: 'insensitive' as const } },
+        { lastName: { contains: cleanQuery, mode: 'insensitive' as const } },
+        ...(terms.length > 1
+          ? [
+              {
+                AND: terms.map((term) => ({
+                  OR: [
+                    { firstName: { contains: term, mode: 'insensitive' as const } },
+                    { lastName: { contains: term, mode: 'insensitive' as const } },
+                    { documentNumber: { contains: term, mode: 'insensitive' as const } },
+                  ],
+                })),
+              },
+            ]
+          : []),
+      ],
+    };
 
     return this.prisma.person.findMany({
-      where: {
-        OR: [
-          { documentNumber: { contains: cleanQuery, mode: 'insensitive' } },
-          { firstName: { contains: cleanQuery, mode: 'insensitive' } },
-          { lastName: { contains: cleanQuery, mode: 'insensitive' } },
-        ],
-      },
+      where: baseWhere,
       include: {
         caseParties: {
           include: {
@@ -57,10 +84,39 @@ export class PersonsService {
       throw new BadRequestException('El nombre y apellido son requeridos');
     }
 
+    if (dto.documentNumber && dto.documentNumber.trim() !== '') {
+      const normalizedDoc = normalizeDocumentNumber(dto.documentNumber);
+      if (normalizedDoc) {
+        let existingPerson = await this.prisma.person.findFirst({
+          where: { documentNumber: normalizedDoc },
+        });
+
+        if (!existingPerson && dto.documentNumber.trim() !== normalizedDoc) {
+          existingPerson = await this.prisma.person.findFirst({
+            where: { documentNumber: dto.documentNumber.trim() },
+          });
+        }
+
+        if (!existingPerson) {
+          const candidates = await this.prisma.person.findMany({
+            where: { documentNumber: { not: null } },
+          });
+          existingPerson = candidates.find(
+            (p) => p.documentNumber && normalizeDocumentNumber(p.documentNumber) === normalizedDoc,
+          ) || null;
+        }
+
+        if (existingPerson) {
+          this.logger.log(`Person reused: existing match by document ${dto.documentNumber} (id=${existingPerson.id})`);
+          return existingPerson;
+        }
+      }
+    }
+
     return this.prisma.person.create({
       data: {
         documentType: dto.documentType || DocumentType.SIN_DOCUMENTO,
-        documentNumber: dto.documentNumber || null,
+        documentNumber: dto.documentNumber ? normalizeDocumentNumber(dto.documentNumber) || dto.documentNumber.trim() : null,
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
         birthDate: dto.birthDate ? new Date(dto.birthDate) : null,

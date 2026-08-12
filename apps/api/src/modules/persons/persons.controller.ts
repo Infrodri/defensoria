@@ -13,8 +13,10 @@ export class PersonsController {
 
   @Get('search')
   @ApiOperation({ summary: 'Búsqueda previa obligatoria de personas por documento o nombre (Anti-duplicación)' })
-  @ApiQuery({ name: 'query', description: 'Número de documento o nombre' })
-  async search(@Query('query') query: string) {
+  @ApiQuery({ name: 'q', description: 'Número de documento o nombre', required: false })
+  @ApiQuery({ name: 'query', description: 'Número de documento o nombre (alias)', required: false })
+  async search(@Query('q') qParam?: string, @Query('query') queryParam?: string) {
+    const query = qParam ?? queryParam ?? '';
     return this.personsService.search(query);
   }
 

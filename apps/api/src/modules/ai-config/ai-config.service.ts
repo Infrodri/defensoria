@@ -130,11 +130,15 @@ export class AiConfigService {
     return results;
   }
 
-  private getWhisperUrl(): string {
-    return 'http://localhost:8000';
+  private async getWhisperUrl(): Promise<string> {
+    const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_WHISPER_ENDPOINT' } });
+    const endpoint = setting?.value || process.env.WHISPER_API_URL || 'http://localhost:8000/v1/audio/transcriptions';
+    return endpoint.replace('/v1/audio/transcriptions', '');
   }
 
-  private getOcrUrl(): string {
-    return 'http://localhost:8000';
+  private async getOcrUrl(): Promise<string> {
+    const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_OCR_ENDPOINT' } });
+    const endpoint = setting?.value || process.env.OCR_API_URL || 'http://localhost:8001/v1/vision';
+    return endpoint.replace('/v1/vision', '');
   }
 }

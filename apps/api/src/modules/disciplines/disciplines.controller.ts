@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Delete, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { DisciplinesService } from './disciplines.service';
 import { CreateDisciplineDto } from './dto/create-discipline.dto';
 import { UpdateDisciplineDto } from './dto/update-discipline.dto';
@@ -42,6 +43,13 @@ export class DisciplinesController {
     return this.disciplinesService.update(id, updateDisciplineDto);
   }
 
+  @Delete(':id')
+  @Roles(Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Desactivar una disciplina (Solo Administrador)' })
+  remove(@Param('id') id: string) {
+    return this.disciplinesService.remove(id);
+  }
+
   @Post(':id/report-types')
   @Roles(Role.ADMINISTRADOR)
   @ApiOperation({ summary: 'Agregar un tipo de informe a una disciplina (Solo Administrador)' })
@@ -51,4 +59,44 @@ export class DisciplinesController {
   ) {
     return this.disciplinesService.addReportType(id, createReportTypeDto);
   }
+
+  @Patch('report-types/:rtId')
+  @Roles(Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Actualizar un tipo de informe (Solo Administrador)' })
+  updateReportType(
+    @Param('rtId') rtId: string,
+    @Body() updateDto: any,
+  ) {
+    return this.disciplinesService.updateReportType(rtId, updateDto);
+  }
+
+  @Delete('report-types/:rtId')
+  @Roles(Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Eliminar un tipo de informe (Solo Administrador)' })
+  removeReportType(@Param('rtId') rtId: string) {
+    return this.disciplinesService.removeReportType(rtId);
+  }
+
+  @Post('report-types/:rtId/upload')
+  @Roles(Role.ADMINISTRADOR)
+  @ApiOperation({ summary: 'Subir modelo para un tipo de informe' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  uploadReportTypeTemplate(
+    @Param('rtId') rtId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.disciplinesService.uploadReportTypeTemplate(rtId, file);
+  }
 }
+
+// trigger rebuild
+

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDisciplineDto } from './dto/create-discipline.dto';
 import { UpdateDisciplineDto } from './dto/update-discipline.dto';
@@ -24,6 +24,7 @@ export class DisciplinesService {
 
   findAll() {
     return this.prisma.discipline.findMany({
+      where: { isActive: true },
       orderBy: { name: 'asc' },
       include: { reportTypes: true },
     });
@@ -69,4 +70,40 @@ export class DisciplinesService {
       },
     });
   }
+
+  async updateReportType(id: string, dto: any) {
+    return this.prisma.disciplineReportType.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async removeReportType(id: string) {
+    return this.prisma.disciplineReportType.delete({
+      where: { id },
+    });
+  }
+
+  async uploadReportTypeTemplate(id: string, file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Archivo no provisto');
+    const template = {
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      buffer: file.buffer.toString('base64'),
+    };
+    return this.prisma.disciplineReportType.update({
+      where: { id },
+      data: { template },
+    });
+  }
+
+  async remove(id: string) {
+    await this.findOne(id);
+    return this.prisma.discipline.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
 }
+

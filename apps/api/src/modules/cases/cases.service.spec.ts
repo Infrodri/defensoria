@@ -4,7 +4,7 @@ import { CasesService } from './cases.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseAccessService } from '../../common/case-access/case-access.service';
 import { ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Role, Phase, InterventionPath } from '@defensoria/shared';
+import { Role, RoleInCase, Phase, InterventionPath } from '@defensoria/shared';
 
 describe('CasesService Integration Tests', () => {
   let casesService: CasesService;
@@ -38,6 +38,10 @@ describe('CasesService Integration Tests', () => {
         create: vi.fn(),
         createMany: vi.fn(),
         findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      appointment: {
+        updateMany: vi.fn(),
       },
       socialIntakeForm: {
         findUnique: vi.fn(),
@@ -80,6 +84,9 @@ describe('CasesService Integration Tests', () => {
       },
       transversalAnonymizedReport: {
         findMany: vi.fn(),
+      },
+      actionLog: {
+        create: vi.fn(),
       },
       $queryRaw: vi.fn(),
       $transaction: vi.fn((cb) => cb(prismaMock)),
@@ -174,7 +181,14 @@ describe('CasesService Integration Tests', () => {
       const mockTx = {
         caseTeamHistory: {
           updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findFirst: vi.fn().mockResolvedValue(null),
           create: vi.fn().mockResolvedValue({ id: 'cth-new', caseId: 'case-1', role: Role.ABOGADO, userId: 'user-target', endDate: null, assignedBy: 'user-assigner', reason: undefined }),
+        },
+        appointment: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        actionLog: {
+          create: vi.fn(),
         },
         user: {
           findUnique: vi.fn().mockResolvedValue({ id: 'user-target', role: Role.ABOGADO }),
@@ -220,7 +234,14 @@ describe('CasesService Integration Tests', () => {
       const mockTx = {
         caseTeamHistory: {
           updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findFirst: vi.fn().mockResolvedValue(null),
           create: vi.fn().mockResolvedValue({ id: 'cth-new' }),
+        },
+        appointment: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        actionLog: {
+          create: vi.fn(),
         },
         user: {
           findUnique: vi.fn().mockResolvedValue({ id: 'user-target', role: Role.PSICOLOGO }),
@@ -231,6 +252,53 @@ describe('CasesService Integration Tests', () => {
       const dto = { userId: 'user-target', role: Role.PSICOLOGO };
       
       await expect(casesService.assignTeam('case-1', dto, 'user-assigner')).resolves.toBeDefined();
+    });
+
+    it('debería transferir citas pendientes del profesional anterior al nuevo profesional asignado', async () => {
+      const mockTx = {
+        caseTeamHistory: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findFirst: vi.fn().mockResolvedValue({ userId: 'user-old' }),
+          create: vi.fn().mockResolvedValue({ id: 'cth-new' }),
+        },
+        appointment: {
+          updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+        },
+        actionLog: {
+          create: vi.fn().mockResolvedValue({ id: 'log-1' }),
+        },
+        user: {
+          findUnique: vi.fn().mockResolvedValue({ id: 'user-new', role: Role.ABOGADO }),
+        },
+      };
+      vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx));
+
+      const dto = { userId: 'user-new', role: Role.ABOGADO };
+      await casesService.assignTeam('case-1', dto, 'user-assigner');
+
+      expect(mockTx.appointment.updateMany).toHaveBeenCalledWith({
+        where: {
+          caseId: 'case-1',
+          assignedProfessionalId: 'user-old',
+          status: { in: ['PROPUESTA', 'PROGRAMADA'] },
+        },
+        data: {
+          assignedProfessionalId: 'user-new',
+          status: 'PROPUESTA',
+          professionalResponse: null,
+          professionalNotes: null,
+          respondedAt: null,
+        },
+      });
+
+      expect(mockTx.actionLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          caseId: 'case-1',
+          authorId: 'user-assigner',
+          actionType: 'NOTA',
+          title: 'Reasignación automática de citas',
+        }),
+      });
     });
   });
 
@@ -243,13 +311,14 @@ describe('CasesService Integration Tests', () => {
         caseParty: { create: vi.fn() },
         caseOfficeHistory: { create: vi.fn() },
         interventionPathHistory: { create: vi.fn() },
+        person: { findUnique: vi.fn().mockResolvedValue({ id: 'nna-1' }) },
         $queryRaw: vi.fn().mockResolvedValue([{ nextval: 42 }]),
       };
       vi.mocked(prisma.$transaction).mockImplementation(async (cb) => cb(mockTx));
       vi.mocked(caseAccessService.assertUserHasAccess).mockResolvedValue(undefined);
 
       const dto = { 
-        nnaId: 'nna-1', 
+        parties: [{ roleInCase: RoleInCase.NNA, personId: 'nna-1', isPrimary: true }], 
         caseType: 'CIVIL' as any, 
         intakeNarrative: 'test',
       };

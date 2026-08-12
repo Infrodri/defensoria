@@ -113,7 +113,7 @@ export class KnowledgeService {
     // 3. Intentar detectar artículos legales SOLO en el cuerpo de la ley
     const articles = this.extractLegalArticlesFromText(body);
 
-    if (articles.length > 0) {
+    if (articles.length >= 3) {
       this.logger.log(`Detectados ${articles.length} artículos legales en el PDF`);
       let chunks = this.buildArticleChunks(articles, title, 'legal_article_pdf');
 

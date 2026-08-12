@@ -25,10 +25,17 @@ export class AiAssistantController {
     return { analysis };
   }
 
-  @Post('chat')
-  @ApiOperation({ summary: 'Chat de coordinación interdisciplinaria. Si se pasa caseId, el asistente lee el contenido real del expediente (transcripciones, PDFs, imágenes, informes previos).' })
-  async chat(@Body() body: { message: string; caseId?: string }) {
-    const response = await this.aiService.chat(body.message, body.caseId);
+  @Post('chat-general')
+  @ApiOperation({ summary: 'Chat de coordinación general (solo normativa legal). No puede acceder a datos de casos.' })
+  async chatGeneral(@Body() body: { message: string }, @CurrentUser() user: any) {
+    const response = await this.aiService.chatGeneral(body.message, user.role);
+    return { response };
+  }
+
+  @Post('chat-case')
+  @ApiOperation({ summary: 'Chat de coordinación de expediente. Combina normativa con contexto real del caso (transcripciones, informes, etc).' })
+  async chatCase(@Body() body: { message: string; caseId: string }, @CurrentUser() user: any) {
+    const response = await this.aiService.chatCase(body.message, body.caseId, user.id, user.role);
     return { response };
   }
 

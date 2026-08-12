@@ -24,12 +24,115 @@ export class RAGService {
     }>
   > {
     try {
-      // 1. Generar embedding de la consulta
+      // 1. Extraer coincidencia de artículo y ley de la consulta
+      const artMatch = query.match(/(?:ARTÍCULOS?|ARTICULOS?|ART\.?)\s*(\d+)/i);
+      const targetArticleNum = artMatch ? artMatch[1] : null;
+
+      const leyNumMatch = query.match(/LEY\s*N?[º°]?\s*(\d+)/i);
+      const targetLeyNum = leyNumMatch ? leyNumMatch[1] : null;
+
+      let exactArticleChunks: Array<{
+        id: string;
+        content: string;
+        legalDocumentId: string;
+        document_title: string;
+        metadata: any;
+      }> = [];
+
+      if (targetArticleNum) {
+        // A) Buscar coincidencia exacta acotada al número de Ley si existe
+        if (targetLeyNum) {
+          exactArticleChunks = await this.prisma.$queryRaw<any[]>`
+            SELECT 
+              kc.id,
+              kc.content,
+              kc."legalDocumentId",
+              ld.title as document_title,
+              kc.metadata
+            FROM "legal_chunks" kc
+            JOIN "legal_documents" ld ON kc."legalDocumentId" = ld.id
+            WHERE ld."isActive" = true
+              AND (ld.title LIKE ${`%${targetLeyNum}%`})
+              AND (
+                kc.content LIKE ${`ARTÍCULO ${targetArticleNum}.%`}
+                OR kc.content LIKE ${`ARTICULO ${targetArticleNum}.%`}
+                OR kc.content LIKE ${`%ARTÍCULO ${targetArticleNum}.%`}
+                OR kc.content LIKE ${`%ARTICULO ${targetArticleNum}.%`}
+              )
+            LIMIT 3
+          `;
+        }
+
+        // B) Si no se encontró especificando Ley, buscar coincidencia en cualquier norma
+        if (exactArticleChunks.length === 0) {
+          exactArticleChunks = await this.prisma.$queryRaw<any[]>`
+            SELECT 
+              kc.id,
+              kc.content,
+              kc."legalDocumentId",
+              ld.title as document_title,
+              kc.metadata
+            FROM "legal_chunks" kc
+            JOIN "legal_documents" ld ON kc."legalDocumentId" = ld.id
+            WHERE ld."isActive" = true
+              AND (
+                kc.content LIKE ${`ARTÍCULO ${targetArticleNum}.%`}
+                OR kc.content LIKE ${`ARTICULO ${targetArticleNum}.%`}
+                OR kc.content LIKE ${`%ARTÍCULO ${targetArticleNum}.%`}
+                OR kc.content LIKE ${`%ARTICULO ${targetArticleNum}.%`}
+              )
+            LIMIT 3
+          `;
+        }
+      }
+
+      // 1.5. Extraer frases significativas para coincidencia de texto exacta (ej: citaciones o citas de leyes)
+      let phraseChunks: Array<{
+        id: string;
+        content: string;
+        legalDocumentId: string;
+        document_title: string;
+        metadata: any;
+      }> = [];
+
+      const stopWords = new Set([
+        'a', 'que', 'el', 'la', 'los', 'las', 'de', 'del', 'en', 'un', 'una', 'unos', 'unas',
+        'se', 'su', 'sus', 'por', 'para', 'con', 'sin', 'este', 'esta', 'estos', 'estas',
+        'texto', 'frase', 'refiere', 'articulo', 'artículo', 'ley', '548', 'dice', 'refiera', 'indica'
+      ]);
+
+      const rawWords = query.split(/\s+/).map(w => w.replace(/[^\wáéíóúñÁÉÍÓÚÑ]/gi, '')).filter(Boolean);
+      const candidatePhrases: string[] = [];
+      for (let i = 0; i < rawWords.length - 1; i++) {
+        const w1 = rawWords[i].toLowerCase();
+        const w2 = rawWords[i + 1].toLowerCase();
+        if (!stopWords.has(w1) && !stopWords.has(w2) && w1.length > 2 && w2.length > 2) {
+          candidatePhrases.push(`${rawWords[i]} ${rawWords[i + 1]}`);
+        }
+      }
+
+      if (candidatePhrases.length > 0) {
+        const targetPhrase = candidatePhrases[candidatePhrases.length - 1]; // Frase más relevante del final
+        phraseChunks = await this.prisma.$queryRaw<any[]>`
+          SELECT 
+            kc.id,
+            kc.content,
+            kc."legalDocumentId",
+            ld.title as document_title,
+            kc.metadata
+          FROM "legal_chunks" kc
+          JOIN "legal_documents" ld ON kc."legalDocumentId" = ld.id
+          WHERE ld."isActive" = true
+            AND (kc.content ILIKE ${`%${targetPhrase}%`})
+          LIMIT 3
+        `;
+      }
+
+      // 2. Generar embedding de la consulta y búsqueda vectorial
       const queryEmbedding = await this.embeddings.getEmbedding(query);
       const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-      // 2. Buscar chunks similares usando pgvector (cosine similarity)
-      const results = await this.prisma.$queryRaw<
+      const vectorResults = await this.prisma.$queryRaw<
         Array<{
           id: string;
           content: string;
@@ -51,14 +154,36 @@ export class RAGService {
         ORDER BY similarity ASC
         LIMIT ${limit}
       `;
-      return results.map((r) => ({
+
+      // 3. Fusión Híbrida Tridireccional:
+      // Prioridad 1: Coincidencia por frase literal / citación
+      // Prioridad 2: Coincidencia por número de artículo
+      // Prioridad 3: Búsqueda vectorial semántica
+      const combinedMap = new Map<string, any>();
+      for (const r of phraseChunks) {
+        combinedMap.set(r.id, r);
+      }
+      for (const r of exactArticleChunks) {
+        if (!combinedMap.has(r.id)) {
+          combinedMap.set(r.id, r);
+        }
+      }
+      for (const r of vectorResults) {
+        if (!combinedMap.has(r.id)) {
+          combinedMap.set(r.id, r);
+        }
+      }
+
+      const finalChunks = Array.from(combinedMap.values()).slice(0, limit);
+
+      return finalChunks.map((r) => ({
         id: r.id,
         content: r.content,
         documentId: r.legalDocumentId,
         documentTitle: r.document_title,
         metadata: r.metadata,
       }));
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error en búsqueda RAG: ${error.message}`);
       throw new BadRequestException('Error al buscar en la base de conocimiento');
     }

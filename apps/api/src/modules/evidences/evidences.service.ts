@@ -2,7 +2,8 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
-import { EvidenceRagService } from './evidence-rag.service';
+import { PgBossService } from '../pgboss/pgboss.service';
+import { EvidenceJobPayload } from './evidence.worker';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -30,7 +31,7 @@ export class EvidencesService {
   constructor(
     private prisma: PrismaService,
     private minioService: MinioService,
-    private evidenceRag: EvidenceRagService,
+    private pgBoss: PgBossService,
   ) {}
 
   async uploadEvidence(
@@ -94,13 +95,26 @@ export class EvidencesService {
       },
     });
 
-    // 5. Disparar pipeline RAG de forma asíncrona (fire-and-forget)
-    //    No bloqueamos la respuesta — el procesamiento ocurre en segundo plano
-    this.evidenceRag
-      .processEvidenceAsync(caseId, evidence.id, file, description)
-      .catch((err) =>
-        this.logger.warn(`[RAG] Pipeline background falló para ${evidence.id}: ${err.message}`)
-      );
+    // 5. Enqueue RAG processing job (persisted in PostgreSQL via pgboss)
+    const isAudio = file.mimetype.startsWith('audio/');
+    const isImage = file.mimetype.startsWith('image/');
+    const expireInMinutes = isAudio ? 60 : isImage ? 15 : 5;
+
+    await this.pgBoss.send<EvidenceJobPayload>(
+      'evidence-processing',
+      {
+        caseId,
+        evidenceId: evidence.id,
+        mimeType: file.mimetype,
+        storagePath,
+        originalName: file.originalname,
+        description,
+      },
+      {
+        singletonKey: evidence.id,
+        expireInMinutes,
+      },
+    );
 
     return evidence;
   }
@@ -110,6 +124,11 @@ export class EvidencesService {
       where: { caseId },
       include: {
         uploader: { select: { id: true, firstName: true, lastName: true, role: true } },
+        transcriptions: {
+          select: { id: true, text: true, status: true },
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

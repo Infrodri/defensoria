@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Get, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Get, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { KnowledgeService } from './knowledge.service';
@@ -232,6 +232,28 @@ export class KnowledgeController {
       return { caseId, query, context, hasContext: context.trim().length > 0 };
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Error al buscar en el expediente');
+    }
+  }
+
+  @Get('pipeline/status')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA)
+  @ApiOperation({ summary: 'Estado del pipeline RAG — estadísticas de chunks indexados (Admin/Jefatura)' })
+  async getPipelineStatus() {
+    try {
+      return await this.evidenceRag.getPipelineStatus();
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al obtener estado del pipeline');
+    }
+  }
+
+  @Get('pipeline/status/:caseId')
+  @Roles(Role.ADMINISTRADOR, Role.JEFATURA, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Estado del pipeline RAG para un expediente específico' })
+  async getPipelineStatusByCase(@Param('caseId') caseId: string) {
+    try {
+      return await this.evidenceRag.getPipelineStatus(caseId);
+    } catch (error: any) {
+      throw new BadRequestException(error.message || 'Error al obtener estado del pipeline');
     }
   }
 }

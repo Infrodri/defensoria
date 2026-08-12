@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TemplatesController } from './templates.controller';
 import { TemplatesService } from './templates.service';
+import { MinioModule } from '../minio/minio.module';
 
 @Module({
+  imports: [MinioModule],
   controllers: [TemplatesController],
-  providers: [TemplatesService]
+  providers: [TemplatesService],
 })
 export class TemplatesModule {}

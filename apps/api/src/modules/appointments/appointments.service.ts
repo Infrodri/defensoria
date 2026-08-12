@@ -34,6 +34,24 @@ export class AppointmentsService {
       assignedProfessionalId = firstTeamMember?.userId ?? null;
     }
 
+    if (assignedProfessionalId) {
+      const pendingAppointment = await this.prisma.appointment.findFirst({
+        where: {
+          caseId: dto.caseId,
+          assignedProfessionalId,
+          status: {
+            in: [AppointmentStatus.PROPUESTA, AppointmentStatus.PROGRAMADA],
+          },
+        },
+      });
+
+      if (pendingAppointment) {
+        throw new BadRequestException(
+          'El profesional ya tiene una cita pendiente (Propuesta o Programada) para este expediente. Debe marcarse como completada o cancelada antes de agendar otra.',
+        );
+      }
+    }
+
     // Quién crea la cita determina el estado inicial:
     // - Secretaria/Jefatura → PROPUESTA (el profesional debe confirmar)
     // - El propio profesional asignado → PROGRAMADA (ya confirmada)

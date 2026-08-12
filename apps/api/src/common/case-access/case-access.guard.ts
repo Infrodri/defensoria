@@ -3,35 +3,31 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { CaseAccessService } from './case-access.service';
+import { PrismaService } from '../../modules/prisma/prisma.service';
 import { Role } from '@prisma/client';
 
 /**
- * Guard real CanActivate para validación de acceso a expedientes.
+ * Guard CanActivate para la validación de acceso a expedientes y sub-recursos.
  *
- * Decisión (documentada): el guard lee el caseId del request directamente vía
- * `request.params.caseId ?? request.params.id`, cubriendo tanto las rutas que
- * nombran el parámetro `caseId` (appointments/case/:caseId, conciliation,
- * social-intake) como las que usan `:id` (cases/:id). No se agregó un decorador
- * `@CaseIdParam()` nuevo: la convención de params en los controllers ya es
- * consistente y el guard se configura en la ruta con @UseGuards(CaseAccessGuard).
- *
- * Caso sin caseId en la ruta (p. ej. GET /cases/analytics): solo los roles de
- * alcance global (ADMINISTRADOR, JEFATURA, SECRETARIA — reglas a/b del
- * CaseAccessService) pueden acceder. Los profesionales de campo solo acceden
- * vía membresía activa en un caso específico, por lo que quedan denegados.
+ * Resuelve automáticamente el `caseId` tanto si la ruta recibe `:caseId` directamente
+ * como si recibe `:id` apuntando a un expediente o a un sub-recurso (Evidence, Report, Appointment).
  */
 @Injectable()
 export class CaseAccessGuard implements CanActivate {
-  constructor(private readonly caseAccessService: CaseAccessService) {}
+  constructor(
+    private readonly caseAccessService: CaseAccessService,
+    @Optional() private readonly prisma?: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const caseId = request.params?.caseId ?? request.params?.id;
+    const rawId = request.params?.caseId ?? request.params?.id;
     const user = request.user;
 
-    if (!caseId) {
+    if (!rawId) {
       const staffRoles: Role[] = [Role.ADMINISTRADOR, Role.JEFATURA, Role.SECRETARIA];
       if (!user || !staffRoles.includes(user.role)) {
         throw new ForbiddenException('No tiene permisos para acceder a este recurso');
@@ -39,7 +35,47 @@ export class CaseAccessGuard implements CanActivate {
       return true;
     }
 
-    await this.caseAccessService.assertUserHasAccess(caseId, user);
+    let resolvedCaseId = rawId;
+
+    // Si la ruta usó :id (en lugar de :caseId), determinar si el id corresponde
+    // directamente al Case o a un sub-recurso (Evidence, Report, Appointment)
+    if (!request.params?.caseId && request.params?.id && this.prisma) {
+      const isCase = await this.prisma.case.findUnique({
+        where: { id: rawId },
+        select: { id: true },
+      });
+
+      if (!isCase) {
+        // 1. Probar si es una Evidencia
+        const evidence = await this.prisma.evidence.findUnique({
+          where: { id: rawId },
+          select: { caseId: true },
+        });
+        if (evidence) {
+          resolvedCaseId = evidence.caseId;
+        } else {
+          // 2. Probar si es un Reporte
+          const report = await this.prisma.report.findUnique({
+            where: { id: rawId },
+            select: { caseId: true },
+          });
+          if (report) {
+            resolvedCaseId = report.caseId;
+          } else {
+            // 3. Probar si es una Cita
+            const appt = await this.prisma.appointment.findUnique({
+              where: { id: rawId },
+              select: { caseId: true },
+            });
+            if (appt) {
+              resolvedCaseId = appt.caseId;
+            }
+          }
+        }
+      }
+    }
+
+    await this.caseAccessService.assertUserHasAccess(resolvedCaseId, user);
     return true;
   }
 }

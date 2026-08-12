@@ -18,8 +18,8 @@ export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
   @Post()
-  @Roles(Role.SECRETARIA, Role.JEFATURA, Role.ADMINISTRADOR)
-  @ApiOperation({ summary: 'Registrar nuevo expediente (Exclusivo Secretaría, Jefatura y Administrador)' })
+  @Roles(Role.SECRETARIA, Role.JEFATURA, Role.ADMINISTRADOR, Role.ABOGADO, Role.PSICOLOGO, Role.SOCIAL)
+  @ApiOperation({ summary: 'Registrar nuevo expediente (Secretaría, Jefatura, Administrador y Equipo Interdisciplinario)' })
   async create(
     @Body() dto: CreateCaseDto,
     @CurrentUser('id') userId: string,

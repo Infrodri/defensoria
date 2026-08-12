@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { MinioModule } from './modules/minio/minio.module';
+import { PgBossModule } from './modules/pgboss/pgboss.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SecurityTokenModule } from './modules/security-token/security-token.module';
 import { CaseAccessModule } from './common/case-access/case-access.module';
@@ -48,8 +50,10 @@ import { ConciliationAgreementsModule } from './modules/conciliation-agreements/
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     MinioModule,
+    PgBossModule,
     CaseAccessModule,
     AuditModule,
     AuthModule,
