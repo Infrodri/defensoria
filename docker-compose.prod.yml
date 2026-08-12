@@ -65,6 +65,16 @@ services:
     depends_on:
       - api
 
+  ia_ollama:
+    image: ollama/ollama:latest
+    container_name: ia_ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - defensoria_ollama_prod:/root/.ollama
+
 volumes:
   defensoria_pgdata_prod:
   defensoria_miniodata_prod:
+  defensoria_ollama_prod:
