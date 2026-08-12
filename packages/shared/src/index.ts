@@ -35,6 +35,9 @@ export enum CaseType {
   EXTRAVIO = 'EXTRAVIO',
   NNA_INFRACTOR = 'NNA_INFRACTOR',
   FISCALIZACION = 'FISCALIZACION',
+  NEGLIGENCIA = 'NEGLIGENCIA',
+  MALTRATO = 'MALTRATO',
+  MIXTO = 'MIXTO',
 }
 
 export enum Phase {
@@ -123,6 +126,26 @@ export enum Priority {
   CRITICA = 'CRITICA',
 }
 
+export enum IntakeChannel {
+  DIRECTO = 'DIRECTO',
+  FISCALIA = 'FISCALIA',
+  FELCV = 'FELCV',
+  FELCC = 'FELCC',
+  JUZGADO = 'JUZGADO',
+  UNIDAD_EDUCATIVA = 'UNIDAD_EDUCATIVA',
+  CENTRO_SALUD = 'CENTRO_SALUD',
+  SEDEGES = 'SEDEGES',
+  SLIM = 'SLIM',
+  OTRA_DEFENSORIA = 'OTRA_DEFENSORIA',
+  OTRO = 'OTRO',
+}
+
+export enum IncidentFrequency {
+  PRIMERA_VEZ = 'PRIMERA_VEZ',
+  REINCIDENCIA_NO_DENUNCIADA = 'REINCIDENCIA_NO_DENUNCIADA',
+  REINCIDENCIA_DENUNCIADA = 'REINCIDENCIA_DENUNCIADA',
+}
+
 // ==========================================
 // ESQUEMAS DE VALIDACIÓN ZOD
 // ==========================================
@@ -154,12 +177,19 @@ export const createPersonSchema = z.object({
 
 export type CreatePersonInput = z.infer<typeof createPersonSchema>;
 
+export const createCasePartySchema = z.object({
+  personId: z.string().uuid('ID de persona inválido'),
+  roleInCase: z.nativeEnum(RoleInCase),
+  isPrimary: z.boolean(),
+});
+
+export type CreateCasePartyInput = z.infer<typeof createCasePartySchema>;
+
 export const createCaseSchema = z.object({
   caseType: z.nativeEnum(CaseType),
   nnaId: z.string().uuid('ID de NNA inválido'),
-  complainantId: z.string().uuid().optional(),
-  accusedId: z.string().uuid().optional(),
-  intakeNarrative: z.string().min(10, 'La narrativa de la denuncia debe tener al menos 10 caracteres'),
+  parties: z.array(createCasePartySchema).optional(),
+  intakeNarrative: z.string().min(10, 'La narrativa de la denuncia debe tener al menos 10 caracteres').optional(),
 });
 
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
@@ -201,21 +231,27 @@ export const formatInterventionPath = (path?: InterventionPath | string): string
 export const formatCaseType = (type?: CaseType | string): string => {
   switch (type) {
     case CaseType.DENUNCIA_VULNERACION:
-      return 'Denuncia por Vulneración';
+      return 'Denuncia de Vulneración';
     case CaseType.CONSUMO_SUSTANCIAS:
       return 'Consumo de Sustancias';
     case CaseType.VENTA_ALCOHOL:
       return 'Venta de Alcohol a Menores';
     case CaseType.DERECHO_EDUCACION:
-      return 'Vulneración al Derecho a la Educación';
+      return 'Derecho a la Educación';
     case CaseType.EXTRAVIO:
-      return 'Extravío / Desaparición';
+      return 'Extravío de Menor';
     case CaseType.NNA_INFRACTOR:
-      return 'NNA en Conflicto con la Ley';
+      return 'NNA Infractor';
     case CaseType.FISCALIZACION:
-      return 'Fiscalización / Inspección';
+      return 'Fiscalización a Centros';
+    case CaseType.NEGLIGENCIA:
+      return 'Negligencia';
+    case CaseType.MALTRATO:
+      return 'Violencia / Maltrato';
+    case CaseType.MIXTO:
+      return 'Mixto (Negligencia + Violencia)';
     default:
-      return type || 'N/A';
+      return type || 'No especificado';
   }
 };
 
@@ -283,4 +319,6 @@ export const formatRiskLevel = (risk?: RiskLevel | string): string => {
       return risk || 'Pendiente';
   }
 };
+
+export * from './utils/date.utils';
 

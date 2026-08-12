@@ -40,6 +40,9 @@ enum CaseType {
   EXTRAVIO
   NNA_INFRACTOR
   FISCALIZACION
+  NEGLIGENCIA
+  MALTRATO
+  MIXTO
 }
 
 enum Phase {
@@ -134,6 +137,13 @@ enum TranscriptionStatus {
   VALIDADO_HUMANO
 }
 
+enum RagProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum InspectionEvidenceType {
   FOTO
   VIDEO
@@ -226,6 +236,26 @@ enum ProtectionMeasureType {
   ACOGIMIENTO_CIRCUNSTANCIAL
   INTEGRACION_RED_APOYO
   RESTITUCION_DOMICILIARIA
+}
+
+enum IntakeChannel {
+  DIRECTO
+  FISCALIA
+  FELCV
+  FELCC
+  JUZGADO
+  UNIDAD_EDUCATIVA
+  CENTRO_SALUD
+  SEDEGES
+  SLIM
+  OTRA_DEFENSORIA
+  OTRO
+}
+
+enum IncidentFrequency {
+  PRIMERA_VEZ
+  REINCIDENCIA_NO_DENUNCIADA
+  REINCIDENCIA_DENUNCIADA
 }
 
 model User {
@@ -323,6 +353,11 @@ model Person {
   phone          String?
   address        String?
   notes          String?
+  hasDisability     Boolean  @default(false)
+  disabilityDetails String?
+  language          String   @default("Castellano")
+  ethnicity         String?
+  isMigrant         Boolean  @default(false)
   createdAt      DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
   createdBy      String       @db.Uuid
@@ -330,6 +365,7 @@ model Person {
   creator     User        @relation("CreatedPersons", fields: [createdBy], references: [id])
   caseParties CaseParty[]
 
+  @@index([documentType, documentNumber])
   @@map("persons")
 }
 
@@ -391,21 +427,10 @@ model Case {
   menorAutodenuncia    Boolean @default(false)
   denunciaAnonima      Boolean @default(false)
   involucraFuncionario Boolean @default(false)
-
-  // Denunciante tercero (cuando no es el NNA mismo)
-  isThirdPartyComplainant Boolean  @default(false)
-  complainantFullName     String?
-  complainantDocumentId   String?
-  complainantRelation     String?  // MADRE, PADRE, TIO, DOCENTE, VECINO, OTRO, ETC
-  complainantPhone        String?
-  complainantAddress      String?
-
-  // Datos demográficos del NNA
-  nnaBirthDate            DateTime? @db.Date
-  nnaGender              Gender?
-  nnaCity                String?
-  nnaPhone               String?
-  nnaAddress             String?
+  intakeChannel      IntakeChannel      @default(DIRECTO)
+  isUrgent           Boolean            @default(false)
+  hasVisibleInjuries Boolean            @default(false)
+  incidentFrequency  IncidentFrequency  @default(PRIMERA_VEZ)
 
   // Campos de auditoría inmutable
   isDisabled             Boolean   @default(false)
@@ -455,20 +480,37 @@ model DisabilityReport {
 }
 
 model CaseParty {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  caseId     String     @db.Uuid
-  personId   String     @db.Uuid
-  roleInCase RoleInCase
-  isPrimary  Boolean    @default(false)
-  createdAt  DateTime   @default(now()) @db.Timestamptz(6)
-  createdBy  String     @db.Uuid
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  caseId       String          @db.Uuid
+  personId     String          @db.Uuid
+  roleInCase   RoleInCase
+  isPrimary    Boolean         @default(false)
+  relationship String?  // Relationship/kinship with the victim
+  occupation   String?  // Occupation at the time of the case
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  createdBy    String          @db.Uuid
 
-  case    Case   @relation(fields: [caseId], references: [id])
-  person  Person @relation(fields: [personId], references: [id])
-  creator User   @relation("CreatedCaseParties", fields: [createdBy], references: [id])
+  case       Case            @relation(fields: [caseId], references: [id])
+  person     Person          @relation(fields: [personId], references: [id])
+  creator    User            @relation("CreatedCaseParties", fields: [createdBy], references: [id])
+  nnaContext CaseNnaContext?
 
   @@unique([caseId, personId, roleInCase])
   @@map("case_parties")
+}
+
+model CaseNnaContext {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  casePartyId          String    @unique @db.Uuid
+  schoolGrade          String?
+  schoolName           String?
+  livesWithDescription String?
+  estimatedAge         Int?
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+
+  caseParty CaseParty @relation(fields: [casePartyId], references: [id])
+
+  @@map("case_nna_contexts")
 }
 
 model CaseTeamHistory {
@@ -586,6 +628,9 @@ model Evidence {
   isSensitive         Boolean             @default(false)
   description         String?
   transcriptionStatus TranscriptionStatus @default(DIGITAL_NATIVO)
+  ragStatus           RagProcessingStatus @default(PENDING)
+  ragError            String?
+  ragProcessedAt      DateTime?           @db.Timestamptz(6)
   createdAt           DateTime            @default(now()) @db.Timestamptz(6)
 
   case            Case              @relation(fields: [caseId], references: [id])
@@ -851,10 +896,12 @@ model DocumentTemplate {
   id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code              String        @unique
   name              String
-  documentType      String        @unique
+  documentType      String
   targetRole        Role
   requiresCoAuthor  Boolean       @default(false)
   structure         Json
+  templateFilePath  String?
+  content           String?       @db.Text
   version           Int           @default(1)
   isActive          Boolean       @default(true)
   createdAt         DateTime      @default(now()) @db.Timestamptz(6)
@@ -873,6 +920,8 @@ model Instrument {
   version               Int             @default(1)
   isActive              Boolean         @default(true)
   structuredContent     Json
+  templateFilePath      String?
+  content               String?         @db.Text
   documentTemplateId    String?         @db.Uuid
   documentTemplate      DocumentTemplate? @relation(fields: [documentTemplateId], references: [id])
   discipline            Discipline      @relation(fields: [disciplineId], references: [id])
@@ -918,6 +967,7 @@ model CaseChunk {
   sourceType  String                    // 'audio_transcript' | 'image_description' | 'pdf_text' | 'report' | 'action_log'
   content     String
   metadata    Json      @default("{}")
+  chunkIndex  Int       @default(0)
 
   embedding   Unsupported("vector(768)")?
 
@@ -926,6 +976,7 @@ model CaseChunk {
   case        Case      @relation("CasechunkCase", fields: [caseId], references: [id])
 
   @@index([caseId])
+  @@unique([evidenceId, sourceType, chunkIndex])
   @@map("case_chunks")
 }
 
