@@ -7,6 +7,10 @@ COPY apps/web ./apps/web
 
 RUN npm ci
 RUN npm run build --workspace=@defensoria/shared
+
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 RUN npm run build --workspace=@defensoria/web
 
 FROM node:20-alpine AS runner
