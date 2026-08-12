@@ -44,6 +44,9 @@ services:
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_prod_admin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change_minio_pass_in_prod}
+      OLLAMA_URL: http://ia_ollama:11434
+      OLLAMA_ENDPOINT: http://ia_ollama:11434
+      OLLAMA_BASE_URL: http://ia_ollama:11434
     ports:
       - "4100:4100"
     depends_on:

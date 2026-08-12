@@ -62,7 +62,8 @@ export class AiConfigService {
 
   async getLocalModels() {
     try {
-      const response = await fetch('http://localhost:11434/api/tags');
+      const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+      const response = await fetch(`${ollamaUrl}/api/tags`);
       if (!response.ok) return [];
       const data = await response.json();
       return data.models.map((m: any) => m.name);
@@ -81,7 +82,8 @@ export class AiConfigService {
 
     // Check Ollama
     try {
-      const ollamaRes = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+      const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+      const ollamaRes = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
       results.ollama = ollamaRes.ok ? 'ok' : 'degraded';
     } catch {
       results.ollama = 'degraded';
