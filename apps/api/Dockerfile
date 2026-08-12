@@ -8,6 +8,7 @@ COPY apps/api ./apps/api
 
 RUN npm ci
 RUN npm run db:generate
+RUN npm run build --workspace=@defensoria/shared
 RUN npm run build --workspace=@defensoria/api
 
 FROM node:20-alpine AS runner
