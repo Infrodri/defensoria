@@ -133,7 +133,7 @@ function PsychologicalToolsContent() {
             <div style={{ padding: '1rem 1.25rem', backgroundColor: ACCENT, color: 'white' }}>
               <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>🧠 Herramientas Psicológicas</h2>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', opacity: 0.85 }}>
-                Seleccioná la herramienta, revisá el contexto cargado y ejecutá el análisis con IA.
+                Selecciona la herramienta, revisa el contexto cargado y ejecuta el análisis con IA.
               </p>
             </div>
             <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -260,10 +260,10 @@ function PsychologicalToolsContent() {
           evidences={evidences}
           reports={reports}
           steps={[
-            'Elegí la herramienta psicológica en el panel izquierdo',
-            'Verificá que el expediente y materiales estén cargados',
-            'Completá los campos requeridos (transcripción, notas, etc.)',
-            'Presioná el botón de análisis',
+            'Elige la herramienta psicológica en el panel izquierdo',
+            'Verifica que el expediente y materiales estén cargados',
+            'Completa los campos requeridos (transcripción, notas, etc.)',
+            'Presiona el botón de análisis',
             'La IA procesa el contexto del caso y genera el análisis especializado',
             'Usá el resultado para redactar el informe psicológico',
           ]}

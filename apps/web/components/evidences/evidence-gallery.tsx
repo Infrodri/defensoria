@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, File, Lock, X, Play, FileText, Image as ImageIcon, Music, Video, Shield, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { SecurityTokenModal } from '../security/security-token-modal';
 import { fetchApi } from '@/lib/api';
@@ -48,10 +48,8 @@ interface TranscriptionButtonProps {
 function TranscriptionButton({ evidence, transcriptionState, onTranscribe, onToggle }: TranscriptionButtonProps) {
   const cat = getMimeCategory(evidence.mimeType);
   const isAudioVideo = cat === 'audio' || cat === 'video';
-
-  // Solo audio/video puede transcribirse manualmente.
-  // Imágenes y PDFs se procesan automáticamente al subir (pipeline RAG).
-  if (!isAudioVideo) return null;
+  const isImage = cat === 'image';
+  const isDoc = cat === 'document';
 
   const ts = transcriptionState;
   const isLoading = ts?.loading ?? false;
@@ -91,7 +89,7 @@ function TranscriptionButton({ evidence, transcriptionState, onTranscribe, onTog
       ) : hasResult ? (
         <>
           <CheckCircle2 size={14} />
-          {isAudioVideo ? 'Transcripción' : 'OCR / Visión'}
+          {isAudioVideo ? 'Transcripción' : isImage ? 'OCR / Visión' : 'Texto Extraído'}
         </>
       ) : hasError ? (
         <>
@@ -100,8 +98,8 @@ function TranscriptionButton({ evidence, transcriptionState, onTranscribe, onTog
         </>
       ) : (
         <>
-          {isAudioVideo ? <Music size={14} /> : <ImageIcon size={14} />}
-          {isAudioVideo ? 'Transcribir' : 'OCR / Visión'}
+          {isAudioVideo ? <Music size={14} /> : isImage ? <ImageIcon size={14} /> : <FileText size={14} />}
+          {isAudioVideo ? 'Transcribir' : isImage ? 'Visión / OCR' : 'Extraer Texto'}
         </>
       )}
     </button>
@@ -383,6 +381,22 @@ export function EvidenceGallery({ caseId, evidences, onEvidenceUploaded, canUplo
 
   // Transcripción / OCR por evidencia
   const [transcriptionState, setTranscriptionState] = useState<Record<string, { loading: boolean; result: string | null; error: string | null; expanded: boolean }>>({});
+
+  // Auto-populate existing transcriptions from backend so users don't need to re-transcribe
+  useEffect(() => {
+    if (evidences && evidences.length > 0) {
+      const initial: Record<string, { loading: boolean; result: string | null; error: string | null; expanded: boolean }> = {};
+      for (const ev of evidences) {
+        const text = ev.transcriptions?.[0]?.text;
+        if (text && text.trim().length > 0 && !text.startsWith('[OCR no disponible') && !text.startsWith('[Transcripción no disponible')) {
+          initial[ev.id] = { loading: false, result: text, error: null, expanded: true };
+        }
+      }
+      if (Object.keys(initial).length > 0) {
+        setTranscriptionState((prev) => ({ ...initial, ...prev }));
+      }
+    }
+  }, [evidences]);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4100/api';
 

@@ -18,6 +18,7 @@ import {
   BookOpen,
   ExternalLink,
   ClipboardList,
+  Activity,
 } from 'lucide-react';
 
 interface NavItem {
@@ -125,7 +126,7 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
       { label: 'Expedientes',         href: '/casos',        icon: FileText },
       { label: 'Inicio de caso',     href: '/ingesta-caso', icon: UserPlus },
       { label: 'Inspecciones',        href: '/inspecciones', icon: ShieldCheck },
-      { label: 'Reportes GAM',        href: '/reportes',     icon: FileText },
+      { label: 'Reportes GAM',        href: '/reportes-gam', icon: FileText },
       { label: 'Balanceo de Equipo',  href: '/equipo',       icon: Users },
     ],
   },
@@ -145,6 +146,7 @@ const NAV_GROUPS_ADMINISTRADOR: NavGroup[] = [
       { label: 'Verificar Herramientas', href: '/admin/tools-verification', icon: BrainCircuit },
       { label: 'Configuración IA',     href: '/panel/admin/ia',            icon: BrainCircuit },
       { label: 'Base de Conocimiento', href: '/panel/admin/conocimiento',  icon: Database },
+      { label: 'Monitor Procesos RAG', href: '/panel/admin/procesos',      icon: Activity },
       { label: 'Disciplinas',          href: '/panel/admin/disciplinas',   icon: BookOpen },
       { label: 'Catálogos',            href: '/panel/admin/catalogos',     icon: Building2 },
       { label: 'Mantenimiento',        href: '/panel/admin/mantenimiento', icon: Shield },

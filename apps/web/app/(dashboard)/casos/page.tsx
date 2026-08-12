@@ -79,7 +79,7 @@ export default function CasosListPage() {
       ) : cases.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 1rem', backgroundColor: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
           <FileText size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)' }}>No tenés casos asignados o registrados</h3>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)' }}>No tienes casos asignados o registrados</h3>
           <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
             Los expedientes aparecerán aquí según tu rol y asignación activa.
           </p>

@@ -32,6 +32,8 @@ function LegalToolsContent() {
   const tool        = (params.get('tool') || 'discrepancias') as LegalTool;
   const evidenceIds = params.get('evidences')?.split(',').filter(Boolean) || [];
   const reportIds   = params.get('reports')?.split(',').filter(Boolean) || [];
+  const autorun     = params.get('autorun') === 'true';
+  const [autoRunDone, setAutoRunDone] = useState(false);
 
   const [caseData,        setCaseData]        = useState<any>(null);
   const [evidences,       setEvidences]       = useState<any[]>([]);
@@ -59,6 +61,14 @@ function LegalToolsContent() {
       setReports((reps as any[]).filter((r: any) => reportIds.length === 0 || reportIds.includes(r.id)));
     });
   }, [caseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!caseId || autoRunDone) return;
+    if (autorun && activeTool === 'discrepancias') {
+      setAutoRunDone(true);
+      handleAnalyze();
+    }
+  }, [caseId, autorun, activeTool, autoRunDone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAnalyze = async () => {
     if (!caseId) { setError('No hay expediente seleccionado.'); return; }
@@ -122,7 +132,7 @@ function LegalToolsContent() {
             <div style={{ padding: '1rem 1.25rem', backgroundColor: ACCENT, color: 'white' }}>
               <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>⚖️ Herramientas Legales</h2>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', opacity: 0.85 }}>
-                Seleccioná la herramienta, completá los campos y ejecutá el análisis.
+                Selecciona la herramienta, completa los campos y ejecuta el análisis.
               </p>
             </div>
             <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -635,11 +645,11 @@ function MaterialsPanel({ caseData, evidences, reports }: { caseData: any; evide
           💡 ¿Cómo funciona?
         </div>
         <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.75rem', color: '#0c4a6e', lineHeight: 1.6 }}>
-          <li>Elegí la herramienta legal</li>
-          <li>Completá los campos requeridos</li>
-          <li>Presioná el botón de análisis</li>
+          <li>Elige la herramienta legal</li>
+          <li>Completa los campos requeridos</li>
+          <li>Presiona el botón de análisis</li>
           <li>El sistema consulta al backend con los datos del expediente</li>
-          <li>Usá el resultado para redactar el informe jurídico</li>
+          <li>Usa el resultado para redactar el informe jurídico</li>
         </ol>
       </div>
     </div>

@@ -55,14 +55,14 @@ export default function CopilotPage() {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const res = await fetchApi('/ai/draft-legal-document', {
+      const res = await fetchApi('/ai/chat-general', {
         method: 'POST',
-        body: JSON.stringify({ context: query }),
+        body: JSON.stringify({ message: query }),
       });
-      setDraft(res.draft);
-      toast.success('Borrador generado exitosamente.');
+      setDraft(res.response);
+      toast.success('Respuesta generada por Copiloto General (IA Local).');
     } catch (err: any) {
-      toast.error('Error al generar borrador', { description: err.message });
+      toast.error('Error al consultar Copiloto', { description: err.message });
     } finally {
       setLoading(false);
     }
@@ -82,14 +82,14 @@ export default function CopilotPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--bosque-profundo)', marginBottom: '1rem' }}>
-            Consulta / Contexto del Expediente
+            Consulta de Normativa / Asistente General
           </h3>
           <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               rows={8}
-              placeholder={config.placeholder}
+              placeholder="Realice preguntas sobre normativa legal, Ley 548, procedimientos o plantillas..."
               style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: '0.875rem', boxSizing: 'border-box' }}
             />
             <button
@@ -109,7 +109,7 @@ export default function CopilotPage() {
                 gap: '0.5rem',
               }}
             >
-              <Bot size={18} /> {loading ? 'Generando con IA Local...' : config.boton}
+              <Bot size={18} /> {loading ? 'Consultando RAG de Normativa...' : 'Consultar Copiloto General'}
             </button>
           </form>
         </div>
@@ -117,7 +117,7 @@ export default function CopilotPage() {
         <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>
-              {config.subtitulo}
+              Respuesta Basada en Normativa Indexada
             </h3>
             {draft && (
               <button

@@ -331,6 +331,7 @@ function ToolCard({ toolId, canRead, canWrite }: ToolCardProps) {
                     caseId: selectedCaseId,
                     evidences: selectedEvidences.join(','),
                     reports: selectedReports.join(','),
+                    autorun: 'true',
                   });
                   const base = moduleMap[toolId] || '/herramientas';
                   window.location.href = `${base}&${params.toString()}`;
@@ -358,7 +359,7 @@ function ToolCard({ toolId, canRead, canWrite }: ToolCardProps) {
 
               {!canWrite && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'center' }}>
-                  Podés ver los análisis existentes pero no crear nuevos. Contactá al profesional autorizado.
+                  Puedes ver los análisis existentes pero no crear nuevos. Contacta al profesional autorizado.
                 </div>
               )}
             </>

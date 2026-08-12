@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { fetchApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { FileText, Lock, Plus, CheckCircle2, AlertTriangle, CornerDownRight, Printer, Edit3, Shield, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
@@ -480,8 +482,8 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                   </div>
                 )}
 
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, fontSize: '0.875rem', color: 'var(--grafito)' }}>
-                  {rep.content}
+                <div className="report-preview-content" style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--grafito)' }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{rep.content}</ReactMarkdown>
                 </div>
 
                 {rep.disciplineReportType?.category === 'INFORME_PSICOSOCIAL' && (
@@ -644,8 +646,8 @@ export function ReportEditor({ caseId, caseCode, nnaName, reports, onReportUpdat
                 <h4 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: '#374151', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.375rem', marginBottom: '0.75rem' }}>
                   DICTAMEN Y CONTENIDO TÉCNICO PROFESIONAL
                 </h4>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', lineHeight: 1.6, color: '#1f2937' }}>
-                  {previewReport.content}
+                <div className="report-preview-content" style={{ fontSize: '0.875rem', lineHeight: 1.8, color: '#1f2937' }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewReport.content}</ReactMarkdown>
                 </div>
               </div>
 

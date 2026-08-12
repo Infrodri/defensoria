@@ -13,8 +13,9 @@ import { CaseTimeline } from '@/components/cases/case-timeline';
 import { SpecialProceduresTabs } from '@/components/cases/tabs/special-procedures-tabs';
 import { AiCopilot } from '@/components/ai/ai-copilot';
 import { formatCaseType, formatInterventionPath, formatActionType, formatAppointmentType, formatRiskLevel } from '@defensoria/shared';
-import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin, ShieldAlert, FolderOpen } from 'lucide-react';
+import { Shield, Users, FileText, Building2, UserPlus, Clock, ArrowLeft, CheckCircle2, Lock, Plus, Calendar as CalendarIcon, MapPin, ShieldAlert, FolderOpen, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function CasoDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { id: caseId } = use(params);
@@ -90,19 +91,25 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
 
   // Staff users list for interactive assignment dropdown
   const [staffUsers, setStaffUsers] = useState<any[]>([]);
+  const [globalStaffUsers, setGlobalStaffUsers] = useState<any[]>([]);
   const [filteredStaff, setFilteredStaff] = useState<any[]>([]);
 
   const canManageCase = user?.role === 'ADMINISTRADOR' || user?.role === 'JEFATURA' || user?.role === 'SECRETARIA';
 
+  const isReassign = !!(assignRole && caseData?.teamHistory?.find(
+    (m: any) => m.role === assignRole && m.endDate === null
+  ));
+
   // Filter staff by selected role (backend already filters by isActive)
   useEffect(() => {
-    if (assignRole && staffUsers.length > 0) {
-      const filtered = staffUsers.filter((u) => u.role === assignRole);
+    if (assignRole && (staffUsers.length > 0 || globalStaffUsers.length > 0)) {
+      const sourceList = isReassign && globalStaffUsers.length > 0 ? globalStaffUsers : staffUsers;
+      const filtered = sourceList.filter((u) => u.role === assignRole);
       setFilteredStaff(filtered);
     } else {
       setFilteredStaff([]);
     }
-  }, [assignRole, staffUsers]);
+  }, [assignRole, staffUsers, globalStaffUsers, isReassign]);
 
   const loadCaseDetails = async () => {
     try {
@@ -126,6 +133,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
       setEvidences(evs);
       if (uList) {
         setStaffUsers(uList);
+        setGlobalStaffUsers(uList);
       }
 
       // Load professionals filtered by the case's office (overrides global list if results exist)
@@ -297,7 +305,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
       setAppLocation('');
       // NO resetear el profesional — es probable que la próxima cita sea del mismo
     } catch (err: any) {
-      alert(err.message || 'Error al programar cita');
+      toast.error(err.message || 'Error al programar cita');
     } finally {
       setSubmittingApp(false);
     }
@@ -693,9 +701,36 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                           {item.user?.firstName} {item.user?.lastName}
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.75rem', opacity: 0.7, textAlign: 'right' }}>
-                        Inicio: {new Date(item.startDate).toLocaleDateString('es-BO')}
-                        {item.endDate && <div>Fin: {new Date(item.endDate).toLocaleDateString('es-BO')}</div>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.7, textAlign: 'right' }}>
+                          Inicio: {new Date(item.startDate).toLocaleDateString('es-BO')}
+                          {item.endDate && <div>Fin: {new Date(item.endDate).toLocaleDateString('es-BO')}</div>}
+                        </div>
+                        {canManageCase && item.endDate === null && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssignRole(item.role);
+                              setAssignUserId('');
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              padding: '0.35rem 0.65rem',
+                              backgroundColor: 'var(--bosque-profundo)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: 'var(--radius)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                            title={`Reasignar profesional de ${item.role}`}
+                          >
+                            <RefreshCw size={12} /> Reasignar
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem', fontStyle: 'italic' }}>
@@ -795,15 +830,21 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.375rem' }}>Motivo</label>
-                  <textarea
-                    rows={3}
-                    value={assignReason}
-                    onChange={(e) => setAssignReason(e.target.value)}
-                    placeholder="Justifique la asignación (mínimo 10 caracteres)..."
-                    required
-                    minLength={10}
-                    style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
-                  />
+                  {(() => {
+                    const currentActive = caseData?.teamHistory?.find((m: any) => m.role === assignRole && m.endDate === null);
+                    const isReassign = !!currentActive;
+                    return (
+                      <textarea
+                        rows={3}
+                        value={assignReason}
+                        onChange={(e: any) => setAssignReason(e.target.value)}
+                        placeholder={isReassign ? "Justifique la reasignación (mínimo 10 caracteres)..." : "Justifique la asignación (mínimo 10 caracteres)..."}
+                        required
+                        minLength={10}
+                        style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                      />
+                    );
+                  })()}
                   <p style={{ fontSize: '0.75rem', color: 'var(--grafito)', marginTop: '0.25rem', opacity: 0.7 }}>
                     {assignReason.length}/10 caracteres mínimos
                   </p>
@@ -1018,7 +1059,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
             ).length > 0 && (
               <div style={{ backgroundColor: 'oklch(0.96 0.08 85)', border: '1px solid oklch(0.85 0.1 85)', borderRadius: 'var(--radius)', padding: '1rem 1.25rem', marginBottom: '1.5rem', gridColumn: '1 / -1' }}>
                 <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--bosque-profundo)', marginBottom: '0.75rem' }}>
-                  📬 Tenés {appointments.filter((a: any) => a.status === 'PROPUESTA' && a.assignedProfessionalId === user?.id).length} propuesta(s) de cita pendiente(s) de respuesta
+                  📬 Tienes {appointments.filter((a: any) => a.status === 'PROPUESTA' && a.assignedProfessionalId === user?.id).length} propuesta(s) de cita pendiente(s) de respuesta
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                   {appointments
@@ -1184,7 +1225,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                 <p style={{ fontSize: '0.75rem', color: 'var(--grafito)', opacity: 0.7, marginBottom: '1.25rem' }}>
                   {canManageCase
                     ? 'Asigná el profesional responsable y define la cita.'
-                    : 'Como profesional asignado, podés programar tu propia cita.'}
+                    : 'Como profesional asignado, puedes programar tu propia cita.'}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1273,10 +1314,10 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                               fontSize: '0.8rem',
                             }}>
                               <div style={{ fontWeight: 700, color: 'var(--tierra-calida)', marginBottom: '0.375rem' }}>
-                                💡 ¿Necesitás sugerir esta cita a un colega {user?.role}?
+                                💡 ¿Necesitas sugerir esta cita a un colega {user?.role}?
                               </div>
                               <div style={{ color: 'var(--grafito)', marginBottom: '0.5rem', fontSize: '0.75rem' }}>
-                                Podés crear la cita como propuesta para que otro profesional del mismo rol la atienda:
+                                Puedes crear la cita como propuesta para que otro profesional del mismo rol la atienda:
                               </div>
                               <select
                                 onChange={(e) => {
@@ -1293,7 +1334,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                                 ))}
                               </select>
                               <div style={{ fontSize: '0.7rem', color: 'var(--grafito)', opacity: 0.8, marginTop: '0.375rem' }}>
-                                ℹ️ Si elegís un colega que no está en el equipo, la cita quedará como PROPUESTA para que él confirme disponibilidad.
+                                ℹ️ Si eliges un colega que no está en el equipo, la cita quedará como PROPUESTA para que él confirme disponibilidad.
                               </div>
                             </div>
                           )}
@@ -1505,7 +1546,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
       )}
 
       {/* AI Copilot Widget */}
-      <AiCopilot context={caseData.narrative} isLegalRole={user?.role === 'ABOGADO' || user?.role === 'JEFATURA'} />
+      <AiCopilot caseId={caseId} context={caseData.narrative} isLegalRole={user?.role === 'ABOGADO' || user?.role === 'JEFATURA'} />
 
       {/* ── Modal: Profesional responde a propuesta de cita ── */}
       {respondingApp && (
@@ -1630,7 +1671,7 @@ export default function CasoDetailPage({ params, searchParams }: { params: Promi
                     style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
                   />
                   <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem' }}>
-                    La secretaria no especificó una fecha. Como profesional asignado, podés definirla.
+                    La secretaria no especificó una fecha. Como profesional asignado, puedes definirla.
                   </div>
                 </div>
               )}

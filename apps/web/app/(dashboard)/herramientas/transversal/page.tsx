@@ -72,7 +72,7 @@ function TransversalToolsContent() {
     if (!caseId) { setError('No hay expediente seleccionado.'); return; }
 
     if (def.requiresReporte && !reporteId) {
-      setError('Seleccioná un informe para anonimizar.');
+      setError('Selecciona un informe para anonimizar.');
       return;
     }
 
@@ -108,7 +108,7 @@ function TransversalToolsContent() {
             <div style={{ padding: '1rem 1.25rem', backgroundColor: ACCENT, color: 'white' }}>
               <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>🔗 Herramientas Transversales</h2>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', opacity: 0.85 }}>
-                Seleccioná la herramienta, revisá el contexto cargado y ejecutá el análisis con IA.
+                Selecciona la herramienta, revisa el contexto cargado y ejecuta el análisis con IA.
               </p>
             </div>
             <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -159,7 +159,7 @@ function TransversalToolsContent() {
                   onChange={(e) => setReporteId(e.target.value)}
                   style={{ width: '100%', padding: '0.625rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', backgroundColor: 'var(--papel)', fontSize: '0.8rem', color: 'var(--grafito)', fontFamily: 'inherit' }}
                 >
-                  <option value="">Seleccioná un informe...</option>
+                  <option value="">Selecciona un informe...</option>
                   {reports.map((r: any) => (
                     <option key={r.id} value={r.id}>{r.title} (v{r.version})</option>
                   ))}
@@ -214,12 +214,12 @@ function TransversalToolsContent() {
           evidences={evidences}
           reports={reports}
           steps={[
-            'Elegí la herramienta transversal en el panel izquierdo',
-            'Verificá que el expediente y materiales estén cargados',
-            'Seleccioná el informe a anonimizar si corresponde',
-            'Presioná el botón de análisis',
+            'Elige la herramienta transversal en el panel izquierdo',
+            'Verifica que el expediente y materiales estén cargados',
+            'Selecciona el informe a anonimizar si corresponde',
+            'Presiona el botón de análisis',
             'La herramienta consolida la información del expediente y genera el resultado',
-            'Usá el resultado para la intervención del equipo interdisciplinario',
+            'Usa el resultado para la intervención del equipo interdisciplinario',
           ]}
         />
       </div>
