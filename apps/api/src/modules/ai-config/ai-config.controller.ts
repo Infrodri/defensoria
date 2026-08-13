@@ -28,8 +28,8 @@ export class AiConfigController {
 
   @Get('models')
   @ApiOperation({ summary: 'Listar modelos disponibles en el Ollama local' })
-  getModels() {
-    return this.configService.getLocalModels();
+  async getModels() {
+    return { models: await this.configService.getLocalModels() };
   }
 
   @Get('health')
