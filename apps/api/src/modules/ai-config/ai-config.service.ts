@@ -17,7 +17,7 @@ export class AiConfigService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getConfig(): Promise<AiConfigDto> {
-    const keys = ['AI_MODEL_TEXT', 'AI_MODEL_EMBEDDING', 'AI_WHISPER_ENDPOINT', 'AI_WHISPER_MODEL'];
+    const keys = ['AI_MODEL_TEXT', 'AI_MODEL_EMBEDDING', 'AI_WHISPER_ENDPOINT', 'AI_WHISPER_MODEL', 'AI_OCR_ENDPOINT', 'AI_OCR_MODEL'];
     const settings = await this.prisma.systemSetting.findMany({
       where: { key: { in: keys } },
     });
