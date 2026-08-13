@@ -91,16 +91,26 @@ export class AiConfigService {
 
     // Check Whisper
     try {
-      const whisperRes = await fetch('http://localhost:8000/health', { signal: AbortSignal.timeout(3000) });
-      results.whisper = whisperRes.ok ? 'ok' : 'degraded';
+      const whisperUrl = await this.getWhisperUrl();
+      if (!whisperUrl) {
+        results.whisper = 'unknown'; // Desactivado intencionalmente
+      } else {
+        const whisperRes = await fetch(`${whisperUrl}/health`, { signal: AbortSignal.timeout(3000) });
+        results.whisper = whisperRes.ok ? 'ok' : 'degraded';
+      }
     } catch {
       results.whisper = 'degraded';
     }
 
     // Check OCR
     try {
-      const ocrRes = await fetch('http://localhost:8001/health', { signal: AbortSignal.timeout(3000) });
-      results.ocr = ocrRes.ok ? 'ok' : 'degraded';
+      const ocrUrl = await this.getOcrUrl();
+      if (!ocrUrl) {
+        results.ocr = 'unknown'; // Desactivado intencionalmente
+      } else {
+        const ocrRes = await fetch(`${ocrUrl}/health`, { signal: AbortSignal.timeout(3000) });
+        results.ocr = ocrRes.ok ? 'ok' : 'degraded';
+      }
     } catch {
       results.ocr = 'degraded';
     }
@@ -110,36 +120,24 @@ export class AiConfigService {
 
   async startServices() {
     const results: { whisper: string; ocr: string; ollama: string } = { whisper: 'starting', ocr: 'starting', ollama: 'active' };
-    
-    // In production, you might want to use docker compose or individual docker run commands
-    // For now, we'll just return that we attempted to start services
-    // The actual implementation would depend on your production environment
-    
     this.logger.log('Iniciando servicios de IA (solo producción)');
-    
-    // In a real implementation, you would:
-    // 1. Check if services are already running
-    // 2. Use docker compose or docker run commands
-    // 3. Wait for services to be ready
-    // 4. Return status
-    
-    // For now, we'll simulate the behavior with a timeout
     setTimeout(() => {
-      results.whisper = 'degraded'; // Whisper is not running by default
-      results.ocr = 'degraded';     // OCR is not running by default
+      results.whisper = 'degraded';
+      results.ocr = 'degraded';
     }, 2000);
-    
     return results;
   }
 
   private async getWhisperUrl(): Promise<string> {
     const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_WHISPER_ENDPOINT' } });
+    if (setting && setting.value === '') return '';
     const endpoint = setting?.value || process.env.WHISPER_API_URL || 'http://localhost:8000/v1/audio/transcriptions';
     return endpoint.replace('/v1/audio/transcriptions', '');
   }
 
   private async getOcrUrl(): Promise<string> {
     const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_OCR_ENDPOINT' } });
+    if (setting && setting.value === '') return '';
     const endpoint = setting?.value || process.env.OCR_API_URL || 'http://localhost:8001/v1/vision';
     return endpoint.replace('/v1/vision', '');
   }
