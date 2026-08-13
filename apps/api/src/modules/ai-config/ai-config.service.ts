@@ -104,12 +104,19 @@ export class AiConfigService {
 
     // Check OCR
     try {
-      const ocrUrl = await this.getOcrUrl();
-      if (!ocrUrl) {
+      const ocrModel = await this.getOcrModel();
+      if (!ocrModel) {
         results.ocr = 'unknown'; // Desactivado intencionalmente
       } else {
-        const ocrRes = await fetch(`${ocrUrl}/health`, { signal: AbortSignal.timeout(3000) });
-        results.ocr = ocrRes.ok ? 'ok' : 'degraded';
+        const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+        const ollamaRes = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+        if (ollamaRes.ok) {
+          const data = await ollamaRes.json();
+          const hasVisionModel = data.models.some((m: any) => m.name === ocrModel || m.name.includes(ocrModel));
+          results.ocr = hasVisionModel ? 'ok' : 'degraded';
+        } else {
+          results.ocr = 'degraded';
+        }
       }
     } catch {
       results.ocr = 'degraded';
@@ -135,10 +142,9 @@ export class AiConfigService {
     return endpoint.replace('/v1/audio/transcriptions', '');
   }
 
-  private async getOcrUrl(): Promise<string> {
-    const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_OCR_ENDPOINT' } });
+  private async getOcrModel(): Promise<string> {
+    const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_OCR_MODEL' } });
     if (setting && setting.value === '') return '';
-    const endpoint = setting?.value || process.env.OCR_API_URL || 'http://localhost:8001/v1/vision';
-    return endpoint.replace('/v1/vision', '');
+    return setting?.value || process.env.OLLAMA_VISION_MODEL || 'qwen2.5-vl:7b';
   }
 }

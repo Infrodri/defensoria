@@ -154,7 +154,7 @@ export default function AiConfigPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Activity size={18} color={serviceHealth.ocr === 'ok' ? 'var(--salvia)' : serviceHealth.ocr === 'degraded' ? 'var(--tierra-calida)' : 'var(--grafito)'} />
-          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>OCR / Visión</span>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Visión (Ollama)</span>
           <span style={{
             fontSize: '0.75rem',
             padding: '0.125rem 0.5rem',
@@ -300,49 +300,33 @@ export default function AiConfigPage() {
           />
         </section>
 
-        {/* OCR Card */}
+        {/* Vision Card */}
         <section style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--bosque-profundo)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <ImageIcon size={20} color="var(--tierra-calida)" /> OCR / Visión de Documentos
+            <ImageIcon size={20} color="var(--tierra-calida)" /> Modelo de Visión (Ollama)
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--grafito)', opacity: 0.8, marginBottom: '1rem' }}>
-            Endpoint del servicio de OCR local para extraer texto de documentos escaneados y archivos de evidencia.
+            Selecciona el modelo visual que analizará imágenes y documentos escaneados.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <input
-              type="text"
-              value={ocrEndpoint}
-              onChange={(e) => setOcrEndpoint(e.target.value)}
-              placeholder="http://localhost:8000/v1/vision"
-              style={{
-                width: '100%',
-                padding: '0.625rem 0.875rem',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--papel)',
-                fontSize: '0.875rem',
-                fontFamily: 'monospace',
-                boxSizing: 'border-box',
-              }}
-            />
-            <input
-              type="text"
-              value={ocrModel}
-              onChange={(e) => setOcrModel(e.target.value)}
-              placeholder="qwen2.5-vl:7b"
-              style={{
-                width: '100%',
-                padding: '0.625rem 0.875rem',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--papel)',
-                fontSize: '0.875rem',
-                fontFamily: 'monospace',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          <select
+            value={ocrModel}
+            onChange={(e) => setOcrModel(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.625rem 0.875rem',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--papel)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
+            <option value="">-- Ninguno (Desactivar) --</option>
+            {availableModels.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
         </section>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
