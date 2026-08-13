@@ -16,7 +16,7 @@ async function getVisionModel(ollamaUrl: string): Promise<string> {
     const models: any[] = tagsRes.data?.models || [];
     const found = models.find((m) =>
       m.capabilities?.includes('vision') ||
-      ['llava', 'gemma4:12b', 'qwen3.5:35b', 'llama3.2-vision', 'bakllava'].some((v) => m.name?.toLowerCase().includes(v))
+      ['llava', 'gemma4:12b', 'qwen3.5:35b', 'llama3.2-vision', 'bakllava', 'qwen2.5-vl'].some((v) => m.name?.toLowerCase().includes(v))
     );
     if (found) visionModel = found.name;
   } catch (tagsErr) {
