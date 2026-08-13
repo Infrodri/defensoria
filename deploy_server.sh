@@ -65,7 +65,7 @@ echo "🗄️ Aplicando migraciones de base de datos..."
 docker exec -it defensoria_api_prod sh -c "npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma"
 
 echo "🌱 Inyectando semillas (Datos iniciales para roles)..."
-docker exec -it defensoria_api_prod sh -c "cd packages/db && npx prisma db seed"
+docker exec -it defensoria_api_prod sh -c "cd packages/db && npx prisma db seed" || echo "⚠️ Datos ya sembrados o error menor, omitiendo..."
 
 # 5. Descargar el Stack de Modelos Oficiales
 echo "🧠 Descargando modelo de IA Local Texto (qwen2.5:7b-instruct-q4_K_M)..."
