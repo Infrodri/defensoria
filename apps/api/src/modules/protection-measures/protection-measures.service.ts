@@ -6,7 +6,7 @@ import { UpdateProtectionMeasureDto } from './dto/update-protection-measure.dto'
 import { ProtectionMeasureType } from '@prisma/client';
 
 /**
- * Regla normativa (DNA Sucre): para la medida ACOGIMIENTO_CIRCUNSTANCIAL la
+ * Regla normativa (DNA ): para la medida ACOGIMIENTO_CIRCUNSTANCIAL la
  * notificación al juzgado debe realizarse dentro de las 24 horas siguientes a la
  * ejecución de la medida. Si no hay notificación registrada o excede las 24h,
  * isWithinLegalDeadline=false y se devuelve una alerta en la respuesta.

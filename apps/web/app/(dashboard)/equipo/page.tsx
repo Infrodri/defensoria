@@ -32,7 +32,7 @@ export default function EquipoPage() {
           Balanceo de Equipo Interdisciplinario
         </h1>
         <p style={{ color: 'var(--grafito)', opacity: 0.8, marginTop: '0.25rem' }}>
-          Gestión de carga laboral de los profesionales asignados en la Defensoría Central Sucre
+          Gestión de carga laboral de los profesionales asignados en la Defensoría Central 
         </p>
       </div>
 

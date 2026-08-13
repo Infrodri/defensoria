@@ -90,7 +90,7 @@ export default function LoginPage() {
               opacity: 0.8,
             }}
           >
-            Gobierno Autónomo Municipal de Sucre — Bolivia
+            Gobierno Autónomo Municipal — Bolivia
             <br />
             Ley N° 548 / Código Niña, Niño y Adolescente
           </div>

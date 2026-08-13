@@ -11,7 +11,7 @@ export default function DerivacionPage() {
           Directorio de Derivación Interinstitucional
         </h1>
         <p style={{ color: 'var(--grafito)', opacity: 0.8, marginTop: '0.25rem' }}>
-          Red de apoyo del GAM Sucre, Juzgados de Niñez, Salud y Entidades de Acogimiento
+          Red de apoyo del GAM, Juzgados de Niñez, Salud y Entidades de Acogimiento
         </p>
       </div>
 
@@ -24,7 +24,7 @@ export default function DerivacionPage() {
 
         <div style={{ backgroundColor: 'var(--card)', padding: '1.5rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
           <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--bosque-profundo)' }}>Instancia Técnica Departamental (ITDPS - Chuquisaca)</h3>
-          <p style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}><MapPin size={14} /> Av. Jaime Mendoza N° 2300, Sucre</p>
+          <p style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}><MapPin size={14} /> Av. Jaime Mendoza N° 2300</p>
           <p style={{ fontSize: '0.875rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Phone size={14} /> +591 4 64-61010</p>
         </div>
       </div>

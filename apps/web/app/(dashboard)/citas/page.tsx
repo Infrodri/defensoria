@@ -745,7 +745,7 @@ export default function CitasPage() {
             <div style={{ padding: '2rem', overflowY: 'auto', flex: 1, backgroundColor: '#ffffff', color: '#111827', fontFamily: 'Arial, sans-serif' }}>
               <div style={{ textAlign: 'center', borderBottom: '2px solid #111827', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                  Gobierno Autónomo Municipal de Sucre
+                  Gobierno Autónomo Municipal
                 </h2>
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#374151', margin: '0.25rem 0' }}>
                   Defensoría de la Niñez y Adolescencia (DNA)

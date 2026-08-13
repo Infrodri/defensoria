@@ -81,7 +81,7 @@ export default function LoginPage() {
 
         <div>
           <p style={{ opacity: 0.7, fontSize: '0.875rem' }}>
-            Gobierno Autónomo Municipal de Sucre · Unidad de Asuntos Generacionales
+            Gobierno Autónomo Municipal · Unidad de Asuntos Generacionales
           </p>
         </div>
       </div>
