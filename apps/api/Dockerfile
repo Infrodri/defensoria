@@ -14,6 +14,8 @@ RUN npm run build --workspace=@defensoria/api
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+RUN apk add --no-cache postgresql-client
+
 ENV NODE_ENV=production
 ENV PORT=4100
 
