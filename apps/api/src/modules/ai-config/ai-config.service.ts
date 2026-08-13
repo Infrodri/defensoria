@@ -30,7 +30,7 @@ export class AiConfigService {
       whisperEndpoint: map.get('AI_WHISPER_ENDPOINT') || 'http://localhost:8000/v1/audio/transcriptions',
       whisperModel: map.get('AI_WHISPER_MODEL') || 'whisper-1',
       ocrEndpoint: map.get('AI_OCR_ENDPOINT') || 'http://localhost:8000/v1/vision',
-      ocrModel: map.get('AI_OCR_MODEL') || 'qwen2.5-vl:7b',
+      ocrModel: map.get('AI_OCR_MODEL') || 'llama3.2-vision',
     };
   }
 
@@ -145,6 +145,6 @@ export class AiConfigService {
   private async getOcrModel(): Promise<string> {
     const setting = await this.prisma.systemSetting.findUnique({ where: { key: 'AI_OCR_MODEL' } });
     if (setting && setting.value === '') return '';
-    return setting?.value || process.env.OLLAMA_VISION_MODEL || 'qwen2.5-vl:7b';
+    return setting?.value || process.env.OLLAMA_VISION_MODEL || 'llama3.2-vision';
   }
 }
